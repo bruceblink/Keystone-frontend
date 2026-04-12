@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "strict": false,
     "jsx": "preserve",
     "importHelpers": true,
@@ -14,13 +14,12 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "allowJs": false,
     "resolveJsonModule": true,
     "lib": ["dom", "esnext"],
     "paths": {
-      "@/*": ["src/*"],
-      "@build/*": ["build/*"]
+      "@/*": ["./src/*"],
+      "@build/*": ["./build/*"]
     },
     "types": [
       "node",

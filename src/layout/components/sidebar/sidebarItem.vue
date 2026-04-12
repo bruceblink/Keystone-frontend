@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import path from "path";
 import { getConfig } from "@/config";
 import { menuType } from "../../types";
 import extraIcon from "./extraIcon.vue";
@@ -174,8 +173,22 @@ function resolvePath(routePath) {
   if (httpReg.test(routePath) || httpReg.test(props.basePath)) {
     return routePath || props.basePath;
   } else {
-    // 使用path.posix.resolve替代path.resolve 避免windows环境下使用electron出现盘符问题
-    return path.posix.resolve(props.basePath, routePath);
+    if (routePath?.startsWith("/")) return routePath;
+
+    const source = `${props.basePath || ""}/${routePath || ""}`;
+    const segments = source.split("/");
+    const stack = [];
+
+    for (const segment of segments) {
+      if (!segment || segment === ".") continue;
+      if (segment === "..") {
+        stack.pop();
+        continue;
+      }
+      stack.push(segment);
+    }
+
+    return `/${stack.join("/")}`;
   }
 }
 </script>

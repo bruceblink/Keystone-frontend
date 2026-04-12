@@ -45,6 +45,26 @@ export function setTokenFromBackend(data: TokenDTO): void {
   storageSession().setItem(sessionKey, data);
 }
 
+/** 兼容旧版单点登录参数写入 */
+export function setToken(data: DataInfo<Date>): void {
+  const legacyToken: any = {
+    token: {
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      expires: data.expires
+    },
+    currentUser: {
+      roleKey: Array.isArray(data.roles) ? data.roles[0] ?? "" : "",
+      userInfo: {
+        username: data.username ?? ""
+      }
+    }
+  };
+
+  Cookies.set(tokenKey, JSON.stringify(legacyToken));
+  storageSession().setItem(sessionKey, legacyToken as TokenDTO);
+}
+
 /** 删除`token`以及key值为`user-info`的session信息 */
 export function removeToken() {
   Cookies.remove(tokenKey);
