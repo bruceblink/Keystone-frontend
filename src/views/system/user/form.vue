@@ -72,12 +72,11 @@ defineExpose({ getFormRuleRef });
             v-model="newFormInline.deptId"
             :data="deptOptions"
             :show-all-levels="false"
+            check-strictly
             value-key="id"
             :props="{
-              value: 'id',
               label: 'deptName',
-              emitPath: false,
-              checkStrictly: true
+              children: 'children'
             }"
             clearable
             placeholder="请选择部门"
@@ -199,7 +198,7 @@ defineExpose({ getFormRuleRef });
             v-model="newFormInline.remark"
             clearable
             placeholder="请输入备注内容"
-            rows="6"
+            :rows="6"
             type="textarea"
           />
         </el-form-item>

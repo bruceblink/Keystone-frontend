@@ -12,7 +12,7 @@ export type ConfigDTO = {
   /** 验证码开关 */
   isCaptchaOn: boolean;
   /** 系统字典配置（下拉选项之类的） */
-  dictionary: Map<String, Array<DictionaryData>>;
+  dictionary: Map<string, DictionaryData[]>;
 };
 
 export type LoginByPasswordDTO = {

@@ -30,15 +30,11 @@ const options = [
 ];
 
 function onChange() {
-  useUserStoreHook()
-    .loginByUsername({ username: username.value, password: "admin123" })
-    .then(res => {
-      if (res.success) {
-        storageSession().removeItem("async-routes");
-        usePermissionStoreHook().clearAllCachePage();
-        initRouter();
-      }
-    });
+  useUserStoreHook().SET_USERNAME(username.value || "");
+  useUserStoreHook().SET_ROLES([username.value || "common"]);
+  storageSession().removeItem("async-routes");
+  usePermissionStoreHook().clearAllCachePage();
+  initRouter();
 }
 </script>
 

@@ -76,7 +76,7 @@ function handleOpened() {
   }
 }
 
-const treeRef = ref<InstanceType<typeof ElTree>>();
+const treeRef = ref<any>();
 function handleCheckChange() {
   formData.menuIds = treeRef.value.getCheckedKeys(false) as number[];
 }

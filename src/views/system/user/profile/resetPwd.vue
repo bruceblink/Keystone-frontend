@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, toRaw } from "vue";
+import { reactive, ref } from "vue";
 import {
   updateCurrentUserPasswordApi,
   ResetPasswordRequest
@@ -9,7 +9,11 @@ import { message } from "@/utils/message";
 
 // const { proxy } = getCurrentInstance();
 
-const user = reactive<ResetPasswordRequest>({
+type ResetPasswordForm = ResetPasswordRequest & {
+  confirmPassword?: string;
+};
+
+const user = reactive<ResetPasswordForm>({
   oldPassword: undefined,
   newPassword: undefined,
   confirmPassword: undefined
@@ -29,7 +33,8 @@ const rules = ref({
   newPassword: [
     { required: true, message: "新密码不能为空", trigger: "blur" },
     {
-      pattern:  /^(?![0-9]+$)(?![a-z]+$)(?![A-Z]+$)(?!([^(0-9a-zA-Z)]|[()])+$)(?!^.*[\u4E00-\u9FA5].*$)([^(0-9a-zA-Z)]|[()]|[a-z]|[A-Z]|[0-9]){8,18}$/,
+      pattern:
+        /^(?![0-9]+$)(?![a-z]+$)(?![A-Z]+$)(?!([^(0-9a-zA-Z)]|[()])+$)(?!^.*[\u4E00-\u9FA5].*$)([^(0-9a-zA-Z)]|[()]|[a-z]|[A-Z]|[0-9]){8,18}$/,
       message: "新密码格式应为8-18位数字、字母、符号的任意两种组合",
       trigger: "blur"
     }
@@ -45,7 +50,10 @@ function submit() {
   console.log(user);
   pwdRef.value.validate(valid => {
     if (valid) {
-      updateCurrentUserPasswordApi(toRaw(user)).then(() => {
+      updateCurrentUserPasswordApi({
+        oldPassword: user.oldPassword,
+        newPassword: user.newPassword
+      }).then(() => {
         message("修改成功", {
           type: "success"
         });

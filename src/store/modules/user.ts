@@ -24,13 +24,14 @@ export const useUserStore = defineStore({
       ? [storageSession().getItem<TokenDTO>(sessionKey)?.currentUser.roleKey]
       : [],
     dictionaryList:
-      storageLocal().getItem<Map<String, Array<DictionaryData>>>(
+      storageLocal().getItem<Map<string, DictionaryData[]>>(
         dictionaryListKey
       ) ?? new Map(),
     dictionaryMap:
-      storageLocal().getItem<Map<String, Map<String, DictionaryData>>>(
+      storageLocal().getItem<Record<string, Record<string, DictionaryData>>>(
         dictionaryMapKey
-      ) ?? new Map(),
+      ) ?? {},
+    verifyCode: "",
     currentUserInfo:
       storageSession().getItem<TokenDTO>(sessionKey)?.currentUser.userInfo ?? {}
   }),
@@ -45,29 +46,32 @@ export const useUserStore = defineStore({
       this.roles = roles;
     },
     /** 存储系统内的字典值 并拆分为Map形式和List形式 */
-    SET_DICTIONARY(dictionary: Map<String, Array<DictionaryData>>) {
+    SET_DICTIONARY(dictionary: Map<string, DictionaryData[]>) {
       /** 由于localStorage不能存储Map对象,所以用Obj来装载数据 */
-      const dictionaryMapTmp = {};
+      const dictionaryMapTmp: Record<
+        string,
+        Record<string, DictionaryData>
+      > = {};
 
-      for (const obj in dictionary) {
-        dictionaryMapTmp[obj] = dictionary[obj].reduce((map, dict) => {
-          map[dict.value] = dict;
+      dictionary.forEach((list, key) => {
+        dictionaryMapTmp[String(key)] = (list || []).reduce((map, dict) => {
+          map[String(dict.value)] = dict;
           return map;
-        }, {});
-      }
+        }, {} as Record<string, DictionaryData>);
+      });
 
       /** 将字典分成List形式和Map形式 List便于下拉框展示 Map便于匹配值 */
       this.dictionaryList = dictionary;
       this.dictionaryMap = dictionaryMapTmp;
 
-      storageLocal().setItem<Map<String, Array<DictionaryData>>>(
+      storageLocal().setItem<Map<string, DictionaryData[]>>(
         dictionaryListKey,
         dictionary
       );
 
-      storageLocal().setItem<Map<String, Map<String, DictionaryData>>>(
+      storageLocal().setItem<Record<string, Record<string, DictionaryData>>>(
         dictionaryMapKey,
-        dictionaryMapTmp as Map<String, Map<String, DictionaryData>>
+        dictionaryMapTmp
       );
     },
 

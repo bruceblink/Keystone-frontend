@@ -4,6 +4,8 @@ import { ref, PropType, nextTick } from "vue";
 import { useNav } from "@/layout/hooks/useNav";
 import { deviceDetection } from "@pureadmin/utils";
 
+type TagType = "primary" | "success" | "warning" | "danger" | "info";
+
 const props = defineProps({
   noticeItem: {
     type: Object as PropType<ListItem>,
@@ -17,6 +19,10 @@ const descriptionRef = ref(null);
 const descriptionTooltip = ref(false);
 const { tooltipEffect } = useNav();
 const isMobile = deviceDetection();
+
+function getTagType(status?: ListItem["status"]): TagType {
+  return (status || "info") as TagType;
+}
 
 function hoverTitle() {
   nextTick(() => {
@@ -77,7 +83,7 @@ function hoverDescription(event, description) {
         </el-tooltip>
         <el-tag
           v-if="props.noticeItem?.extra"
-          :type="props.noticeItem?.status"
+          :type="getTagType(props.noticeItem?.status)"
           size="small"
           class="notice-title-extra"
         >

@@ -78,7 +78,7 @@ defineExpose({ getFormRuleRef });
         v-model="noticeData.noticeContent"
         clearable
         placeholder="请输入公告内容"
-        rows="6"
+        :rows="6"
         type="textarea"
       />
     </el-form-item>

@@ -2,11 +2,17 @@
 import { useUserStoreHook } from "@/store/modules/user";
 import { OperationLogDTO } from "@/api/system/log";
 
+type TagType = "primary" | "success" | "warning" | "danger" | "info";
+
 /** TODO 有其他方式  来换掉这个props 父子组件传值吗？ */
 const props = defineProps<OperationLogDTO>();
 
 const operationLogStatusMap =
   useUserStoreHook().dictionaryMap["sysOperationLog.status"];
+
+function getTagType(status: number): TagType {
+  return (operationLogStatusMap?.[status]?.cssTag || "info") as TagType;
+}
 </script>
 
 <template>
@@ -74,10 +80,7 @@ const operationLogStatusMap =
       </el-text>
     </el-descriptions-item>
     <el-descriptions-item label="状态:"
-      ><el-tag
-        :type="operationLogStatusMap[props.status].cssTag"
-        effect="plain"
-      >
+      ><el-tag :type="getTagType(props.status)" effect="plain">
         {{ operationLogStatusMap[props.status].label }}
       </el-tag></el-descriptions-item
     >

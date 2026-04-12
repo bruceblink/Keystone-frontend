@@ -76,7 +76,7 @@ const ruleForm = reactive({
 const onLogin = async (formEl: FormInstance | undefined) => {
   loading.value = true;
   if (!formEl) return;
-  await formEl.validate((valid, fields) => {
+  await formEl.validate(valid => {
     if (valid) {
       CommonAPI.loginByPassword({
         username: ruleForm.username,
@@ -103,7 +103,6 @@ const onLogin = async (formEl: FormInstance | undefined) => {
         });
     } else {
       loading.value = false;
-      return fields;
     }
   });
 };
@@ -134,7 +133,9 @@ watch(isRememberMe, newVal => {
 onBeforeMount(async () => {
   await CommonAPI.getConfig().then(res => {
     isCaptchaOn.value = res.data.isCaptchaOn;
-    useUserStoreHook().SET_DICTIONARY(res.data.dictionary);
+    useUserStoreHook().SET_DICTIONARY(
+      res.data.dictionary as Map<string, CommonAPI.DictionaryData[]>
+    );
   });
 
   await getCaptchaCode();

@@ -148,7 +148,9 @@ const {
           @click="CommonUtils.exportExcel(columns, dataList, '操作日志列表')"
           >单页导出</el-button
         >
-        <el-button type="primary" @click="exportAllExcel">全部导出</el-button>
+        <el-button type="primary" @click="() => exportAllExcel()"
+          >全部导出</el-button
+        >
       </template>
       <template v-slot="{ size, dynamicColumns }">
         <pure-table

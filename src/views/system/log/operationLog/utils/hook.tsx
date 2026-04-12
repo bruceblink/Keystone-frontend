@@ -14,10 +14,14 @@ import { useUserStoreHook } from "@/store/modules/user";
 import { CommonUtils } from "@/utils/common";
 import { PaginationProps } from "@pureadmin/table";
 
+type TagType = "primary" | "success" | "warning" | "danger" | "info";
+
 const operationLogStatusMap =
   useUserStoreHook().dictionaryMap["sysOperationLog.status"];
 const businessTypeMap =
   useUserStoreHook().dictionaryMap["sysOperationLog.businessType"];
+
+const getTagType = (value?: string) => (value || "info") as TagType;
 
 export function useOperationLogHook() {
   const defaultSort: Sort = {
@@ -70,7 +74,7 @@ export function useOperationLogHook() {
       cellRenderer: ({ row, props }) => (
         <el-tag
           size={props.size}
-          type={businessTypeMap[row.businessType].cssTag}
+          type={getTagType(businessTypeMap[row.businessType]?.cssTag)}
           effect="plain"
         >
           {businessTypeMap[row.businessType].label}
@@ -99,7 +103,7 @@ export function useOperationLogHook() {
       cellRenderer: ({ row, props }) => (
         <el-tag
           size={props.size}
-          type={operationLogStatusMap[row.status].cssTag}
+          type={getTagType(operationLogStatusMap[row.status]?.cssTag)}
           effect="plain"
         >
           {operationLogStatusMap[row.status].label}

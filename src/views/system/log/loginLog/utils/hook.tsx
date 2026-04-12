@@ -12,8 +12,12 @@ import { useUserStoreHook } from "@/store/modules/user";
 import { CommonUtils } from "@/utils/common";
 import { PaginationProps } from "@pureadmin/table";
 
+type TagType = "primary" | "success" | "warning" | "danger" | "info";
+
 const loginLogStatusMap =
   useUserStoreHook().dictionaryMap["sysLoginLog.status"];
+
+const getTagType = (value?: string) => (value || "info") as TagType;
 
 export function useLoginLogHook() {
   const defaultSort: Sort = {
@@ -86,7 +90,7 @@ export function useLoginLogHook() {
       cellRenderer: ({ row, props }) => (
         <el-tag
           size={props.size}
-          type={loginLogStatusMap[row.status].cssTag}
+          type={getTagType(loginLogStatusMap[row.status]?.cssTag)}
           effect="plain"
         >
           {loginLogStatusMap[row.status].label}
