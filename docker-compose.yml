@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  admin-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: admin-frontend:latest
+    container_name: admin-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - docker_agileboot # 直接使用网络名，无需额外声明 networks 顶层
+
+networks:
+  docker_agileboot:
+    external: true
