@@ -1,4 +1,3 @@
-# 使用与本地一致的 Node.js 22 镜像
 FROM node:22-alpine AS build-stage
 
 WORKDIR /app
@@ -17,13 +16,15 @@ RUN pnpm install --frozen-lockfile
 
 # 复制其余源码
 COPY . .
-
-# 构建生产包（沿用你 package.json 中的内存设置）
 RUN NODE_OPTIONS=--max-old-space-size=8192 pnpm build
 
 # 生产阶段：轻量 Nginx 提供静态服务
 FROM nginx:stable-alpine AS production-stage
 
+# 复制自定义 Nginx 配置（覆盖默认配置）
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 复制构建产物
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 
 EXPOSE 80
