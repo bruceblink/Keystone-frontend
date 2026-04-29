@@ -1,12 +1,12 @@
 version: "3.8"
 
 services:
-  admin-frontend:
+  sys_manage_frontend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: admin-frontend:latest
-    container_name: admin-frontend
+    image: sys_manage_frontend:latest
+    container_name: sys_manage_frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-80}:80"
