@@ -6,6 +6,8 @@ dist-ssr
 .eslintcache
 report.html
 
+.claude/
+
 yarn.lock
 npm-debug.log*
 .pnpm-error.log*
