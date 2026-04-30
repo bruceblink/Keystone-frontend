@@ -43,9 +43,21 @@ export default ({ command, mode }: ConfigEnv): UserConfigExport => {
       // 本地跨域代理 https://cn.vitejs.dev/config/server-options.html#server-proxy
       proxy: {
         "/api": {
-          target: "http://10.17.17.7:18080",
+          target: "http://localhost:18080",
           changeOrigin: true,
           rewrite: path => path.replace(/^\/api/, "")
+        },
+        "/v3": {
+          target: "http://localhost:18080",
+          changeOrigin: true
+        },
+        "/swagger-ui": {
+          target: "http://localhost:18080",
+          changeOrigin: true
+        },
+        "/swagger-ui.html": {
+          target: "http://localhost:18080",
+          changeOrigin: true
         }
       }
     },
