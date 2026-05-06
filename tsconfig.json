@@ -17,6 +17,7 @@
     "allowJs": false,
     "resolveJsonModule": true,
     "lib": ["dom", "esnext"],
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@build/*": ["./build/*"]

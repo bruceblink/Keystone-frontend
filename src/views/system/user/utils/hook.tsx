@@ -1,11 +1,12 @@
 import dayjs from "dayjs";
 import { message } from "@/utils/message";
-import { ElMessageBox, Sort } from "element-plus";
+import { ElMessageBox, Sort, type FormInstance } from "element-plus";
 import {
   getLoginLogListApi,
   deleteLoginLogApi,
   exportLoginLogExcelApi,
-  LoginLogQuery
+  LoginLogQuery,
+  LoginLogsDTO
 } from "@/api/system/log";
 import { reactive, ref, onMounted, toRaw, computed } from "vue";
 import { useUserStoreHook } from "@/store/modules/user";
@@ -15,6 +16,19 @@ import { PaginationProps } from "@pureadmin/table";
 const loginLogStatusMap = computed(
   () => useUserStoreHook().dictionaryMap["sysLoginLog.status"] ?? {}
 );
+
+type LoginLogRow = LoginLogsDTO & {
+  logId: number;
+  status: number;
+  statusStr?: string;
+};
+
+type TableRef = {
+  getTableRef: () => {
+    clearSort: () => void;
+    clearSelection: () => void;
+  };
+};
 
 export function useLoginLogHook() {
   const defaultSort: Sort = {
@@ -29,7 +43,7 @@ export function useLoginLogHook() {
     background: true
   };
 
-  const timeRange = ref([]);
+  const timeRange = ref<string[]>([]);
 
   const searchFormParams = reactive<LoginLogQuery>({
     ipAddress: undefined,
@@ -40,9 +54,9 @@ export function useLoginLogHook() {
     timeRangeColumn: defaultSort.prop
   });
 
-  const dataList = ref([]);
+  const dataList = ref<LoginLogRow[]>([]);
   const pageLoading = ref(true);
-  const multipleSelection = ref([]);
+  const multipleSelection = ref<number[]>([]);
 
   const columns: TableColumnList = [
     {
@@ -124,7 +138,7 @@ export function useLoginLogHook() {
     getLoginLogList();
   }
 
-  function resetForm(formEl, tableRef) {
+  function resetForm(formEl: FormInstance | undefined, tableRef: TableRef) {
     if (!formEl) return;
     // 清空查询参数
     formEl.resetFields();
@@ -154,7 +168,7 @@ export function useLoginLogHook() {
         pageLoading.value = false;
       }
     );
-    dataList.value = data.rows;
+    dataList.value = data.rows as LoginLogRow[];
     pagination.total = data.total;
   }
 
@@ -168,7 +182,7 @@ export function useLoginLogHook() {
     exportLoginLogExcelApi(toRaw(searchFormParams), "登录日志.xls");
   }
 
-  async function handleDelete(row) {
+  async function handleDelete(row: LoginLogRow) {
     await deleteLoginLogApi([row.logId]).then(() => {
       message(`您删除了操作编号为${row.logId}的这条数据`, {
         type: "success"
@@ -178,7 +192,7 @@ export function useLoginLogHook() {
     });
   }
 
-  async function handleBulkDelete(tableRef) {
+  async function handleBulkDelete(tableRef: TableRef) {
     if (multipleSelection.value.length === 0) {
       message("请选择需要删除的数据", { type: "warning" });
       return;

@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import { message } from "@/utils/message";
 import {
   UserQuery,
+  UserDTO,
   getUserListApi,
   addUserApi,
   updateUserStatusApi,
@@ -15,15 +16,41 @@ import {
 import editForm from "./form.vue";
 import passwordForm from "./passwordForm.vue";
 import uploadForm from "./uploadForm.vue";
-import { ElMessageBox } from "element-plus";
+import { ElMessageBox, type FormInstance } from "element-plus";
 import { type PaginationProps } from "@pureadmin/table";
 import { reactive, ref, computed, onMounted, toRaw, h } from "vue";
 import { CommonUtils } from "@/utils/common";
 import { addDialog } from "@/components/ReDialog";
 import { handleTree, setDisabledForTreeOptions } from "@/utils/tree";
-import { getDeptListApi } from "@/api/system/dept";
-import { getPostListApi } from "@/api/system/post";
-import { getRoleListApi } from "@/api/system/role";
+import { DeptDTO, getDeptListApi } from "@/api/system/dept";
+import { PostPageResponse, getPostListApi } from "@/api/system/post";
+import { RoleDTO, getRoleListApi } from "@/api/system/role";
+
+type SwitchState = {
+  loading?: boolean;
+};
+
+type SwitchLoadMap = Record<number, SwitchState>;
+
+type DoneFn = Function;
+
+type EditFormRef = {
+  getFormRuleRef: () => {
+    validate: (cb: (valid: boolean) => void) => void;
+  };
+};
+
+type PasswordFormRef = {
+  getFormRuleRef: () => {
+    validate: (cb: (valid: boolean) => void) => void;
+  };
+};
+
+type UploadFormRef = {
+  getFormRef: () => {
+    submit: () => void;
+  };
+};
 
 export function useHook() {
   const searchFormParams = reactive<UserQuery>({
@@ -34,12 +61,12 @@ export function useHook() {
     timeRangeColumn: "createTime"
   });
 
-  const formRef = ref();
+  const formRef = ref<EditFormRef>();
   const timeRange = ref<[string, string]>();
 
-  const dataList = ref([]);
+  const dataList = ref<UserDTO[]>([]);
   const pageLoading = ref(true);
-  const switchLoadMap = ref({});
+  const switchLoadMap = ref<SwitchLoadMap>({});
   const pagination = reactive<PaginationProps>({
     total: 0,
     pageSize: 10,
@@ -47,9 +74,9 @@ export function useHook() {
     background: true
   });
 
-  const deptTreeList = ref([]);
-  const postOptions = ref([]);
-  const roleOptions = ref([]);
+  const deptTreeList = ref<DeptDTO[]>([]);
+  const postOptions = ref<PostPageResponse[]>([]);
+  const roleOptions = ref<RoleDTO[]>([]);
 
   const columns: TableColumnList = [
     {
@@ -123,7 +150,7 @@ export function useHook() {
           active-text="正常"
           inactive-text="停用"
           inline-prompt
-          onChange={() => onChange(scope as any)}
+          onChange={() => onChange(scope.row as UserDTO, scope.index)}
         />
       )
     },
@@ -151,7 +178,7 @@ export function useHook() {
     ];
   });
 
-  function onChange({ row, index }) {
+  function onChange(row: UserDTO, index: number) {
     ElMessageBox.confirm(
       `确认要<strong>${
         row.status === 0 ? "停用" : "启用"
@@ -187,7 +214,7 @@ export function useHook() {
 
   function switchLoading(index: number, loading: boolean) {
     switchLoadMap.value[index] = Object.assign({}, switchLoadMap.value[index], {
-      loading: loading
+      loading
     });
   }
 
@@ -196,7 +223,7 @@ export function useHook() {
     exportUserExcelApi(toRaw(searchFormParams), "用户列表.xls");
   }
 
-  async function handleAdd(row, done) {
+  async function handleAdd(row: UserRequest, done: DoneFn) {
     await addUserApi(row as UserRequest).then(() => {
       message(`您新增了用户${row.username}的这条数据`, {
         type: "success"
@@ -208,7 +235,7 @@ export function useHook() {
     });
   }
 
-  async function handleUpdate(row, done) {
+  async function handleUpdate(row: UserRequest, done: DoneFn) {
     await updateUserApi(row.userId, row as UserRequest).then(() => {
       message(`您修改了用户${row.username}的这条数据`, {
         type: "success"
@@ -220,7 +247,7 @@ export function useHook() {
     });
   }
 
-  async function handleDelete(row) {
+  async function handleDelete(row: UserDTO) {
     await deleteUserApi(row.userId).then(() => {
       message(`您删除了用户${row.username}的这条数据`, { type: "success" });
       // 刷新列表
@@ -228,7 +255,11 @@ export function useHook() {
     });
   }
 
-  async function handleResetPassword(row, request, done) {
+  async function handleResetPassword(
+    row: UserDTO,
+    request: PasswordRequest,
+    done: DoneFn
+  ) {
     await updateUserPasswordApi(request).then(() => {
       message(`您修改了用户${row.username}的密码`, { type: "success" });
       // 刷新列表
@@ -290,8 +321,8 @@ export function useHook() {
     });
   }
 
-  async function openResetPasswordDialog(row) {
-    const passwordFormRef = ref();
+  async function openResetPasswordDialog(row: UserDTO) {
+    const passwordFormRef = ref<PasswordFormRef>();
     addDialog({
       title: `重置密码`,
       props: {
@@ -317,7 +348,7 @@ export function useHook() {
   }
 
   async function openUploadDialog() {
-    const uploadFormRef = ref();
+    const uploadFormRef = ref<UploadFormRef>();
     addDialog({
       title: `导入用户`,
       props: {},
@@ -348,7 +379,7 @@ export function useHook() {
     pagination.total = data.total;
   }
 
-  const resetForm = formEl => {
+  const resetForm = (formEl?: FormInstance) => {
     if (!formEl) return;
     formEl.resetFields();
     onSearch();

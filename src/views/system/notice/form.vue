@@ -8,8 +8,8 @@ import { useUserStoreHook } from "@/store/modules/user";
 const props = withDefaults(defineProps<FormProps>(), {
   formInline: () => ({
     noticeTitle: "",
-    noticeType: "",
-    status: "",
+    noticeType: undefined,
+    status: undefined,
     noticeContent: ""
   })
 });

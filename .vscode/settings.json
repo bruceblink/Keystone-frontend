@@ -28,5 +28,6 @@
     "source.fixAll.eslint": "explicit"
   },
   "iconify.excludes": ["el"],
-  "cSpell.words": ["iconify", "Qrcode"]
+  "cSpell.words": ["iconify", "Qrcode"],
+  "typescript.tsdk": "node_modules\\typescript\\lib"
 }

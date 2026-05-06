@@ -2,6 +2,7 @@ import editForm from "../form.vue";
 import { message } from "@/utils/message";
 import { addDialog } from "@/components/ReDialog";
 import { type PaginationProps } from "@pureadmin/table";
+import { type FormInstance } from "element-plus";
 
 import {
   getConfigListApi,
@@ -14,6 +15,26 @@ import {
 } from "@/api/system/config";
 import { reactive, ref, onMounted, h, toRaw } from "vue";
 import { CommonUtils } from "@/utils/common";
+
+type TableRef = {
+  getTableRef: () => {
+    clearSort: () => void;
+  };
+};
+
+type DoneFn = Function;
+
+type ConfigFormData = ConfigDTO & {
+  configId: string;
+  configName: string;
+  configValue: string;
+};
+
+type EditFormRef = {
+  getFormRuleRef: () => {
+    validate: (cb: (valid: boolean) => void) => void;
+  };
+};
 
 export function useHook() {
   const pagination: PaginationProps = {
@@ -29,10 +50,10 @@ export function useHook() {
     isAllowChange: undefined
   });
 
-  const formRef = ref();
-  const dataList = ref([]);
+  const formRef = ref<EditFormRef>();
+  const dataList = ref<ConfigDTO[]>([]);
   const pageLoading = ref(true);
-  const multipleSelection = ref([]);
+  const multipleSelection = ref<string[]>([]);
 
   const columns: TableColumnList = [
     {
@@ -87,7 +108,7 @@ export function useHook() {
     getList();
   }
 
-  function resetForm(formEl, tableRef) {
+  function resetForm(formEl: FormInstance | undefined, tableRef: TableRef) {
     if (!formEl) return;
     // 清空查询参数
     formEl.resetFields();
@@ -121,14 +142,12 @@ export function useHook() {
     });
   }
 
-  async function handleUpdate(curData, done) {
+  async function handleUpdate(curData: ConfigFormData, done: DoneFn) {
     const request: UpdateConfigRequest = {
       configValue: curData.configValue
     };
-    console.log("curData");
-    console.log(curData);
 
-    await updateConfigApi(curData.configId, request).then(() => {
+    await updateConfigApi(Number(curData.configId), request).then(() => {
       message(`您成功修改了配置：${curData.configName}`, {
         type: "success"
       });
@@ -154,7 +173,7 @@ export function useHook() {
       beforeSure: (done, { options }) => {
         const formRuleRef = formRef.value.getFormRuleRef();
 
-        const curData = options.props.formInline;
+        const curData = options.props.formInline as ConfigFormData;
 
         formRuleRef.validate(valid => {
           if (valid) {

@@ -1,12 +1,13 @@
 import dayjs from "dayjs";
 import { message } from "@/utils/message";
-import { ElMessageBox, Sort } from "element-plus";
+import { ElMessageBox, Sort, type FormInstance } from "element-plus";
 import { reactive, ref, onMounted, toRaw, computed } from "vue";
 import { useUserStoreHook } from "@/store/modules/user";
 import { CommonUtils } from "@/utils/common";
 import { PaginationProps } from "@pureadmin/table";
 import {
   PostListCommand,
+  PostPageResponse,
   getPostListApi,
   exportPostExcelApi,
   deletePostApi
@@ -15,6 +16,14 @@ import {
 const statusMap = computed(
   () => useUserStoreHook().dictionaryMap["common.status"] ?? {}
 );
+
+type TableRef = {
+  getTableRef: () => {
+    sort: (prop: string, order: "ascending" | "descending" | null) => void;
+    clearSort: () => void;
+    clearSelection: () => void;
+  };
+};
 
 export function usePostHook() {
   const defaultSort: Sort = {
@@ -54,9 +63,9 @@ export function usePostHook() {
     status: undefined
   });
 
-  const dataList = ref([]);
+  const dataList = ref<PostPageResponse[]>([]);
   const pageLoading = ref(true);
-  const multipleSelection = ref([]);
+  const multipleSelection = ref<number[]>([]);
   const sortState = ref<Sort>(defaultSort);
 
   const columns: TableColumnList = [
@@ -124,12 +133,12 @@ export function usePostHook() {
     getPostList();
   }
 
-  async function onSearch(tableRef) {
+  async function onSearch(tableRef: TableRef) {
     // 点击搜索的时候，需要重置排序，重新排序的时候会重置分页并发起查询请求
     tableRef.getTableRef().sort("postSort", "ascending");
   }
 
-  function resetForm(formEl, tableRef) {
+  function resetForm(formEl: FormInstance | undefined, tableRef: TableRef) {
     if (!formEl) return;
     // 清空查询参数
     formEl.resetFields();
@@ -165,7 +174,7 @@ export function usePostHook() {
     exportPostExcelApi(toRaw(searchFormParams), "岗位数据.xlsx");
   }
 
-  async function handleDelete(row) {
+  async function handleDelete(row: PostPageResponse) {
     await deletePostApi([row.postId]).then(() => {
       message(`您删除了编号为${row.postId}的这条岗位数据`, {
         type: "success"
@@ -175,7 +184,7 @@ export function usePostHook() {
     });
   }
 
-  async function handleBulkDelete(tableRef) {
+  async function handleBulkDelete(tableRef: TableRef) {
     if (multipleSelection.value.length === 0) {
       message("请选择需要删除的数据", { type: "warning" });
       return;

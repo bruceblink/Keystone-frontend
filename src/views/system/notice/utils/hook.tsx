@@ -1,9 +1,13 @@
 import dayjs from "dayjs";
 import editForm from "../form.vue";
 import { message } from "@/utils/message";
-import { SystemNoticeQuery, getSystemNoticeListApi } from "@/api/system/notice";
+import {
+  SystemNoticeQuery,
+  getSystemNoticeListApi,
+  SystemNoticeDTO
+} from "@/api/system/notice";
 import { addDialog } from "@/components/ReDialog";
-import { ElMessageBox, Sort } from "element-plus";
+import { ElMessageBox, Sort, type FormInstance } from "element-plus";
 import { AddNoticeRequest } from "../utils/types";
 import { type PaginationProps } from "@pureadmin/table";
 import {
@@ -22,6 +26,27 @@ const noticeTypeMap = computed(
 const noticeStatusMap = computed(
   () => useUserStoreHook().dictionaryMap["sysNotice.status"] ?? {}
 );
+
+type NoticeRow = SystemNoticeDTO & {
+  noticeId: number;
+  noticeType: number;
+  status: number;
+};
+
+type TableRef = {
+  getTableRef: () => {
+    clearSort: () => void;
+    clearSelection: () => void;
+  };
+};
+
+type DoneFn = Function;
+
+type EditFormRef = {
+  getFormRuleRef: () => {
+    validate: (cb: (valid: boolean) => void) => void;
+  };
+};
 
 export function useNoticeHook() {
   const defaultSort: Sort = {
@@ -44,23 +69,10 @@ export function useNoticeHook() {
     orderDirection: defaultSort.order
   });
 
-  // TODO  ******困惑的问题*******
-  // const pagination = reactive<PaginationProps>({
-  //   total: 0,
-  //   pageSize: 10,
-  //   currentPage: 1,
-  //   background: true
-  // });
-  // TODO 使用watchEffect会导致 axios请求拦截器中的参数使用的是旧值
-  // watchEffect(() => {
-  //   searchFormParams.pageNum = pagination.currentPage;
-  //   searchFormParams.pageSize = pagination.pageSize;
-  // });
-
-  const formRef = ref();
-  const dataList = ref([]);
+  const formRef = ref<EditFormRef>();
+  const dataList = ref<NoticeRow[]>([]);
   const pageLoading = ref(true);
-  const multipleSelection = ref([]);
+  const multipleSelection = ref<number[]>([]);
 
   const columns: TableColumnList = [
     {
@@ -142,7 +154,7 @@ export function useNoticeHook() {
     getNoticeList();
   }
 
-  function resetForm(formEl, tableRef) {
+  function resetForm(formEl: FormInstance | undefined, tableRef: TableRef) {
     if (!formEl) return;
     // 清空查询参数
     formEl.resetFields();
@@ -167,19 +179,21 @@ export function useNoticeHook() {
       pageLoading.value = false;
     });
 
-    dataList.value = data.rows;
+    dataList.value = data.rows as NoticeRow[];
     pagination.total = data.total;
   }
 
-  async function handleDelete(row) {
+  async function handleDelete(row: NoticeRow) {
     await deleteSystemNoticeApi([row.noticeId]).then(() => {
-      message(`您删除了通知标题为${row.name}的这条数据`, { type: "success" });
+      message(`您删除了通知标题为${row.noticeTitle}的这条数据`, {
+        type: "success"
+      });
       // 刷新列表
       getNoticeList();
     });
   }
 
-  async function handleBulkDelete(tableRef) {
+  async function handleBulkDelete(tableRef: TableRef) {
     if (multipleSelection.value.length === 0) {
       message("请选择需要删除的数据", { type: "warning" });
       return;
@@ -214,8 +228,8 @@ export function useNoticeHook() {
       });
   }
 
-  async function handleAdd(row, done) {
-    await addSystemNoticeApi(row as SystemNoticeRequest).then(() => {
+  async function handleAdd(row: SystemNoticeRequest, done: DoneFn) {
+    await addSystemNoticeApi(row).then(() => {
       message(`您新增了通知标题为${row.noticeTitle}的这条数据`, {
         type: "success"
       });
@@ -226,9 +240,9 @@ export function useNoticeHook() {
     });
   }
 
-  async function handleUpdate(row, done) {
-    await updateSystemNoticeApi(row as SystemNoticeRequest).then(() => {
-      message(`您新增了通知标题为${row.noticeTitle}的这条数据`, {
+  async function handleUpdate(row: SystemNoticeRequest, done: DoneFn) {
+    await updateSystemNoticeApi(row).then(() => {
+      message(`您更新了通知标题为${row.noticeTitle}的这条数据`, {
         type: "success"
       });
       // 关闭弹框
@@ -244,8 +258,8 @@ export function useNoticeHook() {
       props: {
         formInline: {
           noticeTitle: row?.noticeTitle ?? "",
-          noticeType: row?.noticeType ?? "",
-          status: row?.status ?? "",
+          noticeType: row?.noticeType ?? undefined,
+          status: row?.status ?? undefined,
           noticeContent: row?.noticeContent ?? ""
         }
       },
@@ -261,13 +275,12 @@ export function useNoticeHook() {
 
         formRuleRef.validate(valid => {
           if (valid) {
-            console.log("curData", curData);
             // 表单规则校验通过
             if (title === "新增") {
-              handleAdd(curData, done);
+              handleAdd(curData as SystemNoticeRequest, done);
             } else {
               curData.noticeId = row.noticeId;
-              handleUpdate(curData, done);
+              handleUpdate(curData as SystemNoticeRequest, done);
             }
           }
         });

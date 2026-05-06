@@ -6,7 +6,7 @@ export interface SystemNoticeQuery extends BasePageQuery {
   creatorName: string;
 }
 
-type SystemNoticeDTO = {
+export type SystemNoticeDTO = {
   noticeId: string;
   noticeTitle: string;
   noticeType: number;

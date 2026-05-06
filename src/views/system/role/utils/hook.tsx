@@ -7,11 +7,17 @@ import {
   RoleQuery
 } from "@/api/system/role";
 import { getMenuListApi, MenuDTO } from "@/api/system/menu";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage, ElMessageBox, type FormInstance } from "element-plus";
 import { usePublicHooks } from "../../hooks";
 import { type PaginationProps } from "@pureadmin/table";
 import { onMounted, reactive, ref, toRaw } from "vue";
 import { toTree } from "@/utils/tree";
+
+type SwitchState = {
+  loading?: boolean;
+};
+
+type SwitchLoadMap = Record<number, SwitchState>;
 
 export function useRole() {
   const form = reactive<RoleQuery>({
@@ -19,9 +25,9 @@ export function useRole() {
     roleName: "",
     status: undefined
   });
-  const dataList = ref([]);
+  const dataList = ref<RoleDTO[]>([]);
   const loading = ref(true);
-  const switchLoadMap = ref({});
+  const switchLoadMap = ref<SwitchLoadMap>({});
   const { switchStyle } = usePublicHooks();
   const pagination = reactive<PaginationProps>({
     total: 0,
@@ -59,7 +65,7 @@ export function useRole() {
           inactive-text="已停用"
           inline-prompt
           style={switchStyle.value}
-          onChange={() => onChange(scope as any)}
+          onChange={() => onChange(scope.row as RoleDTO, scope.index)}
         />
       )
     },
@@ -82,17 +88,8 @@ export function useRole() {
       slot: "operation"
     }
   ];
-  // const buttonClass = computed(() => {
-  //   return [
-  //     "!h-[20px]",
-  //     "reset-margin",
-  //     "!text-gray-500",
-  //     "dark:!text-white",
-  //     "dark:hover:!text-primary"
-  //   ];
-  // });
 
-  function onChange({ row, index }) {
+  function onChange(row: RoleDTO, index: number) {
     ElMessageBox.confirm(
       `确认要<strong>${
         row.status === 0 ? "停用" : "启用"
@@ -163,7 +160,7 @@ export function useRole() {
     }
   }
 
-  const resetForm = formEl => {
+  const resetForm = (formEl?: FormInstance) => {
     if (!formEl) return;
     formEl.resetFields();
     onSearch();
