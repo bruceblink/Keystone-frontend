@@ -7,13 +7,14 @@ import {
   exportLoginLogExcelApi,
   LoginLogQuery
 } from "@/api/system/log";
-import { reactive, ref, onMounted, toRaw } from "vue";
+import { reactive, ref, onMounted, toRaw, computed } from "vue";
 import { useUserStoreHook } from "@/store/modules/user";
 import { CommonUtils } from "@/utils/common";
 import { PaginationProps } from "@pureadmin/table";
 
-const loginLogStatusMap =
-  useUserStoreHook().dictionaryMap["sysLoginLog.status"];
+const loginLogStatusMap = computed(
+  () => useUserStoreHook().dictionaryMap["sysLoginLog.status"] ?? {}
+);
 
 export function useLoginLogHook() {
   const defaultSort: Sort = {
@@ -83,15 +84,17 @@ export function useLoginLogHook() {
       label: "状态",
       prop: "status",
       minWidth: 120,
-      cellRenderer: ({ row, props }) => (
-        <el-tag
-          size={props.size}
-          type={loginLogStatusMap[row.status].cssTag}
-          effect="plain"
-        >
-          {loginLogStatusMap[row.status].label}
-        </el-tag>
-      )
+      cellRenderer: ({ row, props }) => {
+        const status = loginLogStatusMap.value[row.status] ?? {
+          cssTag: "info",
+          label: row.statusStr ?? String(row.status ?? "-")
+        };
+        return (
+          <el-tag size={props.size} type={status.cssTag} effect="plain">
+            {status.label}
+          </el-tag>
+        );
+      }
     },
     {
       label: "状态名",

@@ -9,17 +9,19 @@ import {
   deleteOperationLogApi,
   exportOperationLogExcelApi
 } from "@/api/system/log";
-import { reactive, ref, onMounted, h, toRaw } from "vue";
+import { reactive, ref, onMounted, h, toRaw, computed } from "vue";
 import { useUserStoreHook } from "@/store/modules/user";
 import { CommonUtils } from "@/utils/common";
 import { PaginationProps } from "@pureadmin/table";
 
 type TagType = "primary" | "success" | "warning" | "danger" | "info";
 
-const operationLogStatusMap =
-  useUserStoreHook().dictionaryMap["sysOperationLog.status"];
-const businessTypeMap =
-  useUserStoreHook().dictionaryMap["sysOperationLog.businessType"];
+const operationLogStatusMap = computed(
+  () => useUserStoreHook().dictionaryMap["sysOperationLog.status"] ?? {}
+);
+const businessTypeMap = computed(
+  () => useUserStoreHook().dictionaryMap["sysOperationLog.businessType"] ?? {}
+);
 
 const getTagType = (value?: string) => (value || "info") as TagType;
 
@@ -71,15 +73,21 @@ export function useOperationLogHook() {
       label: "操作类型",
       prop: "businessType",
       minWidth: 120,
-      cellRenderer: ({ row, props }) => (
-        <el-tag
-          size={props.size}
-          type={getTagType(businessTypeMap[row.businessType]?.cssTag)}
-          effect="plain"
-        >
-          {businessTypeMap[row.businessType].label}
-        </el-tag>
-      )
+      cellRenderer: ({ row, props }) => {
+        const businessType = businessTypeMap.value[row.businessType] ?? {
+          cssTag: "info",
+          label: String(row.businessType ?? "-")
+        };
+        return (
+          <el-tag
+            size={props.size}
+            type={getTagType(businessType.cssTag)}
+            effect="plain"
+          >
+            {businessType.label}
+          </el-tag>
+        );
+      }
     },
     {
       label: "请求方式",
@@ -100,15 +108,21 @@ export function useOperationLogHook() {
       label: "状态",
       prop: "status",
       minWidth: 120,
-      cellRenderer: ({ row, props }) => (
-        <el-tag
-          size={props.size}
-          type={getTagType(operationLogStatusMap[row.status]?.cssTag)}
-          effect="plain"
-        >
-          {operationLogStatusMap[row.status].label}
-        </el-tag>
-      )
+      cellRenderer: ({ row, props }) => {
+        const status = operationLogStatusMap.value[row.status] ?? {
+          cssTag: "info",
+          label: row.statusStr ?? String(row.status ?? "-")
+        };
+        return (
+          <el-tag
+            size={props.size}
+            type={getTagType(status.cssTag)}
+            effect="plain"
+          >
+            {status.label}
+          </el-tag>
+        );
+      }
     },
     {
       label: "状态名",

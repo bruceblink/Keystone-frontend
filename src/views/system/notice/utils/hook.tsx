@@ -12,12 +12,16 @@ import {
   deleteSystemNoticeApi,
   SystemNoticeRequest
 } from "@/api/system/notice";
-import { reactive, ref, onMounted, h, toRaw } from "vue";
+import { reactive, ref, onMounted, h, toRaw, computed } from "vue";
 import { useUserStoreHook } from "@/store/modules/user";
 import { CommonUtils } from "@/utils/common";
 
-const noticeTypeMap = useUserStoreHook().dictionaryMap["sysNotice.noticeType"];
-const noticeStatusMap = useUserStoreHook().dictionaryMap["sysNotice.status"];
+const noticeTypeMap = computed(
+  () => useUserStoreHook().dictionaryMap["sysNotice.noticeType"] ?? {}
+);
+const noticeStatusMap = computed(
+  () => useUserStoreHook().dictionaryMap["sysNotice.status"] ?? {}
+);
 
 export function useNoticeHook() {
   const defaultSort: Sort = {
@@ -77,29 +81,33 @@ export function useNoticeHook() {
       label: "通知类型",
       prop: "noticeType",
       minWidth: 120,
-      cellRenderer: ({ row, props }) => (
-        <el-tag
-          size={props.size}
-          type={noticeTypeMap[row.noticeType].cssTag}
-          effect="plain"
-        >
-          {noticeTypeMap[row.noticeType].label}
-        </el-tag>
-      )
+      cellRenderer: ({ row, props }) => {
+        const noticeType = noticeTypeMap.value[row.noticeType] ?? {
+          cssTag: "info",
+          label: String(row.noticeType ?? "-")
+        };
+        return (
+          <el-tag size={props.size} type={noticeType.cssTag} effect="plain">
+            {noticeType.label}
+          </el-tag>
+        );
+      }
     },
     {
       label: "状态",
       prop: "status",
       minWidth: 120,
-      cellRenderer: ({ row, props }) => (
-        <el-tag
-          size={props.size}
-          type={noticeStatusMap[row.status].cssTag}
-          effect="plain"
-        >
-          {noticeStatusMap[row.status].label}
-        </el-tag>
-      )
+      cellRenderer: ({ row, props }) => {
+        const status = noticeStatusMap.value[row.status] ?? {
+          cssTag: "info",
+          label: String(row.status ?? "-")
+        };
+        return (
+          <el-tag size={props.size} type={status.cssTag} effect="plain">
+            {status.label}
+          </el-tag>
+        );
+      }
     },
     {
       label: "通知详情",

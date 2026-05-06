@@ -12,7 +12,9 @@ import {
   deletePostApi
 } from "@/api/system/post";
 
-const statusMap = useUserStoreHook().dictionaryMap["common.status"];
+const statusMap = computed(
+  () => useUserStoreHook().dictionaryMap["common.status"] ?? {}
+);
 
 export function usePostHook() {
   const defaultSort: Sort = {
@@ -87,15 +89,17 @@ export function usePostHook() {
       label: "状态",
       prop: "status",
       minWidth: 120,
-      cellRenderer: ({ row, props }) => (
-        <el-tag
-          size={props.size}
-          type={statusMap[row.status].cssTag}
-          effect="plain"
-        >
-          {statusMap[row.status].label}
-        </el-tag>
-      )
+      cellRenderer: ({ row, props }) => {
+        const status = statusMap.value[row.status] ?? {
+          cssTag: "info",
+          label: String(row.status ?? "-")
+        };
+        return (
+          <el-tag size={props.size} type={status.cssTag} effect="plain">
+            {status.label}
+          </el-tag>
+        );
+      }
     },
     {
       label: "创建时间",
