@@ -43,7 +43,9 @@ const formData = reactive<AddRoleCommand | UpdateRoleCommand>({
   status: ""
 });
 
-const statusList = useUserStoreHook().dictionaryMap["common.status"];
+const statusList = computed(
+  () => useUserStoreHook().dictionaryMap["common.status"] ?? {}
+);
 
 const rules: FormRules = {
   roleName: [
