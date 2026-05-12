@@ -14,10 +14,19 @@ export default {
     {
       path: "/boatDevice/index",
       name: "BoatDevice",
-      component: () => import("@/views/boatDevice/index.vue"),
+      component: () => import("@/views/boatDevice/shipForm/index.vue"),
       meta: {
         title: "设备列表",
         icon: "list"
+      }
+    },
+    {
+      path: "/boatDevice/software",
+      name: "BoatSoftware",
+      component: () => import("@/views/boatDevice/software/index.vue"),
+      meta: {
+        title: "软件更新",
+        icon: "upload"
       }
     }
   ]
