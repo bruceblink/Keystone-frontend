@@ -174,7 +174,9 @@ defineExpose({ getFormRuleRef });
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="newFormInline.status">
             <el-radio
-              v-for="item in useUserStoreHook().dictionaryList['common.status']"
+              v-for="item in useUserStoreHook().dictionaryList[
+                'sysUser.status'
+              ]"
               :key="item.value"
               :label="item.value"
               >{{ item.label }}

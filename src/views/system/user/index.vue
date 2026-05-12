@@ -88,7 +88,9 @@ watch(
             class="!w-[160px]"
           >
             <el-option
-              v-for="dict in useUserStoreHook().dictionaryList['common.status']"
+              v-for="dict in useUserStoreHook().dictionaryList[
+                'sysUser.status'
+              ]"
               :key="dict.value"
               :label="dict.label"
               :value="dict.value"
