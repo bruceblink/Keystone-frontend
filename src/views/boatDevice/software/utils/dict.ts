@@ -25,9 +25,9 @@ export const GROUP_MAP: Record<string, string> = {
 
 export function getProgressStatus(
   status: string
-): "success" | "striped striped-flow" | "" {
+): "success" | "warning" | "exception" | "" {
   if (status === "2") return "success";
-  if (status === "1") return "striped striped-flow";
+  if (status === "1") return "warning";
   return "";
 }
 
