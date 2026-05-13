@@ -144,7 +144,7 @@ const STATUS_LABEL: Record<string, string> = {
           show-overflow-tooltip
           table-layout="auto"
           :size="size"
-          :max-height="840"
+          :height="840"
           :data="dataList"
           :columns="dynamicColumns"
           :pagination="pagination"

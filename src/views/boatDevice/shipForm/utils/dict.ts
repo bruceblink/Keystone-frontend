@@ -1,16 +1,10 @@
+/**
+ * 船舶设备模块 - 字典常量与工具函数
+ * 包含航行状态映射、在线状态计算及 Mock 数据。
+ * 分组映射统一从 boatDevice/dict 引入。
+ */
 import type { DeviceRecord } from "./types";
-
-export const GROUP_MAP: Record<string, string> = {
-  "1": "远洋渔船",
-  "2": "近海渔船",
-  "3": "货轮",
-  "4": "客轮",
-  "5": "油轮"
-};
-
-export const GROUP_OPTIONS = Object.entries(GROUP_MAP).map(
-  ([value, label]) => ({ value, label })
-);
+export { GROUP_MAP, GROUP_FORM_OPTIONS as GROUP_OPTIONS } from "../../dict";
 
 export const NAV_STATUS_MAP: Record<string, string> = {
   "0": "航行",

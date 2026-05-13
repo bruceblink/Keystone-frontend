@@ -1,4 +1,10 @@
+/**
+ * 软件更新模块 - 字典常量与工具函数
+ * 包含状态映射、进度状态转换，以及 Mock 数据。
+ * 分组映射统一从 boatDevice/dict 引入。
+ */
 import type { UpdateRecord, SoftwareVersion, DeviceItem } from "./types";
+export { GROUP_MAP } from "../../dict";
 
 export const UPDATE_STATUS_MAP: Record<string, string> = {
   "0": "未下载",
@@ -13,14 +19,6 @@ export const UPDATE_STATUS_TYPE: Record<
   "0": "info",
   "1": "warning",
   "2": "success"
-};
-
-export const GROUP_MAP: Record<string, string> = {
-  "1": "远洋渔船",
-  "2": "近海渔船",
-  "3": "货轮",
-  "4": "客轮",
-  "5": "油轮"
 };
 
 export function getProgressStatus(
