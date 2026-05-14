@@ -1,0 +1,33 @@
+const Layout = () => import("@/layout/index.vue");
+
+export default {
+  path: "/paramSettings",
+  name: "ParamSettingsLayout",
+  component: Layout,
+  redirect: "/paramSettings/dict",
+  meta: {
+    icon: "setting",
+    title: "参数设置",
+    rank: 20
+  },
+  children: [
+    {
+      path: "/paramSettings/dict",
+      name: "ParamDict",
+      component: () => import("@/views/paramSettings/dict/index.vue"),
+      meta: {
+        title: "数据字典",
+        icon: "list"
+      }
+    },
+    {
+      path: "/paramSettings/elefence",
+      name: "ParamElefence",
+      component: () => import("@/views/paramSettings/elefence/index.vue"),
+      meta: {
+        title: "电子围栏",
+        icon: "location"
+      }
+    }
+  ]
+} as RouteConfigsTable;
