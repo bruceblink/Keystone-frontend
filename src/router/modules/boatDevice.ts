@@ -28,6 +28,15 @@ export default {
         title: "软件更新",
         icon: "upload"
       }
+    },
+    {
+      path: "/boatDevice/version",
+      name: "BoatVersion",
+      component: () => import("@/views/boatDevice/version/index.vue"),
+      meta: {
+        title: "版本发布",
+        icon: "rocket"
+      }
     }
   ]
 } as RouteConfigsTable;
