@@ -28,6 +28,15 @@ export default {
         title: "电子围栏",
         icon: "location"
       }
+    },
+    {
+      path: "/paramSettings/alaramType",
+      name: "ParamAlaramType",
+      component: () => import("@/views/paramSettings/alaramType/index.vue"),
+      meta: {
+        title: "报警类型",
+        icon: "bell"
+      }
     }
   ]
 } as RouteConfigsTable;
