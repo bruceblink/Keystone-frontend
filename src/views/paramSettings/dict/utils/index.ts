@@ -1,10 +1,5 @@
 import { ref, computed, reactive } from "vue";
-import {
-  ElMessage,
-  ElMessageBox,
-  type FormInstance,
-  type FormRules
-} from "element-plus";
+import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import * as XLSX from "xlsx";
 import type { DictItem, DictForm } from "./types";
 import { formatDateTime, genId, getValueType, MOCK_DICTS } from "./dict";
@@ -76,9 +71,6 @@ export function useDictList() {
   const addVisible = ref(false);
   const editVisible = ref(false);
 
-  const addFormRef = ref<FormInstance | null>(null);
-  const editFormRef = ref<FormInstance | null>(null);
-
   const addForm = reactive<DictForm>({
     keyname: "",
     keyvalue: "",
@@ -119,24 +111,21 @@ export function useDictList() {
   };
 
   const submitAdd = () => {
-    addFormRef.value?.validate(valid => {
-      if (!valid) return;
-      if (tableData.value.find(item => item.name === addForm.keyname)) {
-        ElMessage.error("该键名已存在");
-        return;
-      }
-      tableData.value.push({
-        _id: genId(),
-        name: addForm.keyname,
-        value: addForm.keyvalue,
-        dataType: addForm.type,
-        description: addForm.descripton,
-        user: addForm.user,
-        createdTime: formatDateTime(new Date())
-      });
-      addVisible.value = false;
-      ElMessage.success("新增成功");
+    if (tableData.value.find(item => item.name === addForm.keyname)) {
+      ElMessage.error("该键名已存在");
+      return;
+    }
+    tableData.value.push({
+      _id: genId(),
+      name: addForm.keyname,
+      value: addForm.keyvalue,
+      dataType: addForm.type,
+      description: addForm.descripton,
+      user: addForm.user,
+      createdTime: formatDateTime(new Date())
     });
+    addVisible.value = false;
+    ElMessage.success("新增成功");
   };
 
   // ===== 编辑 =====
@@ -153,19 +142,16 @@ export function useDictList() {
   };
 
   const submitEdit = () => {
-    editFormRef.value?.validate(valid => {
-      if (!valid) return;
-      const idx = tableData.value.findIndex(item => item._id === editForm._id);
-      if (idx !== -1) {
-        Object.assign(tableData.value[idx], {
-          value: editForm.keyvalue,
-          dataType: editForm.type,
-          description: editForm.descripton
-        });
-      }
-      editVisible.value = false;
-      ElMessage.success("编辑成功");
-    });
+    const idx = tableData.value.findIndex(item => item._id === editForm._id);
+    if (idx !== -1) {
+      Object.assign(tableData.value[idx], {
+        value: editForm.keyvalue,
+        dataType: editForm.type,
+        description: editForm.descripton
+      });
+    }
+    editVisible.value = false;
+    ElMessage.success("编辑成功");
   };
 
   // ===== 删除 =====
@@ -312,8 +298,6 @@ export function useDictList() {
     columns,
     addVisible,
     editVisible,
-    addFormRef,
-    editFormRef,
     addForm,
     editForm,
     formRules,

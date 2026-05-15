@@ -9,6 +9,7 @@ import Upload from "@iconify-icons/ep/upload";
 import Search from "@iconify-icons/ep/search";
 import { useFenceList } from "./utils";
 import type { FenceItem } from "./utils/types";
+import FenceDialog from "./components/FenceDialog.vue";
 
 defineOptions({ name: "ParamElefence" });
 
@@ -21,8 +22,6 @@ const {
   columns,
   addVisible,
   editVisible,
-  addFormRef,
-  editFormRef,
   addForm,
   editForm,
   addRules,
@@ -162,155 +161,29 @@ const {
       </template>
     </PureTableBar>
 
-    <!-- 新增对话框 -->
-    <el-dialog
-      v-model="addVisible"
-      title="新增电子围栏"
-      width="520px"
-      :close-on-click-modal="false"
-      destroy-on-close
-    >
-      <el-form
-        ref="addFormRef"
-        :model="addForm"
-        :rules="addRules"
-        label-width="80px"
-      >
-        <el-form-item label="数据类型" prop="datatype">
-          <el-select
-            v-model="addForm.datatype"
-            placeholder="请选择数据类型"
-            class="w-full"
-          >
-            <el-option label="区域" value="0" />
-            <el-option label="点" value="1" />
-            <el-option label="线" value="2" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="水域类型" prop="areatype">
-          <el-select
-            v-model="addForm.areatype"
-            placeholder="请选择水域类型"
-            class="w-full"
-          >
-            <el-option
-              v-for="opt in areaOptions"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="区域名称" prop="name">
-          <el-input v-model="addForm.name" placeholder="请输入区域名称" />
-        </el-form-item>
-        <el-form-item label="位置数据" prop="data">
-          <div class="points-wrapper">
-            <div
-              v-for="(point, idx) in addForm.data"
-              :key="idx"
-              class="point-row"
-            >
-              <span class="point-label">经度</span>
-              <el-input v-model.number="point.lng" class="coord-input" />
-              <span class="point-label">纬度</span>
-              <el-input v-model.number="point.lat" class="coord-input" />
-              <el-button
-                v-if="addForm.data.length > 1"
-                type="danger"
-                size="small"
-                link
-                @click="removePoint(idx)"
-              >
-                删除
-              </el-button>
-            </div>
-            <el-button type="primary" size="small" @click="addPoint"
-              >添加坐标点</el-button
-            >
-          </div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="addVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitAdd">确定</el-button>
-      </template>
-    </el-dialog>
+    <!-- 新增弹窗 -->
+    <FenceDialog
+      v-model:visible="addVisible"
+      v-model:form="addForm"
+      mode="add"
+      :rules="addRules"
+      :areaOptions="areaOptions"
+      :onAddPoint="addPoint"
+      :onRemovePoint="removePoint"
+      @submit="submitAdd"
+    />
 
-    <!-- 编辑对话框 -->
-    <el-dialog
-      v-model="editVisible"
-      title="编辑电子围栏"
-      width="520px"
-      :close-on-click-modal="false"
-      destroy-on-close
-    >
-      <el-form
-        ref="editFormRef"
-        :model="editForm"
-        :rules="editRules"
-        label-width="80px"
-      >
-        <el-form-item label="数据类型" prop="datatype">
-          <el-select
-            v-model="editForm.datatype"
-            placeholder="请选择数据类型"
-            class="w-full"
-          >
-            <el-option label="区域" value="0" />
-            <el-option label="点" value="1" />
-            <el-option label="线" value="2" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="水域类型" prop="areatype">
-          <el-select
-            v-model="editForm.areatype"
-            placeholder="请选择水域类型"
-            class="w-full"
-          >
-            <el-option
-              v-for="opt in areaOptions"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="区域名称" prop="name">
-          <el-input v-model="editForm.name" placeholder="请输入区域名称" />
-        </el-form-item>
-        <el-form-item label="位置数据" prop="data">
-          <div class="points-wrapper">
-            <div
-              v-for="(point, idx) in editForm.data"
-              :key="idx"
-              class="point-row"
-            >
-              <span class="point-label">经度</span>
-              <el-input v-model.number="point.lng" class="coord-input" />
-              <span class="point-label">纬度</span>
-              <el-input v-model.number="point.lat" class="coord-input" />
-              <el-button
-                v-if="editForm.data.length > 1"
-                type="danger"
-                size="small"
-                link
-                @click="removeEditPoint(idx)"
-              >
-                删除
-              </el-button>
-            </div>
-            <el-button type="primary" size="small" @click="addEditPoint"
-              >添加坐标点</el-button
-            >
-          </div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitEdit">确定</el-button>
-      </template>
-    </el-dialog>
+    <!-- 编辑弹窗 -->
+    <FenceDialog
+      v-model:visible="editVisible"
+      v-model:form="editForm"
+      mode="edit"
+      :rules="editRules"
+      :areaOptions="areaOptions"
+      :onAddPoint="addEditPoint"
+      :onRemovePoint="removeEditPoint"
+      @submit="submitEdit"
+    />
   </div>
 </template>
 
@@ -319,28 +192,5 @@ const {
   :deep(.el-form-item) {
     margin-bottom: 12px;
   }
-}
-
-.points-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.point-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.point-label {
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-  white-space: nowrap;
-}
-
-.coord-input {
-  width: 110px;
 }
 </style>

@@ -1,10 +1,5 @@
 import { ref, computed, reactive, watch } from "vue";
-import {
-  ElMessage,
-  ElMessageBox,
-  type FormInstance,
-  type FormRules
-} from "element-plus";
+import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import * as XLSX from "xlsx";
 import type { FenceItem, FenceForm, GeoPoint } from "./types";
 import {
@@ -90,8 +85,6 @@ export function useFenceList() {
   // ===== 对话框 & 表单 =====
   const addVisible = ref(false);
   const editVisible = ref(false);
-  const addFormRef = ref<FormInstance | null>(null);
-  const editFormRef = ref<FormInstance | null>(null);
 
   const addForm = reactive<FenceForm>({
     areatype: "",
@@ -226,24 +219,21 @@ export function useFenceList() {
   };
 
   const submitAdd = () => {
-    addFormRef.value?.validate(valid => {
-      if (!valid) return;
-      if (tableData.value.find(item => item.name === addForm.name)) {
-        ElMessage.error("区域名称已存在，请使用其他名称");
-        return;
-      }
-      tableData.value.push({
-        sid: genId(),
-        areatype: addForm.areatype,
-        name: addForm.name,
-        datatype: addForm.datatype,
-        data: addForm.data.map(p => ({ ...p })),
-        user: addForm.user,
-        create_time: formatDateTime(new Date())
-      });
-      addVisible.value = false;
-      ElMessage.success("新增成功");
+    if (tableData.value.find(item => item.name === addForm.name)) {
+      ElMessage.error("区域名称已存在，请使用其他名称");
+      return;
+    }
+    tableData.value.push({
+      sid: genId(),
+      areatype: addForm.areatype,
+      name: addForm.name,
+      datatype: addForm.datatype,
+      data: addForm.data.map(p => ({ ...p })),
+      user: addForm.user,
+      create_time: formatDateTime(new Date())
     });
+    addVisible.value = false;
+    ElMessage.success("新增成功");
   };
 
   // ===== 编辑 =====
@@ -276,27 +266,24 @@ export function useFenceList() {
   };
 
   const submitEdit = () => {
-    editFormRef.value?.validate(valid => {
-      if (!valid) return;
-      const duplicate = tableData.value.find(
-        item => item.name === editForm.name && item.sid !== editForm.sid
-      );
-      if (duplicate) {
-        ElMessage.error("区域名称已存在，请使用其他名称");
-        return;
-      }
-      const idx = tableData.value.findIndex(item => item.sid === editForm.sid);
-      if (idx !== -1) {
-        Object.assign(tableData.value[idx], {
-          areatype: editForm.areatype,
-          name: editForm.name,
-          datatype: editForm.datatype,
-          data: editForm.data.map(p => ({ ...p }))
-        });
-      }
-      editVisible.value = false;
-      ElMessage.success("编辑成功");
-    });
+    const duplicate = tableData.value.find(
+      item => item.name === editForm.name && item.sid !== editForm.sid
+    );
+    if (duplicate) {
+      ElMessage.error("区域名称已存在，请使用其他名称");
+      return;
+    }
+    const idx = tableData.value.findIndex(item => item.sid === editForm.sid);
+    if (idx !== -1) {
+      Object.assign(tableData.value[idx], {
+        areatype: editForm.areatype,
+        name: editForm.name,
+        datatype: editForm.datatype,
+        data: editForm.data.map(p => ({ ...p }))
+      });
+    }
+    editVisible.value = false;
+    ElMessage.success("编辑成功");
   };
 
   // ===== 删除 =====
@@ -486,8 +473,6 @@ export function useFenceList() {
     columns,
     addVisible,
     editVisible,
-    addFormRef,
-    editFormRef,
     addForm,
     editForm,
     addRules,
