@@ -1,12 +1,61 @@
-import { ref, computed, reactive } from "vue";
+import {
+  ref,
+  computed,
+  reactive,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  onActivated,
+  onDeactivated,
+  type Ref
+} from "vue";
 import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import * as XLSX from "xlsx";
 import type { DictItem, DictForm } from "./types";
 import { formatDateTime, genId, getValueType, MOCK_DICTS } from "./dict";
 
-export function useDictList() {
+const boatDataCache: Record<string, DictItem[]> = {};
+
+function getBoatData(boatId: string): DictItem[] {
+  if (!boatDataCache[boatId]) {
+    boatDataCache[boatId] = MOCK_DICTS.map(r => ({ ...r }));
+  }
+  return boatDataCache[boatId];
+}
+
+export function useDictList(boatId: Ref<string>) {
   // ===== 数据源 =====
-  const tableData = ref<DictItem[]>(MOCK_DICTS.map(r => ({ ...r })));
+  const tableData = ref<DictItem[]>(
+    boatId.value ? getBoatData(boatId.value) : []
+  );
+
+  let stopBoatWatch: (() => void) | null = null;
+
+  function startBoatWatch() {
+    stopBoatWatch?.();
+    stopBoatWatch = watch(
+      boatId,
+      id => {
+        tableData.value = id ? getBoatData(id) : [];
+        pagination.currentPage = 1;
+      },
+      { immediate: false }
+    );
+  }
+
+  onMounted(startBoatWatch);
+  onBeforeUnmount(() => {
+    stopBoatWatch?.();
+    stopBoatWatch = null;
+  });
+  onActivated(() => {
+    tableData.value = boatId.value ? getBoatData(boatId.value) : [];
+    startBoatWatch();
+  });
+  onDeactivated(() => {
+    stopBoatWatch?.();
+    stopBoatWatch = null;
+  });
 
   // ===== 搜索 =====
   const searchQuery = ref("");
@@ -100,6 +149,10 @@ export function useDictList() {
 
   // ===== 新增 =====
   const handleAdd = () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
+    }
     Object.assign(addForm, {
       keyname: "",
       keyvalue: "",
@@ -163,6 +216,7 @@ export function useDictList() {
     })
       .then(() => {
         tableData.value = tableData.value.filter(item => item._id !== row._id);
+        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
         ElMessage.success("删除成功");
       })
       .catch(() => {});
@@ -181,6 +235,7 @@ export function useDictList() {
       .then(() => {
         const ids = new Set(multipleSelection.value.map(r => r._id));
         tableData.value = tableData.value.filter(item => !ids.has(item._id));
+        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
         multipleSelection.value = [];
         ElMessage.success("批量删除成功");
       })
@@ -189,7 +244,12 @@ export function useDictList() {
 
   // ===== 刷新 =====
   const handleRefresh = () => {
-    tableData.value = MOCK_DICTS.map(r => ({ ...r }));
+    if (boatId.value) {
+      boatDataCache[boatId.value] = MOCK_DICTS.map(r => ({ ...r }));
+      tableData.value = boatDataCache[boatId.value];
+    } else {
+      tableData.value = [];
+    }
     searchQuery.value = "";
     pagination.currentPage = 1;
     ElMessage.success("已刷新");

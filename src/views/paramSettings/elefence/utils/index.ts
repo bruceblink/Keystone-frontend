@@ -1,4 +1,14 @@
-import { ref, computed, reactive, watch } from "vue";
+import {
+  ref,
+  computed,
+  reactive,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  onActivated,
+  onDeactivated,
+  type Ref
+} from "vue";
 import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import * as XLSX from "xlsx";
 import type { FenceItem, FenceForm, GeoPoint } from "./types";
@@ -12,11 +22,51 @@ import {
   genId
 } from "./dict";
 
-export function useFenceList() {
+const boatDataCache: Record<string, FenceItem[]> = {};
+
+function getBoatData(boatId: string): FenceItem[] {
+  if (!boatDataCache[boatId]) {
+    boatDataCache[boatId] = MOCK_FENCES.map(r => ({
+      ...r,
+      data: r.data.map(p => ({ ...p }))
+    }));
+  }
+  return boatDataCache[boatId];
+}
+
+export function useFenceList(boatId: Ref<string>) {
   // ===== 数据源 =====
   const tableData = ref<FenceItem[]>(
-    MOCK_FENCES.map(r => ({ ...r, data: r.data.map(p => ({ ...p })) }))
+    boatId.value ? getBoatData(boatId.value) : []
   );
+
+  let stopBoatWatch: (() => void) | null = null;
+
+  function startBoatWatch() {
+    stopBoatWatch?.();
+    stopBoatWatch = watch(
+      boatId,
+      id => {
+        tableData.value = id ? getBoatData(id) : [];
+        pagination.currentPage = 1;
+      },
+      { immediate: false }
+    );
+  }
+
+  onMounted(startBoatWatch);
+  onBeforeUnmount(() => {
+    stopBoatWatch?.();
+    stopBoatWatch = null;
+  });
+  onActivated(() => {
+    tableData.value = boatId.value ? getBoatData(boatId.value) : [];
+    startBoatWatch();
+  });
+  onDeactivated(() => {
+    stopBoatWatch?.();
+    stopBoatWatch = null;
+  });
 
   // ===== 搜索 =====
   const searchQuery = ref("");
@@ -191,6 +241,10 @@ export function useFenceList() {
 
   // ===== 新增 =====
   const handleAdd = () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
+    }
     Object.assign(addForm, {
       sid: genId(),
       areatype: "",
@@ -295,6 +349,7 @@ export function useFenceList() {
     })
       .then(() => {
         tableData.value = tableData.value.filter(item => item.sid !== row.sid);
+        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
         ElMessage.success("删除成功");
       })
       .catch(() => {});
@@ -313,6 +368,7 @@ export function useFenceList() {
       .then(() => {
         const ids = new Set(multipleSelection.value.map(r => r.sid));
         tableData.value = tableData.value.filter(item => !ids.has(item.sid));
+        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
         multipleSelection.value = [];
         ElMessage.success("批量删除成功");
       })
@@ -321,10 +377,15 @@ export function useFenceList() {
 
   // ===== 刷新 =====
   const handleRefresh = () => {
-    tableData.value = MOCK_FENCES.map(r => ({
-      ...r,
-      data: r.data.map(p => ({ ...p }))
-    }));
+    if (boatId.value) {
+      boatDataCache[boatId.value] = MOCK_FENCES.map(r => ({
+        ...r,
+        data: r.data.map(p => ({ ...p }))
+      }));
+      tableData.value = boatDataCache[boatId.value];
+    } else {
+      tableData.value = [];
+    }
     searchQuery.value = "";
     pagination.currentPage = 1;
     ElMessage.success("已刷新");

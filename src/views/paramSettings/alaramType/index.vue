@@ -7,12 +7,16 @@ import Delete from "@iconify-icons/ep/delete";
 import Download from "@iconify-icons/ep/download";
 import Upload from "@iconify-icons/ep/upload";
 import Search from "@iconify-icons/ep/search";
+import { toRef } from "vue";
 import { useAlarmTypeList } from "./utils";
 import type { AlarmTypeItem } from "./utils/types";
 import { TYPE_MAP } from "./utils/dict";
 import AlarmTypeDialog from "./components/AlarmTypeDialog.vue";
+import { useBoatStoreHook } from "@/store/modules/boat";
 
 defineOptions({ name: "ParamAlaramType" });
+
+const boatStore = useBoatStoreHook();
 
 const {
   searchQuery,
@@ -37,11 +41,47 @@ const {
   handleRefresh,
   handleExport,
   handleImport
-} = useAlarmTypeList();
+} = useAlarmTypeList(toRef(boatStore, "selectedBoatId"));
 </script>
 
 <template>
   <div class="main">
+    <!-- 船只选择器 -->
+    <div
+      class="boat-selector-bar bg-bg_color w-[99/100] pl-8 pt-[12px] pb-[12px] flex items-center gap-4"
+    >
+      <span class="text-sm font-medium text-text_color_regular"
+        >当前船只：</span
+      >
+      <el-select
+        :model-value="boatStore.selectedBoatId"
+        placeholder="请选择船只"
+        clearable
+        filterable
+        class="!w-[320px]"
+        @update:model-value="boatStore.setSelectedBoatId"
+      >
+        <el-option
+          v-for="b in boatStore.allBoats"
+          :key="b.devid"
+          :label="`${b.devid} - ${b.shipname_cn}`"
+          :value="b.devid"
+        />
+      </el-select>
+      <el-tag v-if="boatStore.selectedBoat" type="success">
+        {{ boatStore.selectedBoat.shipname_cn }}（{{
+          boatStore.selectedBoat.devid
+        }}）
+      </el-tag>
+      <el-alert
+        v-else
+        title="请先选择船只，再查看或编辑该船的报警类型"
+        type="warning"
+        :closable="false"
+        class="!py-1 !w-auto"
+      />
+    </div>
+
     <!-- 搜索栏 -->
     <el-form inline class="search-form bg-bg_color w-[99/100] pl-8 pt-[12px]">
       <el-form-item>
@@ -50,6 +90,7 @@ const {
           placeholder="搜索报警编号 / 报警类型名称"
           clearable
           class="!w-[280px]"
+          :disabled="!boatStore.selectedBoatId"
           @input="onSearch"
         >
           <template #prefix>
@@ -104,6 +145,7 @@ const {
           show-overflow-tooltip
           table-layout="auto"
           :size="size"
+          row-key="_id"
           adaptive
           :data="dataList"
           :columns="dynamicColumns"
@@ -198,5 +240,9 @@ const {
   :deep(.el-form-item) {
     margin-bottom: 12px;
   }
+}
+
+.boat-selector-bar {
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 </style>
