@@ -14,6 +14,7 @@ import {
   type AlarmType
 } from "./utils/dict";
 import { useBoatStoreHook } from "@/store/modules/boat";
+import { useDraggableMap } from "./utils/map";
 
 defineOptions({ name: "BoatDataManage" });
 
@@ -127,6 +128,8 @@ const rowClick = (row: AlarmRecord) => {
   currentRowIndex.value = paginatedTableData.value.findIndex(
     r => r.uuid === row.uuid
   );
+  if (mapVisible.value && mapInstance.value)
+    highlightAlarmMarker(row, shipNameMap.value, alarmTypeNameMap.value);
 };
 
 const tableRowClassName = ({ row }: { row: AlarmRecord }) =>
@@ -283,6 +286,42 @@ const handleUpload = async () => {
   uploadLoading.value = false;
 };
 
+/* ----- 地图 ----- */
+const {
+  mapVisible,
+  mapRef,
+  mapInstance,
+  mapPos,
+  mapSize,
+  isDragging,
+  toggleMap,
+  onDragStart,
+  onResizeStart,
+  highlightAlarmMarker,
+  clearHighlight,
+  clearFences
+} = useDraggableMap({
+  zoom: 5,
+  center: [121.47, 31.23],
+  mapStyle: "amap://styles/blue"
+});
+
+watch(mapVisible, val => {
+  if (val) {
+    nextTick(() => {
+      if (rowData.value && mapInstance.value)
+        highlightAlarmMarker(
+          rowData.value,
+          shipNameMap.value,
+          alarmTypeNameMap.value
+        );
+    });
+  } else {
+    clearHighlight();
+    clearFences();
+  }
+});
+
 /* ----- 徽标辅助 ----- */
 const LEVEL_TAG: Record<
   number,
@@ -417,6 +456,29 @@ const REVIEW_TAG: Record<
             </template>
           </el-input>
           <span class="toolbar-total">共 {{ tableDataTotal }} 条</span>
+          <el-button
+            size="small"
+            :type="mapVisible ? 'primary' : 'default'"
+            plain
+            @click="toggleMap"
+          >
+            <template #icon>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M7 2L1 5v13l6-3 6 3 6-3V2l-6 3-6-3z"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M7 2v13M13 5v13"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+              </svg>
+            </template>
+            {{ mapVisible ? "关闭地图" : "打开地图" }}
+          </el-button>
         </div>
 
         <!-- 表格 -->
@@ -533,8 +595,176 @@ const REVIEW_TAG: Record<
         />
       </div>
     </div>
+
+    <!-- 可拖动地图面板（teleport 到 body，位于单根元素内避免 Fragment 警告） -->
+    <teleport to="body">
+      <transition name="map-fade">
+        <div
+          v-show="mapVisible"
+          class="map-panel"
+          :style="{
+            left: mapPos.x + 'px',
+            top: mapPos.y + 'px',
+            width: mapSize.w + 'px',
+            height: mapSize.h + 'px',
+            cursor: isDragging ? 'grabbing' : 'default'
+          }"
+        >
+          <div class="map-panel__header" @mousedown="onDragStart">
+            <div class="map-panel__header-left">
+              <span class="map-panel__dot" />
+              <span class="map-panel__title">地图</span>
+              <span class="map-panel__sub">AMap · 高德地图</span>
+            </div>
+            <button class="map-panel__close" @click="mapVisible = false">
+              ×
+            </button>
+          </div>
+          <div ref="mapRef" class="map-panel__body" />
+          <div class="map-panel__resize" @mousedown="onResizeStart" />
+        </div>
+      </transition>
+    </teleport>
   </div>
 </template>
+
+<style lang="scss">
+@keyframes map-dot-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(94 231 255 / 0%);
+  }
+
+  50% {
+    box-shadow: 0 0 6px 2px rgb(94 231 255 / 40%);
+  }
+}
+
+@keyframes map-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.map-fade-enter-active {
+  animation: map-enter 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.map-fade-leave-active {
+  animation: map-enter 0.2s cubic-bezier(0.22, 0.61, 0.36, 1) reverse;
+}
+
+.map-panel {
+  position: fixed;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  min-height: 240px;
+  overflow: hidden;
+  user-select: none;
+  background: rgb(3 12 32 / 96%);
+  border: 1px solid rgb(82 188 255 / 22%);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 55%), 0 0 32px rgb(38 180 255 / 8%);
+}
+
+.map-panel__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: grab;
+  background: rgb(6 22 56 / 96%);
+  border-bottom: 1px solid rgb(82 188 255 / 16%);
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.map-panel__header-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.map-panel__dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  background: #5ee7ff;
+  border-radius: 50%;
+  animation: map-dot-pulse 2.4s ease-in-out infinite;
+}
+
+.map-panel__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e8f4ff;
+  letter-spacing: 0.04em;
+}
+
+.map-panel__sub {
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  color: rgb(160 200 240 / 50%);
+  letter-spacing: 0.06em;
+}
+
+.map-panel__close {
+  padding: 0 2px;
+  font-size: 18px;
+  line-height: 1;
+  color: rgb(160 200 240 / 55%);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transition: color 0.15s;
+
+  &:hover {
+    color: #5ee7ff;
+  }
+}
+
+.map-panel__body {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.map-panel__resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  background: linear-gradient(
+    135deg,
+    transparent 50%,
+    rgb(94 231 255 / 25%) 50%
+  );
+  border-radius: 0 0 12px;
+
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      transparent 50%,
+      rgb(94 231 255 / 50%) 50%
+    );
+  }
+}
+
+/* 地图面板（teleport 到 body，非 scoped） */
+</style>
 
 <style scoped lang="scss">
 @media (width <= 1100px) {
