@@ -37,6 +37,15 @@ export default {
         title: "版本发布",
         icon: "rocket"
       }
+    },
+    {
+      path: "/boatDevice/dataManage",
+      name: "BoatDataManage",
+      component: () => import("@/views/boatDevice/dataManage/index.vue"),
+      meta: {
+        title: "数据管理",
+        icon: "dataAnalysis"
+      }
     }
   ]
 } as RouteConfigsTable;
