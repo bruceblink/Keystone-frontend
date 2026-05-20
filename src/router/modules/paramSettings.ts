@@ -6,8 +6,8 @@ export default {
   component: Layout,
   redirect: "/paramSettings/dict",
   meta: {
-    icon: "setting",
-    title: "参数设置",
+    // icon: "setting",
+    title: "船舶设置",
     rank: 20
   },
   children: [
@@ -36,6 +36,15 @@ export default {
       meta: {
         title: "报警类型",
         icon: "bell"
+      }
+    },
+    {
+      path: "/paramSettings/alarmConfig",
+      name: "ParamAlarmConfig",
+      component: () => import("@/views/paramSettings/alarmConfig/index.vue"),
+      meta: {
+        title: "报警配置"
+        // icon: "setting"
       }
     }
   ]
