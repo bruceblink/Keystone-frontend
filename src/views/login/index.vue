@@ -75,36 +75,41 @@ const ruleForm = reactive({
 
 const onLogin = async (formEl: FormInstance | undefined) => {
   loading.value = true;
-  if (!formEl) return;
-  await formEl.validate(valid => {
-    if (valid) {
-      CommonAPI.loginByPassword({
-        username: ruleForm.username,
-        password: rsaEncrypt(ruleForm.password),
-        captchaCode: ruleForm.captchaCode,
-        captchaCodeKey: ruleForm.captchaCodeKey
-      })
-        .then(({ data }) => {
-          // 登录成功后 将token存储到sessionStorage中
-          setTokenFromBackend(data);
-          // 获取后端路由
-          initRouter().then(() => {
-            router.push(getTopMenu(true).path);
-            message("登录成功", { type: "success" });
-          });
-          if (isRememberMe.value) {
-            savePassword(ruleForm.password);
-          }
-        })
-        .catch(() => {
-          loading.value = false;
-          //如果登陆失败则重新获取验证码
-          getCaptchaCode();
-        });
-    } else {
-      loading.value = false;
-    }
-  });
+  if (!formEl) {
+    loading.value = false;
+    return;
+  }
+
+  const valid = await formEl.validate().catch(() => false);
+  if (!valid) {
+    loading.value = false;
+    return;
+  }
+
+  try {
+    const rsaPublicKeyRes = await CommonAPI.getRsaPublicKey();
+    await CommonAPI.loginByPassword({
+      username: ruleForm.username,
+      password: rsaEncrypt(ruleForm.password, rsaPublicKeyRes.data.publicKey),
+      captchaCode: ruleForm.captchaCode,
+      captchaCodeKey: ruleForm.captchaCodeKey
+    }).then(({ data }) => {
+      // 登录成功后 将token存储到sessionStorage中
+      setTokenFromBackend(data);
+      // 获取后端路由
+      initRouter().then(() => {
+        router.push(getTopMenu(true).path);
+        message("登录成功", { type: "success" });
+      });
+      if (isRememberMe.value) {
+        savePassword(ruleForm.password);
+      }
+    });
+  } catch {
+    loading.value = false;
+    //如果登陆失败则重新获取验证码
+    getCaptchaCode();
+  }
 };
 
 /** 使用公共函数，避免`removeEventListener`失效 */
