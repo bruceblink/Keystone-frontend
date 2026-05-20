@@ -84,6 +84,7 @@ class PureHttp {
         const whiteList = [
           "/refreshToken",
           "/login",
+          "/login/rsa-public-key",
           "/captchaImage",
           "/getConfig"
         ];

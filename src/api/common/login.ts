@@ -26,6 +26,11 @@ export type LoginByPasswordDTO = {
   captchaCodeKey: string;
 };
 
+export type RsaPublicKeyDTO = {
+  /** RSA 公钥 */
+  publicKey: string;
+};
+
 /**
  * 后端token实现
  */
@@ -86,6 +91,14 @@ export const getConfig = () => {
 /** 验证码接口 */
 export const getCaptchaCode = () => {
   return http.request<ResponseData<CaptchaDTO>>("get", "/captchaImage");
+};
+
+/** RSA公钥接口 */
+export const getRsaPublicKey = () => {
+  return http.request<ResponseData<RsaPublicKeyDTO>>(
+    "get",
+    "/login/rsa-public-key"
+  );
 };
 
 /** 登录接口 */
