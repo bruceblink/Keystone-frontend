@@ -303,7 +303,7 @@ const {
 } = useDraggableMap({
   zoom: 5,
   center: [121.47, 31.23],
-  mapStyle: "amap://styles/blue"
+  mapStyle: "amap://styles/normal"
 });
 
 watch(mapVisible, val => {

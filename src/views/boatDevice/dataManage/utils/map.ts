@@ -191,7 +191,7 @@ export function useDraggableMap(options: UseDraggableMapOptions = {}) {
     minH = 240,
     zoom = 10,
     center = [121.47, 31.23] as [number, number],
-    mapStyle = "amap://styles/blue",
+    mapStyle = "amap://styles/normal",
     extraMapOptions = {}
   } = options;
 
