@@ -85,9 +85,7 @@ const params = computed({
       </el-select>
     </el-form-item>
     <el-form-item>
-      <el-checkbox v-model="params.showFavoriteOnly" @change="emit('search')">
-        仅显示关注
-      </el-checkbox>
+      <el-checkbox v-model="params.showFavoriteOnly"> 仅显示关注 </el-checkbox>
     </el-form-item>
     <el-form-item>
       <el-button

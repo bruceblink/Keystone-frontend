@@ -57,6 +57,7 @@ export const MOCK_DEVICES: DeviceRecord[] = [
     speed: "12.50",
     version: "v1.2.0",
     navstatus: "0",
+    online: "1",
     remarks: "正常运行",
     create_time: "2026-05-12 10:00:00"
   },
@@ -71,6 +72,7 @@ export const MOCK_DEVICES: DeviceRecord[] = [
     speed: "8.30",
     version: "v1.1.5",
     navstatus: "2",
+    online: "0",
     remarks: "",
     create_time: "2026-05-08 08:30:00"
   },
@@ -85,6 +87,7 @@ export const MOCK_DEVICES: DeviceRecord[] = [
     speed: "15.00",
     version: "v1.2.0",
     navstatus: "0",
+    online: "1",
     remarks: "货运途中",
     create_time: "2026-05-12 06:20:00"
   },
@@ -99,6 +102,7 @@ export const MOCK_DEVICES: DeviceRecord[] = [
     speed: "0.00",
     version: "v1.0.8",
     navstatus: "1",
+    online: "0",
     remarks: "抛锚作业",
     create_time: "2026-05-05 14:00:00"
   },
@@ -113,6 +117,7 @@ export const MOCK_DEVICES: DeviceRecord[] = [
     speed: "20.50",
     version: "v1.2.1",
     navstatus: "0",
+    online: "1",
     remarks: "客运航线",
     create_time: "2026-05-11 09:15:00"
   },
@@ -127,6 +132,7 @@ export const MOCK_DEVICES: DeviceRecord[] = [
     speed: "11.20",
     version: "v1.1.0",
     navstatus: "0",
+    online: "1",
     remarks: "",
     create_time: "2026-04-20 12:00:00"
   }

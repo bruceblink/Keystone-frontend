@@ -1,21 +1,65 @@
-import { ref, computed, reactive } from "vue";
+import { ref, computed, reactive, onMounted, onActivated } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import * as XLSX from "xlsx";
 import type { DeviceRecord, SearchParams } from "./types";
+import { GROUP_MAP, NAV_STATUS_MAP, getOnlineStatus } from "./dict";
 import {
-  GROUP_MAP,
-  NAV_STATUS_MAP,
-  MOCK_DEVICES,
-  getOnlineStatus
-} from "./dict";
+  addDeviceList,
+  deleteDeviceList,
+  getDeviceListQuery,
+  updateDeviceList,
+  type DeviceSaveDTO,
+  type DeviceListItemDTO
+} from "@/api/boatDevice/shipForm";
 
 import StarFilled from "@iconify-icons/ep/star-filled";
 import Star from "@iconify-icons/ep/star";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 
+const SEARCH_STORAGE_KEY = "adminShipFormLastSearch";
+
+const emptySearchParams = (): SearchParams => ({
+  keyword: "",
+  type: "",
+  navstatus: "",
+  onlineStatus: "",
+  showFavoriteOnly: false
+});
+
 export function useBoatDeviceHook() {
   // ===== 数据源 =====
-  const tableData = ref<DeviceRecord[]>(MOCK_DEVICES.map(d => ({ ...d })));
+  const tableData = ref<DeviceRecord[]>([]);
+  const loading = ref(false);
+
+  const normalizeDevice = (item: DeviceListItemDTO): DeviceRecord => ({
+    devid: String(item.devid ?? ""),
+    shipname_cn: item.shipname_cn ?? "",
+    shipname_en: item.shipname_en ?? "",
+    type: String(item.type ?? ""),
+    mmsi: String(item.mmsi ?? "").trim(),
+    lng: String(item.lng ?? ""),
+    lat: String(item.lat ?? ""),
+    speed: String(item.speed ?? ""),
+    version: item.version ?? "",
+    navstatus: String(item.navstatus ?? ""),
+    online: String(item.online ?? ""),
+    remarks: item.remarks ?? "",
+    create_time: item.create_time ?? ""
+  });
+
+  const fetchDeviceList = async () => {
+    loading.value = true;
+    try {
+      const res = await getDeviceListQuery();
+      const list = Array.isArray(res.data) ? res.data : [];
+      tableData.value = list.map(normalizeDevice);
+    } catch (err) {
+      console.error("[shipForm] 获取设备列表失败:", err);
+      tableData.value = [];
+    } finally {
+      loading.value = false;
+    }
+  };
 
   // ===== 收藏 =====
   const favorites = ref<string[]>(
@@ -36,15 +80,10 @@ export function useBoatDeviceHook() {
     localStorage.setItem("deviceFavorites", JSON.stringify(favorites.value));
   };
 
-  // ===== 搜索 =====
+  // ===== 搜索（UI 输入值 / 点击搜索后生效的过滤值） =====
   const searchFormRef = ref();
-  const searchParams = reactive<SearchParams>({
-    keyword: "",
-    type: "",
-    navstatus: "",
-    onlineStatus: "",
-    showFavoriteOnly: false
-  });
+  const searchParams = reactive<SearchParams>(emptySearchParams());
+  const appliedSearchParams = reactive<SearchParams>(emptySearchParams());
 
   const pagination = reactive({
     currentPage: 1,
@@ -53,45 +92,84 @@ export function useBoatDeviceHook() {
     background: true
   });
 
-  const onSearch = () => {
-    pagination.currentPage = 1;
+  const saveSearchConditions = () => {
+    localStorage.setItem(
+      SEARCH_STORAGE_KEY,
+      JSON.stringify({ ...searchParams })
+    );
   };
 
-  const resetSearch = () => {
-    searchFormRef.value?.resetFields();
-    Object.assign(searchParams, {
-      keyword: "",
-      type: "",
-      navstatus: "",
-      onlineStatus: "",
-      showFavoriteOnly: false
+  const restoreLastSearch = (silent = true) => {
+    const raw = localStorage.getItem(SEARCH_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const saved = JSON.parse(raw) as Partial<SearchParams>;
+      Object.assign(searchParams, emptySearchParams(), saved);
+      Object.assign(appliedSearchParams, emptySearchParams(), saved);
+      pagination.currentPage = 1;
+    } catch (err) {
+      console.error("[shipForm] 恢复搜索条件失败:", err);
+      if (!silent) ElMessage.error("恢复搜索条件失败");
+    }
+  };
+
+  const applyLocalSearch = () => {
+    Object.assign(appliedSearchParams, {
+      keyword: searchParams.keyword,
+      type: searchParams.type,
+      navstatus: searchParams.navstatus,
+      onlineStatus: searchParams.onlineStatus,
+      showFavoriteOnly: searchParams.showFavoriteOnly
     });
     pagination.currentPage = 1;
   };
 
-  // ===== 过滤 + 分页 =====
+  const onSearch = () => {
+    applyLocalSearch();
+    saveSearchConditions();
+    ElMessage.success(`搜索完成，共找到 ${filteredList.value.length} 条记录`);
+  };
+
+  const resetSearch = () => {
+    searchFormRef.value?.resetFields();
+    Object.assign(searchParams, emptySearchParams());
+    Object.assign(appliedSearchParams, emptySearchParams());
+    pagination.currentPage = 1;
+    localStorage.removeItem(SEARCH_STORAGE_KEY);
+    ElMessage.success("已恢复初始条件");
+  };
+
+  const refreshList = async () => {
+    await fetchDeviceList();
+  };
+
+  // ===== 本地过滤 + 分页 =====
   const filteredList = computed(() => {
     let list = [...tableData.value];
-    if (searchParams.showFavoriteOnly) {
+    if (appliedSearchParams.showFavoriteOnly) {
       list = list.filter(d => favorites.value.includes(d.devid));
     }
-    if (searchParams.type) {
-      list = list.filter(d => d.type === searchParams.type);
+    if (appliedSearchParams.type) {
+      list = list.filter(d => d.type === appliedSearchParams.type);
     }
-    if (searchParams.navstatus) {
-      list = list.filter(d => d.navstatus === searchParams.navstatus);
+    if (appliedSearchParams.navstatus) {
+      list = list.filter(d => d.navstatus === appliedSearchParams.navstatus);
     }
-    if (searchParams.onlineStatus) {
-      list = list.filter(d => getOnlineStatus(d) === searchParams.onlineStatus);
+    if (appliedSearchParams.onlineStatus) {
+      list = list.filter(
+        d => getOnlineStatus(d) === appliedSearchParams.onlineStatus
+      );
     }
-    if (searchParams.keyword.trim()) {
-      const q = searchParams.keyword.trim().toLowerCase();
+    if (appliedSearchParams.keyword.trim()) {
+      const q = appliedSearchParams.keyword.trim().toLowerCase();
+      const toSafeLower = (value: unknown) => String(value ?? "").toLowerCase();
       list = list.filter(
         d =>
-          d.devid.toLowerCase().includes(q) ||
-          d.shipname_cn.toLowerCase().includes(q) ||
-          d.shipname_en.toLowerCase().includes(q) ||
-          d.version.toLowerCase().includes(q)
+          toSafeLower(d.devid).includes(q) ||
+          toSafeLower(d.shipname_cn).includes(q) ||
+          toSafeLower(d.shipname_en).includes(q) ||
+          toSafeLower(GROUP_MAP[d.type]).includes(q) ||
+          toSafeLower(d.version).includes(q)
       );
     }
     return list;
@@ -101,6 +179,15 @@ export function useBoatDeviceHook() {
     pagination.total = filteredList.value.length;
     const start = (pagination.currentPage - 1) * pagination.pageSize;
     return filteredList.value.slice(start, start + pagination.pageSize);
+  });
+
+  onMounted(async () => {
+    await fetchDeviceList();
+    restoreLastSearch(true);
+  });
+
+  onActivated(() => {
+    restoreLastSearch(true);
   });
 
   // ===== 多选 =====
@@ -164,18 +251,35 @@ export function useBoatDeviceHook() {
     dialogVisible.value = true;
   };
 
-  const handleSubmit = (data: DeviceRecord) => {
-    if (dialogType.value === "add") {
-      tableData.value.unshift({
-        ...data,
-        create_time: new Date().toISOString().replace("T", " ").substring(0, 19)
-      });
-      ElMessage.success("添加成功");
-    } else {
-      const idx = tableData.value.findIndex(d => d.devid === data.devid);
-      if (idx >= 0) tableData.value[idx] = { ...data };
-      ElMessage.success("更新成功");
-    }
+  const toSavePayload = (
+    data: DeviceRecord,
+    isEdit = false
+  ): DeviceSaveDTO => ({
+    devid: data.devid,
+    shipname_cn: data.shipname_cn,
+    shipname_en: data.shipname_en,
+    type: data.type,
+    mmsi: data.mmsi.trim(),
+    lng: data.lng || "0.000000",
+    lat: data.lat || "0.000000",
+    speed: data.speed || "0.00",
+    version: data.version || "",
+    navstatus: data.navstatus || "0",
+    online: data.online || "0",
+    create_time:
+      isEdit && data.create_time
+        ? data.create_time
+        : new Date().toISOString().replace("T", " ").substring(0, 19)
+  });
+
+  const handleSubmit = async (data: DeviceRecord) => {
+    const isEdit = dialogType.value === "edit";
+    const res = isEdit
+      ? await updateDeviceList(toSavePayload(data, true))
+      : await addDeviceList(toSavePayload(data));
+    ElMessage.success(res.msg || (isEdit ? "更新成功" : "添加成功"));
+    dialogVisible.value = false;
+    await fetchDeviceList();
   };
 
   const handleDelete = (row: DeviceRecord) => {
@@ -184,9 +288,10 @@ export function useBoatDeviceHook() {
       cancelButtonText: "取消",
       type: "warning"
     })
-      .then(() => {
-        tableData.value = tableData.value.filter(d => d.devid !== row.devid);
-        ElMessage.success("删除成功");
+      .then(async () => {
+        const res = await deleteDeviceList(row.devid);
+        ElMessage.success(res.msg || "删除成功");
+        await fetchDeviceList();
       })
       .catch(() => {});
   };
@@ -234,10 +339,12 @@ export function useBoatDeviceHook() {
     toggleFavorite,
     favoriteIcon,
     searchFormRef,
+    loading,
     searchParams,
     pagination,
     onSearch,
     resetSearch,
+    refreshList,
     dataList,
     multipleSelection,
     columns,

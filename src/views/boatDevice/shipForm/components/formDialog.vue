@@ -12,12 +12,12 @@ interface Props {
   type: "add" | "edit";
   row?: DeviceRecord | null;
   existList: DeviceRecord[];
+  onSubmit: (data: DeviceRecord) => Promise<void>;
 }
 
 const props = defineProps<Props>();
 const emits = defineEmits<{
   (e: "update:modelValue", v: boolean): void;
-  (e: "submit", data: DeviceRecord): void;
 }>();
 
 const visible = computed({
@@ -36,6 +36,7 @@ const emptyForm = (): DeviceRecord => ({
   speed: "",
   version: "",
   navstatus: "0",
+  online: "0",
   remarks: "",
   create_time: ""
 });
@@ -121,8 +122,7 @@ async function handleConfirm() {
   }
   loading.value = true;
   try {
-    emits("submit", { ...formData });
-    visible.value = false;
+    await props.onSubmit({ ...formData });
   } finally {
     loading.value = false;
   }

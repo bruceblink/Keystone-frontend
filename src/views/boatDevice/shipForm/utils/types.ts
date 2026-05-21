@@ -9,6 +9,7 @@ export interface DeviceRecord {
   speed: string;
   version: string;
   navstatus: string;
+  online: string;
   remarks: string;
   create_time: string;
 }

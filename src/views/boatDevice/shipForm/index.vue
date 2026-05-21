@@ -27,6 +27,7 @@ const {
   pagination,
   onSearch,
   resetSearch,
+  refreshList,
   dataList,
   multipleSelection,
   columns,
@@ -51,7 +52,11 @@ const {
     />
 
     <!-- 表格区域 -->
-    <PureTableBar title="船舶设备列表" :columns="columns" @refresh="onSearch">
+    <PureTableBar
+      title="船舶设备列表"
+      :columns="columns"
+      @refresh="refreshList"
+    >
       <template #buttons>
         <el-button
           type="primary"
@@ -88,7 +93,7 @@ const {
           @page-size-change="
             v => {
               pagination.pageSize = v;
-              onSearch();
+              pagination.currentPage = 1;
             }
           "
           @page-current-change="v => (pagination.currentPage = v)"
@@ -169,7 +174,7 @@ const {
       :type="dialogType"
       :row="currentRow"
       :exist-list="tableData"
-      @submit="handleSubmit"
+      :on-submit="handleSubmit"
     />
   </div>
 </template>
