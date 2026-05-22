@@ -46,6 +46,15 @@ export default {
         title: "报警配置"
         // icon: "setting"
       }
+    },
+    {
+      path: "/paramSettings/alarmRecord",
+      name: "ParamAlarmRecord",
+      component: () => import("@/views/paramSettings/alarmRecord/index.vue"),
+      meta: {
+        title: "报警记录",
+        icon: "document"
+      }
     }
   ]
 } as RouteConfigsTable;

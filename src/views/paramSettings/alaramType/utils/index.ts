@@ -12,22 +12,79 @@ import {
 import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import * as XLSX from "xlsx";
 import type { AlarmTypeItem, AlarmTypeForm } from "./types";
-import { formatDateTime, genId, TYPE_MAP, MOCK_ALARM_TYPES } from "./dict";
+import {
+  addReasonTypeList,
+  deleteReasonTypeList,
+  getReasonTypeListQuery,
+  updateReasonTypeList,
+  type ReasonTypeListItemDTO,
+  type ReasonTypeSaveDTO
+} from "@/api/paramSettings/alarmType";
+import { formatDateTime, genId, TYPE_MAP } from "./dict";
+import {
+  isExcelFile,
+  logImportFailures,
+  readExcelJsonRows,
+  requireSelectionForExport,
+  showImportResult
+} from "../../importExport";
 
-const boatDataCache: Record<string, AlarmTypeItem[]> = {};
+const toFlag = (v: string | number | undefined) =>
+  String(v) === "1" || v === 1 ? "1" : "0";
 
-function getBoatData(boatId: string): AlarmTypeItem[] {
-  if (!boatDataCache[boatId]) {
-    boatDataCache[boatId] = MOCK_ALARM_TYPES.map(r => ({ ...r }));
-  }
-  return boatDataCache[boatId];
-}
+const normalizeReasonType = (item: ReasonTypeListItemDTO): AlarmTypeItem => ({
+  _id: String(item._id ?? genId()),
+  id: String(item.id ?? ""),
+  des: item.des ?? "",
+  type: String(item.type ?? "1"),
+  alarmid: item.alarmid ?? "",
+  s2cloud: toFlag(item.s2cloud),
+  s2ship: toFlag(item.s2ship),
+  visibility: toFlag(item.visibility),
+  create_time: item.create_time ?? "",
+  user: item.user ?? ""
+});
+
+const toSavePayload = (
+  form: AlarmTypeForm,
+  devid: string,
+  options?: { _id?: string; create_time?: string }
+): ReasonTypeSaveDTO => ({
+  _id: options?._id ?? form._id,
+  id: form.id,
+  alarmid: form.alarmid,
+  des: form.des,
+  type: form.type || "1",
+  s2cloud: form.s2cloud,
+  s2ship: form.s2ship,
+  visibility: form.visibility,
+  devid,
+  create_time: options?.create_time ?? ""
+});
 
 export function useAlarmTypeList(boatId: Ref<string>) {
-  // ===== 数据源 =====
-  const tableData = ref<AlarmTypeItem[]>(
-    boatId.value ? getBoatData(boatId.value) : []
-  );
+  const tableData = ref<AlarmTypeItem[]>([]);
+  const loading = ref(false);
+
+  const fetchReasonTypeList = async (devid?: string) => {
+    const id = devid ?? boatId.value;
+    if (!id) {
+      tableData.value = [];
+      return;
+    }
+    loading.value = true;
+    try {
+      const res = await getReasonTypeListQuery({ devid: id });
+      const list = Array.isArray(res.data) ? res.data : [];
+      tableData.value = list.map(normalizeReasonType);
+      pagination.currentPage = 1;
+    } catch (err) {
+      console.error("[alarmType] 查询报警类型失败:", err);
+      tableData.value = [];
+    } finally {
+      loading.value = false;
+    }
+  };
 
   let stopBoatWatch: (() => void) | null = null;
 
@@ -36,28 +93,34 @@ export function useAlarmTypeList(boatId: Ref<string>) {
     stopBoatWatch = watch(
       boatId,
       id => {
-        tableData.value = id ? getBoatData(id) : [];
-        pagination.currentPage = 1;
+        if (id) {
+          fetchReasonTypeList(id);
+        } else {
+          tableData.value = [];
+          pagination.currentPage = 1;
+        }
       },
       { immediate: false }
     );
   }
 
-  onMounted(startBoatWatch);
+  onMounted(() => {
+    startBoatWatch();
+    if (boatId.value) fetchReasonTypeList(boatId.value);
+  });
   onBeforeUnmount(() => {
     stopBoatWatch?.();
     stopBoatWatch = null;
   });
   onActivated(() => {
-    tableData.value = boatId.value ? getBoatData(boatId.value) : [];
     startBoatWatch();
+    if (boatId.value) fetchReasonTypeList(boatId.value);
   });
   onDeactivated(() => {
     stopBoatWatch?.();
     stopBoatWatch = null;
   });
 
-  // ===== 搜索 =====
   const searchQuery = ref("");
 
   const filteredData = computed(() => {
@@ -78,7 +141,6 @@ export function useAlarmTypeList(boatId: Ref<string>) {
     pagination.currentPage = 1;
   };
 
-  // ===== 分页 =====
   const pagination = reactive({
     currentPage: 1,
     pageSize: 30,
@@ -92,10 +154,8 @@ export function useAlarmTypeList(boatId: Ref<string>) {
     return filteredData.value.slice(start, start + pagination.pageSize);
   });
 
-  // ===== 多选 =====
   const multipleSelection = ref<AlarmTypeItem[]>([]);
 
-  // ===== 列定义 =====
   const columns: TableColumnList = [
     { type: "selection", width: 55, reserveSelection: true },
     { label: "报警编号", prop: "id", width: 120 },
@@ -113,7 +173,6 @@ export function useAlarmTypeList(boatId: Ref<string>) {
     { label: "操作", fixed: "right", width: 160, slot: "operation" }
   ];
 
-  // ===== 表单 =====
   const addVisible = ref(false);
   const editVisible = ref(false);
 
@@ -139,7 +198,6 @@ export function useAlarmTypeList(boatId: Ref<string>) {
     originalDes: ""
   });
 
-  // ===== 校验规则 =====
   const addRules: FormRules = {
     id: [
       { required: true, message: "请输入报警编号", trigger: "blur" },
@@ -206,14 +264,32 @@ export function useAlarmTypeList(boatId: Ref<string>) {
     alarmid: [{ required: true, message: "请输入分组编号", trigger: "blur" }]
   };
 
-  // ===== 开关切换 =====
-  const handleSwitchChange = (row: AlarmTypeItem) => {
-    const idx = tableData.value.findIndex(item => item._id === row._id);
-    if (idx !== -1) Object.assign(tableData.value[idx], row);
-    ElMessage.success("切换成功");
+  const handleSwitchChange = async (row: AlarmTypeItem) => {
+    if (!boatId.value) return;
+    try {
+      await updateReasonTypeList(
+        toSavePayload(
+          {
+            _id: row._id,
+            id: row.id,
+            des: row.des,
+            type: row.type,
+            alarmid: row.alarmid,
+            s2cloud: row.s2cloud,
+            s2ship: row.s2ship,
+            visibility: row.visibility
+          },
+          boatId.value,
+          { _id: row._id, create_time: row.create_time }
+        )
+      );
+      ElMessage.success("切换成功");
+    } catch (err) {
+      console.error("[alarmType] 更新开关状态失败:", err);
+      await fetchReasonTypeList(boatId.value);
+    }
   };
 
-  // ===== 新增 =====
   const handleAdd = () => {
     if (!boatId.value) {
       ElMessage.warning("请先选择船只");
@@ -231,28 +307,30 @@ export function useAlarmTypeList(boatId: Ref<string>) {
     addVisible.value = true;
   };
 
-  const submitAdd = () => {
+  const submitAdd = async () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
+    }
     if (tableData.value.some(item => item.id === addForm.id)) {
       ElMessage.error("该报警编号已存在");
       return;
     }
-    tableData.value.push({
-      _id: genId(),
-      id: addForm.id,
-      des: addForm.des,
-      type: addForm.type,
-      alarmid: addForm.alarmid,
-      s2cloud: addForm.s2cloud,
-      s2ship: addForm.s2ship,
-      visibility: addForm.visibility,
-      create_time: formatDateTime(new Date()),
-      user: localStorage.getItem("username") || ""
-    });
-    addVisible.value = false;
-    ElMessage.success("新增成功");
+    try {
+      const res = await addReasonTypeList(
+        toSavePayload(addForm, boatId.value, {
+          _id: genId(),
+          create_time: formatDateTime(new Date())
+        })
+      );
+      ElMessage.success(res.msg || "新增成功");
+      addVisible.value = false;
+      await fetchReasonTypeList(boatId.value);
+    } catch (err) {
+      console.error("[alarmType] 新增报警类型失败:", err);
+    }
   };
 
-  // ===== 编辑 =====
   const handleEdit = (row: AlarmTypeItem) => {
     Object.assign(editForm, {
       _id: row._id,
@@ -268,23 +346,27 @@ export function useAlarmTypeList(boatId: Ref<string>) {
     editVisible.value = true;
   };
 
-  const submitEdit = () => {
-    const idx = tableData.value.findIndex(item => item._id === editForm._id);
-    if (idx !== -1) {
-      Object.assign(tableData.value[idx], {
-        des: editForm.des,
-        type: editForm.type,
-        alarmid: editForm.alarmid,
-        s2cloud: editForm.s2cloud,
-        s2ship: editForm.s2ship,
-        visibility: editForm.visibility
-      });
+  const submitEdit = async () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
     }
-    editVisible.value = false;
-    ElMessage.success("编辑成功");
+    const origin = tableData.value.find(item => item._id === editForm._id);
+    try {
+      const res = await updateReasonTypeList(
+        toSavePayload(editForm, boatId.value, {
+          _id: editForm._id,
+          create_time: origin?.create_time ?? ""
+        })
+      );
+      ElMessage.success(res.msg || "编辑成功");
+      editVisible.value = false;
+      await fetchReasonTypeList(boatId.value);
+    } catch (err) {
+      console.error("[alarmType] 编辑报警类型失败:", err);
+    }
   };
 
-  // ===== 删除 =====
   const handleDelete = (row: AlarmTypeItem) => {
     ElMessageBox.confirm(
       `确定要删除报警编号为「${row.id}」的报警类型吗？`,
@@ -295,10 +377,14 @@ export function useAlarmTypeList(boatId: Ref<string>) {
         type: "warning"
       }
     )
-      .then(() => {
-        tableData.value = tableData.value.filter(item => item._id !== row._id);
-        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
-        ElMessage.success("删除成功");
+      .then(async () => {
+        try {
+          const res = await deleteReasonTypeList(row._id);
+          ElMessage.success(res.msg || "删除成功");
+          if (boatId.value) await fetchReasonTypeList(boatId.value);
+        } catch (err) {
+          console.error("[alarmType] 删除报警类型失败:", err);
+        }
       })
       .catch(() => {});
   };
@@ -313,38 +399,44 @@ export function useAlarmTypeList(boatId: Ref<string>) {
       "提示",
       { confirmButtonText: "确定", cancelButtonText: "取消", type: "warning" }
     )
-      .then(() => {
-        const ids = new Set(multipleSelection.value.map(r => r._id));
-        tableData.value = tableData.value.filter(item => !ids.has(item._id));
-        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
+      .then(async () => {
+        const rows = [...multipleSelection.value];
+        let success = 0;
+        let failed = 0;
+        for (const row of rows) {
+          try {
+            await deleteReasonTypeList(row._id);
+            success++;
+          } catch {
+            failed++;
+          }
+        }
         multipleSelection.value = [];
-        ElMessage.success("批量删除成功");
+        if (boatId.value) await fetchReasonTypeList(boatId.value);
+        if (success > 0) {
+          ElMessage.success(
+            `批量删除成功 ${success} 条${failed ? `，失败 ${failed} 条` : ""}`
+          );
+        } else {
+          ElMessage.error("批量删除失败");
+        }
       })
       .catch(() => {});
   };
 
-  // ===== 刷新 =====
-  const handleRefresh = () => {
-    if (boatId.value) {
-      boatDataCache[boatId.value] = MOCK_ALARM_TYPES.map(r => ({ ...r }));
-      tableData.value = boatDataCache[boatId.value];
-    } else {
-      tableData.value = [];
+  const handleRefresh = async () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
     }
     searchQuery.value = "";
-    pagination.currentPage = 1;
+    await fetchReasonTypeList(boatId.value);
     ElMessage.success("已刷新");
   };
 
-  // ===== 导出 =====
   const handleExport = () => {
-    const rows = multipleSelection.value.length
-      ? multipleSelection.value
-      : filteredData.value;
-    if (!rows.length) {
-      ElMessage.warning("暂无数据可导出");
-      return;
-    }
+    const rows = requireSelectionForExport(multipleSelection.value);
+    if (!rows) return;
     const exportData = rows.map(item => ({
       报警编号: item.id,
       报警类型名称: item.des,
@@ -372,89 +464,133 @@ export function useAlarmTypeList(boatId: Ref<string>) {
     ElMessage.success("导出成功");
   };
 
-  // ===== 导入 =====
+  const importReasonTypesFromFile = async (file: File) => {
+    if (!isExcelFile(file)) {
+      ElMessage.error("请选择 Excel 文件（.xlsx 或 .xls）");
+      return;
+    }
+
+    await fetchReasonTypeList(boatId.value);
+    const jsonData = await readExcelJsonRows(file);
+    if (!jsonData.length) {
+      ElMessage.warning("文件中没有可导入的数据");
+      return;
+    }
+
+    const existingIds = new Set(tableData.value.map(item => item.id));
+    const existingDes = new Set(tableData.value.map(item => item.des));
+    const seenIds = new Set<string>();
+    const seenDes = new Set<string>();
+    const toImport: ReasonTypeSaveDTO[] = [];
+    const skipLogs: { row: number; reason: string }[] = [];
+
+    jsonData.forEach((row, index) => {
+      const rowNum = index + 2;
+      const id = String(row["报警编号"] || "").trim();
+      const des = String(row["报警类型名称"] || "").trim();
+      const typeLabel = String(row["类型"] || "").trim();
+      const alarmid = String(row["分组编号"] || "").trim();
+
+      if (!id || !des || !alarmid) {
+        skipLogs.push({ row: rowNum, reason: "缺少报警编号、名称或分组编号" });
+        return;
+      }
+      if (!/^\d+$/.test(id)) {
+        skipLogs.push({ row: rowNum, reason: "报警编号须为数字" });
+        return;
+      }
+      if (!/^[\u4e00-\u9fa5a-zA-Z]+$/.test(des)) {
+        skipLogs.push({ row: rowNum, reason: "报警类型名称格式无效" });
+        return;
+      }
+      if (seenIds.has(id)) {
+        skipLogs.push({ row: rowNum, reason: `报警编号「${id}」在文件内重复` });
+        return;
+      }
+      if (seenDes.has(des)) {
+        skipLogs.push({ row: rowNum, reason: `名称「${des}」在文件内重复` });
+        return;
+      }
+      if (existingIds.has(id)) {
+        skipLogs.push({ row: rowNum, reason: `报警编号「${id}」已存在` });
+        return;
+      }
+      if (existingDes.has(des)) {
+        skipLogs.push({ row: rowNum, reason: `名称「${des}」已存在` });
+        return;
+      }
+
+      seenIds.add(id);
+      seenDes.add(des);
+      existingIds.add(id);
+      existingDes.add(des);
+
+      const type =
+        typeLabel === "记录" ? "0" : typeLabel === "报警" ? "1" : "1";
+      const flag = (v: string) => (v === "是" || v === "1" ? "1" : "0");
+
+      toImport.push({
+        _id: genId(),
+        id,
+        des,
+        type,
+        alarmid,
+        s2cloud: flag(String(row["云端同步"] || "")),
+        s2ship: flag(String(row["船端同步"] || "")),
+        visibility: flag(String(row["可见状态"] || "")),
+        devid: boatId.value,
+        create_time: formatDateTime(new Date())
+      });
+    });
+
+    const skipped = skipLogs.length;
+    if (!toImport.length) {
+      logImportFailures("alarmType", skipLogs);
+      ElMessage.warning("未导入任何数据，请检查文件内容");
+      return;
+    }
+
+    loading.value = true;
+    let added = 0;
+    let apiFailed = 0;
+    try {
+      for (const payload of toImport) {
+        try {
+          await addReasonTypeList(payload);
+          added++;
+        } catch {
+          apiFailed++;
+        }
+      }
+      await fetchReasonTypeList(boatId.value);
+      logImportFailures("alarmType", skipLogs);
+      showImportResult(added, skipped, apiFailed);
+    } finally {
+      loading.value = false;
+    }
+  };
+
   const handleImport = () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
+    }
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".xlsx,.xls";
     input.onchange = (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev: ProgressEvent<FileReader>) => {
-        try {
-          const data = new Uint8Array(ev.target!.result as ArrayBuffer);
-          const wb = XLSX.read(data, { type: "array", cellDates: true });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(
-            ws,
-            {
-              raw: false,
-              defval: ""
-            }
-          );
-          const existingIds = new Set(tableData.value.map(item => item.id));
-          const existingDes = new Set(tableData.value.map(item => item.des));
-          const seenIds = new Set<string>();
-          let added = 0;
-          let skipped = 0;
-          jsonData.forEach(row => {
-            const id = String(row["报警编号"] || "").trim();
-            const des = String(row["报警类型名称"] || "").trim();
-            const typeLabel = String(row["类型"] || "").trim();
-            const alarmid = String(row["分组编号"] || "").trim();
-            if (!id || !des || !alarmid) return;
-            if (!/^\d+$/.test(id) || !/^[\u4e00-\u9fa5a-zA-Z]+$/.test(des)) {
-              skipped++;
-              return;
-            }
-            if (
-              seenIds.has(id) ||
-              existingIds.has(id) ||
-              existingDes.has(des)
-            ) {
-              skipped++;
-              return;
-            }
-            const type =
-              typeLabel === "记录" ? "0" : typeLabel === "报警" ? "1" : "1";
-            const toFlag = (v: string) => (v === "是" || v === "1" ? "1" : "0");
-            seenIds.add(id);
-            existingIds.add(id);
-            existingDes.add(des);
-            tableData.value.push({
-              _id: genId(),
-              id,
-              des,
-              type,
-              alarmid,
-              s2cloud: toFlag(String(row["云端同步"] || "")),
-              s2ship: toFlag(String(row["船端同步"] || "")),
-              visibility: toFlag(String(row["可见状态"] || "")),
-              create_time: formatDateTime(new Date()),
-              user: localStorage.getItem("username") || ""
-            });
-            added++;
-          });
-          if (added > 0) {
-            ElMessage.success(
-              `导入成功 ${added} 条${
-                skipped ? `，跳过 ${skipped} 条（重复或格式有误）` : ""
-              }`
-            );
-          } else {
-            ElMessage.warning("未导入任何数据（重复或格式有误）");
-          }
-        } catch {
-          ElMessage.error("读取文件失败");
-        }
-      };
-      reader.readAsArrayBuffer(file);
+      importReasonTypesFromFile(file).catch(err => {
+        console.error("[alarmType] 导入失败:", err);
+        ElMessage.error("读取文件失败");
+      });
     };
     input.click();
   };
 
   return {
+    loading,
     searchQuery,
     dataList,
     filteredData,
