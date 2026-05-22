@@ -7,7 +7,7 @@ import Download from "@iconify-icons/ep/download";
 import Upload from "@iconify-icons/ep/upload";
 import Search from "@iconify-icons/ep/search";
 import EditPen from "@iconify-icons/ep/edit-pen";
-import { toRef } from "vue";
+import { toRef, onMounted } from "vue";
 import { useDictList } from "./utils";
 import type { DictItem } from "./utils/types";
 import DictDialog from "./components/DictDialog.vue";
@@ -18,6 +18,7 @@ defineOptions({ name: "ParamDict" });
 const boatStore = useBoatStoreHook();
 
 const {
+  loading,
   searchQuery,
   dataList,
   pagination,
@@ -40,6 +41,10 @@ const {
   handleExport,
   handleImport
 } = useDictList(toRef(boatStore, "selectedBoatId"));
+
+onMounted(() => {
+  boatStore.fetchBoatList();
+});
 </script>
 
 <template>
@@ -56,6 +61,7 @@ const {
         placeholder="请选择船只"
         clearable
         filterable
+        :loading="boatStore.boatsLoading"
         class="!w-[320px]"
         @update:model-value="boatStore.setSelectedBoatId"
       >
@@ -122,6 +128,7 @@ const {
           type="success"
           plain
           :icon="useRenderIcon(Download)"
+          :disabled="!multipleSelection.length"
           @click="handleExport"
         >
           导出
@@ -145,6 +152,7 @@ const {
           :size="size"
           adaptive
           row-key="_id"
+          :loading="loading"
           :data="dataList"
           :columns="dynamicColumns"
           :pagination="pagination"

@@ -12,22 +12,71 @@ import {
 import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import * as XLSX from "xlsx";
 import type { DictItem, DictForm } from "./types";
-import { formatDateTime, genId, getValueType, MOCK_DICTS } from "./dict";
+import {
+  addDictList,
+  deleteDictList,
+  getDictListQuery,
+  updateDictList,
+  type DictListItemDTO,
+  type DictSaveDTO
+} from "@/api/paramSettings/dict";
+import { formatDateTime, genId, getValueType } from "./dict";
+import {
+  isExcelFile,
+  logImportFailures,
+  readExcelJsonRows,
+  requireSelectionForExport,
+  showImportResult
+} from "../../importExport";
 
-const boatDataCache: Record<string, DictItem[]> = {};
+const normalizeDict = (item: DictListItemDTO): DictItem => ({
+  _id: String(item._id ?? genId()),
+  name: item.keyname ?? "",
+  value: item.keyvalue ?? "",
+  dataType: item.type ?? "",
+  description: item.descripton ?? "",
+  user: item.user ?? "",
+  createdTime: item.create_time ?? ""
+});
 
-function getBoatData(boatId: string): DictItem[] {
-  if (!boatDataCache[boatId]) {
-    boatDataCache[boatId] = MOCK_DICTS.map(r => ({ ...r }));
-  }
-  return boatDataCache[boatId];
-}
+const toSavePayload = (
+  form: DictForm,
+  devid: string,
+  options?: { _id?: string; create_time?: string }
+): DictSaveDTO => ({
+  _id: options?._id ?? form._id,
+  keyname: form.keyname,
+  keyvalue: form.keyvalue,
+  type: form.type || getValueType(form.keyvalue),
+  descripton: form.descripton,
+  user: form.user || localStorage.getItem("username") || "",
+  devid,
+  create_time: options?.create_time ?? form.create_time ?? ""
+});
 
 export function useDictList(boatId: Ref<string>) {
-  // ===== 数据源 =====
-  const tableData = ref<DictItem[]>(
-    boatId.value ? getBoatData(boatId.value) : []
-  );
+  const tableData = ref<DictItem[]>([]);
+  const loading = ref(false);
+
+  const fetchDictList = async (devid?: string) => {
+    const id = devid ?? boatId.value;
+    if (!id) {
+      tableData.value = [];
+      return;
+    }
+    loading.value = true;
+    try {
+      const res = await getDictListQuery({ devid: id });
+      const list = Array.isArray(res.data) ? res.data : [];
+      tableData.value = list.map(normalizeDict);
+      pagination.currentPage = 1;
+    } catch (err) {
+      console.error("[dict] 查询数据字典失败:", err);
+      tableData.value = [];
+    } finally {
+      loading.value = false;
+    }
+  };
 
   let stopBoatWatch: (() => void) | null = null;
 
@@ -36,28 +85,34 @@ export function useDictList(boatId: Ref<string>) {
     stopBoatWatch = watch(
       boatId,
       id => {
-        tableData.value = id ? getBoatData(id) : [];
-        pagination.currentPage = 1;
+        if (id) {
+          fetchDictList(id);
+        } else {
+          tableData.value = [];
+          pagination.currentPage = 1;
+        }
       },
       { immediate: false }
     );
   }
 
-  onMounted(startBoatWatch);
+  onMounted(() => {
+    startBoatWatch();
+    if (boatId.value) fetchDictList(boatId.value);
+  });
   onBeforeUnmount(() => {
     stopBoatWatch?.();
     stopBoatWatch = null;
   });
   onActivated(() => {
-    tableData.value = boatId.value ? getBoatData(boatId.value) : [];
     startBoatWatch();
+    if (boatId.value) fetchDictList(boatId.value);
   });
   onDeactivated(() => {
     stopBoatWatch?.();
     stopBoatWatch = null;
   });
 
-  // ===== 搜索 =====
   const searchQuery = ref("");
 
   const filteredData = computed(() => {
@@ -82,7 +137,6 @@ export function useDictList(boatId: Ref<string>) {
     pagination.currentPage = 1;
   };
 
-  // ===== 分页 =====
   const pagination = reactive({
     currentPage: 1,
     pageSize: 30,
@@ -96,10 +150,8 @@ export function useDictList(boatId: Ref<string>) {
     return filteredData.value.slice(start, start + pagination.pageSize);
   });
 
-  // ===== 多选 =====
   const multipleSelection = ref<DictItem[]>([]);
 
-  // ===== 列定义 =====
   const columns: TableColumnList = [
     { type: "selection", width: 50, reserveSelection: true },
     { label: "键名", prop: "name", minWidth: 160, showOverflowTooltip: true },
@@ -116,7 +168,6 @@ export function useDictList(boatId: Ref<string>) {
     { label: "操作", fixed: "right", width: 160, slot: "operation" }
   ];
 
-  // ===== 表单 =====
   const addVisible = ref(false);
   const editVisible = ref(false);
 
@@ -134,7 +185,8 @@ export function useDictList(boatId: Ref<string>) {
     keyvalue: "",
     type: "",
     descripton: "",
-    user: ""
+    user: "",
+    create_time: ""
   });
 
   const formRules: FormRules = {
@@ -147,7 +199,6 @@ export function useDictList(boatId: Ref<string>) {
     form.type = getValueType(val);
   };
 
-  // ===== 新增 =====
   const handleAdd = () => {
     if (!boatId.value) {
       ElMessage.warning("请先选择船只");
@@ -163,25 +214,30 @@ export function useDictList(boatId: Ref<string>) {
     addVisible.value = true;
   };
 
-  const submitAdd = () => {
+  const submitAdd = async () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
+    }
     if (tableData.value.find(item => item.name === addForm.keyname)) {
       ElMessage.error("该键名已存在");
       return;
     }
-    tableData.value.push({
-      _id: genId(),
-      name: addForm.keyname,
-      value: addForm.keyvalue,
-      dataType: addForm.type,
-      description: addForm.descripton,
-      user: addForm.user,
-      createdTime: formatDateTime(new Date())
-    });
-    addVisible.value = false;
-    ElMessage.success("新增成功");
+    try {
+      const res = await addDictList(
+        toSavePayload(addForm, boatId.value, {
+          _id: genId(),
+          create_time: formatDateTime(new Date())
+        })
+      );
+      ElMessage.success(res.msg || "新增成功");
+      addVisible.value = false;
+      await fetchDictList(boatId.value);
+    } catch (err) {
+      console.error("[dict] 新增数据字典失败:", err);
+    }
   };
 
-  // ===== 编辑 =====
   const handleEdit = (row: DictItem) => {
     Object.assign(editForm, {
       _id: row._id,
@@ -189,35 +245,46 @@ export function useDictList(boatId: Ref<string>) {
       keyvalue: row.value,
       type: row.dataType,
       descripton: row.description,
-      user: row.user
+      user: row.user,
+      create_time: row.createdTime
     });
     editVisible.value = true;
   };
 
-  const submitEdit = () => {
-    const idx = tableData.value.findIndex(item => item._id === editForm._id);
-    if (idx !== -1) {
-      Object.assign(tableData.value[idx], {
-        value: editForm.keyvalue,
-        dataType: editForm.type,
-        description: editForm.descripton
-      });
+  const submitEdit = async () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
     }
-    editVisible.value = false;
-    ElMessage.success("编辑成功");
+    try {
+      const res = await updateDictList(
+        toSavePayload(editForm, boatId.value, {
+          _id: editForm._id,
+          create_time: editForm.create_time
+        })
+      );
+      ElMessage.success(res.msg || "编辑成功");
+      editVisible.value = false;
+      await fetchDictList(boatId.value);
+    } catch (err) {
+      console.error("[dict] 编辑数据字典失败:", err);
+    }
   };
 
-  // ===== 删除 =====
   const handleDelete = (row: DictItem) => {
     ElMessageBox.confirm(`确定要删除「${row.name}」吗？`, "提示", {
       confirmButtonText: "确定",
       cancelButtonText: "取消",
       type: "warning"
     })
-      .then(() => {
-        tableData.value = tableData.value.filter(item => item._id !== row._id);
-        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
-        ElMessage.success("删除成功");
+      .then(async () => {
+        try {
+          const res = await deleteDictList(row._id);
+          ElMessage.success(res.msg || "删除成功");
+          if (boatId.value) await fetchDictList(boatId.value);
+        } catch (err) {
+          console.error("[dict] 删除数据字典失败:", err);
+        }
       })
       .catch(() => {});
   };
@@ -232,38 +299,44 @@ export function useDictList(boatId: Ref<string>) {
       "提示",
       { confirmButtonText: "确定", cancelButtonText: "取消", type: "warning" }
     )
-      .then(() => {
-        const ids = new Set(multipleSelection.value.map(r => r._id));
-        tableData.value = tableData.value.filter(item => !ids.has(item._id));
-        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
+      .then(async () => {
+        const rows = [...multipleSelection.value];
+        let success = 0;
+        let failed = 0;
+        for (const row of rows) {
+          try {
+            await deleteDictList(row._id);
+            success++;
+          } catch {
+            failed++;
+          }
+        }
         multipleSelection.value = [];
-        ElMessage.success("批量删除成功");
+        if (boatId.value) await fetchDictList(boatId.value);
+        if (success > 0) {
+          ElMessage.success(
+            `批量删除成功 ${success} 条${failed ? `，失败 ${failed} 条` : ""}`
+          );
+        } else {
+          ElMessage.error("批量删除失败");
+        }
       })
       .catch(() => {});
   };
 
-  // ===== 刷新 =====
-  const handleRefresh = () => {
-    if (boatId.value) {
-      boatDataCache[boatId.value] = MOCK_DICTS.map(r => ({ ...r }));
-      tableData.value = boatDataCache[boatId.value];
-    } else {
-      tableData.value = [];
+  const handleRefresh = async () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
     }
     searchQuery.value = "";
-    pagination.currentPage = 1;
+    await fetchDictList(boatId.value);
     ElMessage.success("已刷新");
   };
 
-  // ===== 导出 =====
   const handleExport = () => {
-    const rows = multipleSelection.value.length
-      ? multipleSelection.value
-      : filteredData.value;
-    if (!rows.length) {
-      ElMessage.warning("暂无数据可导出");
-      return;
-    }
+    const rows = requireSelectionForExport(multipleSelection.value);
+    if (!rows) return;
     const exportData = rows.map(item => ({
       键名: item.name,
       键值: item.value,
@@ -287,68 +360,107 @@ export function useDictList(boatId: Ref<string>) {
     ElMessage.success("导出成功");
   };
 
-  // ===== 导入 =====
+  const importDictsFromFile = async (file: File) => {
+    if (!isExcelFile(file)) {
+      ElMessage.error("请选择 Excel 文件（.xlsx 或 .xls）");
+      return;
+    }
+
+    await fetchDictList(boatId.value);
+    const jsonData = await readExcelJsonRows(file);
+    if (!jsonData.length) {
+      ElMessage.warning("文件中没有可导入的数据");
+      return;
+    }
+
+    const existingKeys = new Set(tableData.value.map(item => item.name));
+    const seenInFile = new Set<string>();
+    const toImport: DictSaveDTO[] = [];
+    const skipLogs: { row: number; reason: string }[] = [];
+
+    jsonData.forEach((row, index) => {
+      const rowNum = index + 2;
+      const keyname = String(row["键名"] || "").trim();
+      const keyvalue = String(row["键值"] || "").trim();
+
+      if (!keyname || !keyvalue) {
+        skipLogs.push({ row: rowNum, reason: "缺少键名或键值" });
+        return;
+      }
+      if (seenInFile.has(keyname)) {
+        skipLogs.push({
+          row: rowNum,
+          reason: `键名「${keyname}」在文件内重复`
+        });
+        return;
+      }
+      if (existingKeys.has(keyname)) {
+        skipLogs.push({ row: rowNum, reason: `键名「${keyname}」已存在` });
+        return;
+      }
+
+      seenInFile.add(keyname);
+      existingKeys.add(keyname);
+      toImport.push({
+        _id: genId(),
+        keyname,
+        keyvalue,
+        type: getValueType(keyvalue),
+        descripton: String(row["描述"] || ""),
+        user: localStorage.getItem("username") || "",
+        devid: boatId.value,
+        create_time: formatDateTime(new Date())
+      });
+    });
+
+    const skipped = skipLogs.length;
+    if (!toImport.length) {
+      logImportFailures("dict", skipLogs);
+      ElMessage.warning("未导入任何数据，请检查文件内容");
+      return;
+    }
+
+    loading.value = true;
+    let added = 0;
+    let apiFailed = 0;
+    try {
+      for (const payload of toImport) {
+        try {
+          await addDictList(payload);
+          added++;
+        } catch {
+          apiFailed++;
+        }
+      }
+      await fetchDictList(boatId.value);
+      logImportFailures("dict", skipLogs);
+      showImportResult(added, skipped, apiFailed);
+    } finally {
+      loading.value = false;
+    }
+  };
+
   const handleImport = () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
+    }
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".xlsx,.xls";
     input.onchange = (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev: ProgressEvent<FileReader>) => {
-        try {
-          const data = new Uint8Array(ev.target!.result as ArrayBuffer);
-          const wb = XLSX.read(data, { type: "array", cellDates: true });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(
-            ws,
-            { raw: false, defval: "" }
-          );
-          const existingKeys = new Set(tableData.value.map(item => item.name));
-          const seenKeys = new Set<string>();
-          let added = 0;
-          let skipped = 0;
-          jsonData.forEach(row => {
-            const keyname = String(row["键名"] || "").trim();
-            const keyvalue = String(row["键值"] || "").trim();
-            if (!keyname || !keyvalue) return;
-            if (seenKeys.has(keyname) || existingKeys.has(keyname)) {
-              skipped++;
-              return;
-            }
-            seenKeys.add(keyname);
-            tableData.value.push({
-              _id: genId(),
-              name: keyname,
-              value: keyvalue,
-              dataType: getValueType(keyvalue),
-              description: String(row["描述"] || ""),
-              user: localStorage.getItem("username") || "",
-              createdTime: formatDateTime(new Date())
-            });
-            existingKeys.add(keyname);
-            added++;
-          });
-          if (added > 0) {
-            ElMessage.success(
-              `导入成功 ${added} 条${
-                skipped ? `，跳过 ${skipped} 条（键名重复）` : ""
-              }`
-            );
-          } else {
-            ElMessage.warning("未导入任何数据（键名重复或格式有误）");
-          }
-        } catch {
-          ElMessage.error("读取文件失败");
-        }
-      };
-      reader.readAsArrayBuffer(file);
+      importDictsFromFile(file).catch(err => {
+        console.error("[dict] 导入失败:", err);
+        ElMessage.error("读取文件失败");
+      });
     };
     input.click();
   };
 
   return {
+    loading,
     searchQuery,
     filteredData,
     dataList,

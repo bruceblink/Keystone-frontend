@@ -15,4 +15,5 @@ export interface DictForm {
   type: string;
   descripton: string;
   user: string;
+  create_time?: string;
 }
