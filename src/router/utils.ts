@@ -250,7 +250,7 @@ function formatTwoStageRoutes(routesList: RouteRecordRaw[]) {
       });
     } else {
       // newRoutesList[0]?.children.push({ ...v });
-      // 剥离 children，防止父级目录路由被 Vue Router 注册为带子路由的嵌套路由
+      // 修改 剥离 children，防止父级目录路由被 Vue Router 注册为带子路由的嵌套路由
       // （formatFlatteningRoutes 已将子路由展平为兄弟节点，无需再嵌套）
       const { children: _stripped, ...flatRoute } = v as any;
       newRoutesList[0]?.children.push(flatRoute);

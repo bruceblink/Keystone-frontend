@@ -12,6 +12,33 @@ export default {
   },
   children: [
     {
+      path: "/paramSettings/systemState",
+      name: "ParamSystemState",
+      component: () => import("@/views/paramSettings/systemState/index.vue"),
+      meta: {
+        title: "系统状态"
+        // icon: "monitor"
+      }
+    },
+    {
+      path: "/paramSettings/alarmConfig",
+      name: "ParamAlarmConfig",
+      component: () => import("@/views/paramSettings/alarmConfig/index.vue"),
+      meta: {
+        title: "报警配置"
+        // icon: "setting"
+      }
+    },
+    {
+      path: "/paramSettings/alarmRecord",
+      name: "ParamAlarmRecord",
+      component: () => import("@/views/paramSettings/alarmRecord/index.vue"),
+      meta: {
+        title: "报警记录",
+        icon: "document"
+      }
+    },
+    {
       path: "/paramSettings/dict",
       name: "ParamDict",
       component: () => import("@/views/paramSettings/dict/index.vue"),
@@ -36,24 +63,6 @@ export default {
       meta: {
         title: "报警类型",
         icon: "bell"
-      }
-    },
-    {
-      path: "/paramSettings/alarmConfig",
-      name: "ParamAlarmConfig",
-      component: () => import("@/views/paramSettings/alarmConfig/index.vue"),
-      meta: {
-        title: "报警配置"
-        // icon: "setting"
-      }
-    },
-    {
-      path: "/paramSettings/alarmRecord",
-      name: "ParamAlarmRecord",
-      component: () => import("@/views/paramSettings/alarmRecord/index.vue"),
-      meta: {
-        title: "报警记录",
-        icon: "document"
       }
     }
   ]
