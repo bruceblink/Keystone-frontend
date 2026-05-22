@@ -46,7 +46,7 @@ function handleSubmit() {
         >
           <el-option label="区域" value="0" />
           <el-option label="点" value="1" />
-          <el-option label="线" value="2" />
+          <!-- <el-option label="线" value="2" /> -->
         </el-select>
       </el-form-item>
       <el-form-item label="水域类型" prop="areatype">

@@ -3,17 +3,8 @@
  */
 import type { FenceItem } from "./types";
 
-export const AREA_TYPE_OPTIONS = [
-  { value: "1", label: "内河" },
-  { value: "2", label: "沿海" },
-  { value: "3", label: "远洋" },
-  { value: "4", label: "禁航区" },
-  { value: "5", label: "限速区" }
-];
-
-export const AREA_TYPE_MAP: Record<string, string> = Object.fromEntries(
-  AREA_TYPE_OPTIONS.map(o => [o.value, o.label])
-);
+/** 所属水域字典名称（/combox/dict/query 的 name 参数） */
+export const AREA_TYPE_COMBOX_NAME = "所属水域";
 
 export const DATA_TYPE_MAP: Record<string, string> = {
   "0": "区域",

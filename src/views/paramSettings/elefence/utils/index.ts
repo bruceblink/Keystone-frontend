@@ -13,32 +13,106 @@ import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import * as XLSX from "xlsx";
 import type { FenceItem, FenceForm, GeoPoint } from "./types";
 import {
-  AREA_TYPE_OPTIONS,
-  AREA_TYPE_MAP,
+  addFenceList,
+  deleteFenceList,
+  getFenceListQuery,
+  updateFenceList,
+  type FenceListItemDTO,
+  type FenceSaveDTO
+} from "@/api/paramSettings/elefence";
+import {
+  getComboxDictQuery,
+  normalizeComboxOptions,
+  type ComboxOption
+} from "@/api/paramSettings/combox";
+import {
+  AREA_TYPE_COMBOX_NAME,
   DATA_TYPE_MAP,
-  MOCK_FENCES,
   formatPoints,
-  formatDateTime,
   genId
 } from "./dict";
+import {
+  isExcelFile,
+  logImportFailures,
+  readExcelJsonRows,
+  requireSelectionForExport,
+  showImportResult
+} from "../../importExport";
 
-const boatDataCache: Record<string, FenceItem[]> = {};
-
-function getBoatData(boatId: string): FenceItem[] {
-  if (!boatDataCache[boatId]) {
-    boatDataCache[boatId] = MOCK_FENCES.map(r => ({
-      ...r,
-      data: r.data.map(p => ({ ...p }))
+function parseFenceData(data: unknown): GeoPoint[] {
+  if (Array.isArray(data)) {
+    return data.map(p => ({
+      lng: Number((p as GeoPoint).lng) || 0,
+      lat: Number((p as GeoPoint).lat) || 0
     }));
   }
-  return boatDataCache[boatId];
+  if (typeof data === "string" && data.trim()) {
+    try {
+      return parseFenceData(JSON.parse(data));
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
+
+const normalizeFence = (item: FenceListItemDTO): FenceItem => ({
+  sid: String(item.sid ?? genId()),
+  areatype: String(item.areatype ?? ""),
+  name: item.name ?? "",
+  datatype: String(item.datatype ?? ""),
+  data: parseFenceData(item.data),
+  user: item.user ?? "",
+  create_time: item.create_time ?? ""
+});
 
 export function useFenceList(boatId: Ref<string>) {
   // ===== 数据源 =====
-  const tableData = ref<FenceItem[]>(
-    boatId.value ? getBoatData(boatId.value) : []
+  const tableData = ref<FenceItem[]>([]);
+  const loading = ref(false);
+  const areaTypeOptions = ref<ComboxOption[]>([]);
+
+  const areaTypeMap = computed<Record<string, string>>(() =>
+    Object.fromEntries(areaTypeOptions.value.map(o => [o.value, o.label]))
   );
+
+  const fetchAreaTypeOptions = async (devid?: string) => {
+    const id = devid ?? boatId.value;
+    if (!id) {
+      areaTypeOptions.value = [];
+      return;
+    }
+    try {
+      const res = await getComboxDictQuery({
+        name: AREA_TYPE_COMBOX_NAME,
+        devid: id
+      });
+      areaTypeOptions.value = normalizeComboxOptions(res.data);
+    } catch (err) {
+      console.error("[elefence] 查询水域类型失败:", err);
+      areaTypeOptions.value = [];
+    }
+  };
+
+  const fetchFenceList = async (devid?: string) => {
+    const id = devid ?? boatId.value;
+    if (!id) {
+      tableData.value = [];
+      return;
+    }
+    loading.value = true;
+    try {
+      const res = await getFenceListQuery({ devid: id });
+      const list = Array.isArray(res.data) ? res.data : [];
+      tableData.value = list.map(normalizeFence);
+      pagination.currentPage = 1;
+    } catch (err) {
+      console.error("[elefence] 查询电子围栏失败:", err);
+      tableData.value = [];
+    } finally {
+      loading.value = false;
+    }
+  };
 
   let stopBoatWatch: (() => void) | null = null;
 
@@ -47,21 +121,36 @@ export function useFenceList(boatId: Ref<string>) {
     stopBoatWatch = watch(
       boatId,
       id => {
-        tableData.value = id ? getBoatData(id) : [];
-        pagination.currentPage = 1;
+        if (id) {
+          fetchAreaTypeOptions(id);
+          fetchFenceList(id);
+        } else {
+          areaTypeOptions.value = [];
+          tableData.value = [];
+          pagination.currentPage = 1;
+        }
       },
       { immediate: false }
     );
   }
 
-  onMounted(startBoatWatch);
+  onMounted(() => {
+    startBoatWatch();
+    if (boatId.value) {
+      fetchAreaTypeOptions(boatId.value);
+      fetchFenceList(boatId.value);
+    }
+  });
   onBeforeUnmount(() => {
     stopBoatWatch?.();
     stopBoatWatch = null;
   });
   onActivated(() => {
-    tableData.value = boatId.value ? getBoatData(boatId.value) : [];
     startBoatWatch();
+    if (boatId.value) {
+      fetchAreaTypeOptions(boatId.value);
+      fetchFenceList(boatId.value);
+    }
   });
   onDeactivated(() => {
     stopBoatWatch?.();
@@ -78,7 +167,7 @@ export function useFenceList(boatId: Ref<string>) {
       list = list.filter(
         item =>
           item.name?.toLowerCase().includes(q) ||
-          (AREA_TYPE_MAP[item.areatype] || "").toLowerCase().includes(q)
+          (areaTypeMap.value[item.areatype] || "").toLowerCase().includes(q)
       );
     }
     return list.sort(
@@ -272,22 +361,32 @@ export function useFenceList(boatId: Ref<string>) {
     addForm.data.splice(idx, 1);
   };
 
-  const submitAdd = () => {
+  const submitAdd = async () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
+    }
     if (tableData.value.find(item => item.name === addForm.name)) {
       ElMessage.error("区域名称已存在，请使用其他名称");
       return;
     }
-    tableData.value.push({
-      sid: genId(),
-      areatype: addForm.areatype,
-      name: addForm.name,
-      datatype: addForm.datatype,
-      data: addForm.data.map(p => ({ ...p })),
-      user: addForm.user,
-      create_time: formatDateTime(new Date())
-    });
-    addVisible.value = false;
-    ElMessage.success("新增成功");
+    try {
+      const res = await addFenceList({
+        sid: addForm.sid || genId(),
+        datatype: addForm.datatype,
+        areatype: addForm.areatype,
+        name: addForm.name,
+        data: addForm.data.map(p => ({ ...p })),
+        devid: boatId.value,
+        user: addForm.user || localStorage.getItem("username") || "",
+        create_time: ""
+      });
+      ElMessage.success(res.msg || "新增成功");
+      addVisible.value = false;
+      await fetchFenceList(boatId.value);
+    } catch (err) {
+      console.error("[elefence] 新增电子围栏失败:", err);
+    }
   };
 
   // ===== 编辑 =====
@@ -319,7 +418,11 @@ export function useFenceList(boatId: Ref<string>) {
     editForm.data.splice(idx, 1);
   };
 
-  const submitEdit = () => {
+  const submitEdit = async () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
+    }
     const duplicate = tableData.value.find(
       item => item.name === editForm.name && item.sid !== editForm.sid
     );
@@ -327,17 +430,24 @@ export function useFenceList(boatId: Ref<string>) {
       ElMessage.error("区域名称已存在，请使用其他名称");
       return;
     }
-    const idx = tableData.value.findIndex(item => item.sid === editForm.sid);
-    if (idx !== -1) {
-      Object.assign(tableData.value[idx], {
+    const origin = tableData.value.find(item => item.sid === editForm.sid);
+    try {
+      const res = await updateFenceList({
+        sid: editForm.sid!,
+        datatype: editForm.datatype,
         areatype: editForm.areatype,
         name: editForm.name,
-        datatype: editForm.datatype,
-        data: editForm.data.map(p => ({ ...p }))
+        data: editForm.data.map(p => ({ ...p })),
+        devid: boatId.value,
+        user: editForm.user || localStorage.getItem("username") || "",
+        create_time: origin?.create_time ?? ""
       });
+      ElMessage.success(res.msg || "编辑成功");
+      editVisible.value = false;
+      await fetchFenceList(boatId.value);
+    } catch (err) {
+      console.error("[elefence] 编辑电子围栏失败:", err);
     }
-    editVisible.value = false;
-    ElMessage.success("编辑成功");
   };
 
   // ===== 删除 =====
@@ -347,10 +457,14 @@ export function useFenceList(boatId: Ref<string>) {
       cancelButtonText: "取消",
       type: "warning"
     })
-      .then(() => {
-        tableData.value = tableData.value.filter(item => item.sid !== row.sid);
-        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
-        ElMessage.success("删除成功");
+      .then(async () => {
+        try {
+          const res = await deleteFenceList(row.sid);
+          ElMessage.success(res.msg || "删除成功");
+          if (boatId.value) await fetchFenceList(boatId.value);
+        } catch (err) {
+          console.error("[elefence] 删除电子围栏失败:", err);
+        }
       })
       .catch(() => {});
   };
@@ -365,43 +479,51 @@ export function useFenceList(boatId: Ref<string>) {
       "提示",
       { confirmButtonText: "确定", cancelButtonText: "取消", type: "warning" }
     )
-      .then(() => {
-        const ids = new Set(multipleSelection.value.map(r => r.sid));
-        tableData.value = tableData.value.filter(item => !ids.has(item.sid));
-        if (boatId.value) boatDataCache[boatId.value] = tableData.value;
+      .then(async () => {
+        const rows = [...multipleSelection.value];
+        let success = 0;
+        let failed = 0;
+        for (const row of rows) {
+          try {
+            await deleteFenceList(row.sid);
+            success++;
+          } catch {
+            failed++;
+          }
+        }
         multipleSelection.value = [];
-        ElMessage.success("批量删除成功");
+        if (boatId.value) await fetchFenceList(boatId.value);
+        if (success > 0) {
+          ElMessage.success(
+            `批量删除成功 ${success} 条${failed ? `，失败 ${failed} 条` : ""}`
+          );
+        } else {
+          ElMessage.error("批量删除失败");
+        }
       })
       .catch(() => {});
   };
 
   // ===== 刷新 =====
-  const handleRefresh = () => {
-    if (boatId.value) {
-      boatDataCache[boatId.value] = MOCK_FENCES.map(r => ({
-        ...r,
-        data: r.data.map(p => ({ ...p }))
-      }));
-      tableData.value = boatDataCache[boatId.value];
-    } else {
-      tableData.value = [];
+  const handleRefresh = async () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
     }
     searchQuery.value = "";
-    pagination.currentPage = 1;
+    await Promise.all([
+      fetchAreaTypeOptions(boatId.value),
+      fetchFenceList(boatId.value)
+    ]);
     ElMessage.success("已刷新");
   };
 
   // ===== 导出 =====
   const handleExport = () => {
-    const rows = multipleSelection.value.length
-      ? multipleSelection.value
-      : filteredData.value;
-    if (!rows.length) {
-      ElMessage.warning("暂无数据可导出");
-      return;
-    }
+    const rows = requireSelectionForExport(multipleSelection.value);
+    if (!rows) return;
     const exportData = rows.map(item => ({
-      水域类型: AREA_TYPE_MAP[item.areatype] || item.areatype,
+      水域类型: areaTypeMap.value[item.areatype] || item.areatype,
       区域名称: item.name,
       数据类型: DATA_TYPE_MAP[item.datatype] || item.datatype,
       位置数据: formatPoints(item.data)
@@ -419,112 +541,167 @@ export function useFenceList(boatId: Ref<string>) {
     ElMessage.success("导出成功");
   };
 
+  const parseImportRow = (
+    row: Record<string, string>,
+    labelToValue: Record<string, string>,
+    existingNames: Set<string>,
+    seenNames: Set<string>
+  ): { payload?: FenceSaveDTO; reason?: string } => {
+    const areaLabel = String(row["水域类型"] || "").trim();
+    const name = String(row["区域名称"] || "").trim();
+    const dtLabel = String(row["数据类型"] || "").trim();
+    const posStr = String(row["位置数据"] || "").trim();
+
+    if (!areaLabel || !name || !dtLabel || !posStr) {
+      return { reason: "缺少水域类型、区域名称、数据类型或位置数据" };
+    }
+    if (seenNames.has(name)) {
+      return { reason: `区域名称「${name}」在文件内重复` };
+    }
+    if (existingNames.has(name)) {
+      return { reason: `区域名称「${name}」已存在` };
+    }
+
+    const areaValue = labelToValue[areaLabel];
+    if (!areaValue) {
+      return { reason: `水域类型「${areaLabel}」无效` };
+    }
+
+    const dtValue =
+      dtLabel === "区域"
+        ? "0"
+        : dtLabel === "点"
+        ? "1"
+        : dtLabel === "线"
+        ? "2"
+        : "";
+    if (!dtValue) {
+      return { reason: `数据类型「${dtLabel}」无效（应为区域/点/线）` };
+    }
+
+    let points: GeoPoint[] = [];
+    try {
+      points = posStr.split(";").map(seg => {
+        const clean = seg.replace(/[()]/g, "").trim();
+        const [lng, lat] = clean.split(",").map(Number);
+        return { lng: isNaN(lng) ? 0 : lng, lat: isNaN(lat) ? 0 : lat };
+      });
+    } catch {
+      return { reason: "位置数据格式错误" };
+    }
+
+    if (dtValue === "1" && points.length !== 1) {
+      return { reason: "点类型需且仅需 1 个坐标" };
+    }
+    if (dtValue === "0" && points.length < 3) {
+      return { reason: "区域类型至少需要 3 个坐标" };
+    }
+    if (!points.length) {
+      return { reason: "位置数据为空" };
+    }
+
+    seenNames.add(name);
+    existingNames.add(name);
+
+    return {
+      payload: {
+        sid: genId(),
+        areatype: areaValue,
+        name,
+        datatype: dtValue,
+        data: points,
+        devid: boatId.value,
+        user: localStorage.getItem("username") || "",
+        create_time: ""
+      }
+    };
+  };
+
+  const importFencesFromFile = async (file: File) => {
+    if (!isExcelFile(file)) {
+      ElMessage.error("请选择 Excel 文件（.xlsx 或 .xls）");
+      return;
+    }
+
+    await fetchFenceList(boatId.value);
+    const jsonData = await readExcelJsonRows(file);
+    if (!jsonData.length) {
+      ElMessage.warning("文件中没有可导入的数据");
+      return;
+    }
+
+    const labelToValue = Object.fromEntries(
+      areaTypeOptions.value.map(o => [o.label, o.value])
+    );
+    const existingNames = new Set(tableData.value.map(item => item.name));
+    const seenNames = new Set<string>();
+    const toImport: FenceSaveDTO[] = [];
+    const skipLogs: { row: number; reason: string }[] = [];
+
+    jsonData.forEach((row, index) => {
+      const rowNum = index + 2;
+      const { payload, reason } = parseImportRow(
+        row,
+        labelToValue,
+        existingNames,
+        seenNames
+      );
+      if (payload) {
+        toImport.push(payload);
+      } else if (reason) {
+        skipLogs.push({ row: rowNum, reason });
+      }
+    });
+
+    const skipped = skipLogs.length;
+    if (!toImport.length) {
+      logImportFailures("elefence", skipLogs);
+      ElMessage.warning("未导入任何数据，请检查文件内容");
+      return;
+    }
+
+    loading.value = true;
+    let added = 0;
+    let apiFailed = 0;
+    try {
+      for (const payload of toImport) {
+        try {
+          await addFenceList(payload);
+          added++;
+        } catch {
+          apiFailed++;
+        }
+      }
+      await fetchFenceList(boatId.value);
+      logImportFailures("elefence", skipLogs);
+      showImportResult(added, skipped, apiFailed);
+    } finally {
+      loading.value = false;
+    }
+  };
+
   // ===== 导入 =====
   const handleImport = () => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只");
+      return;
+    }
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".xlsx,.xls";
     input.onchange = (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev: ProgressEvent<FileReader>) => {
-        try {
-          const data = new Uint8Array(ev.target!.result as ArrayBuffer);
-          const wb = XLSX.read(data, { type: "array" });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(
-            ws,
-            {
-              raw: false,
-              defval: ""
-            }
-          );
-
-          const labelToValue = Object.fromEntries(
-            AREA_TYPE_OPTIONS.map(o => [o.label, o.value])
-          );
-          const existingNames = new Set(tableData.value.map(item => item.name));
-          const seenNames = new Set<string>();
-          let added = 0;
-          let skipped = 0;
-
-          jsonData.forEach(row => {
-            const areaLabel = String(row["水域类型"] || "").trim();
-            const name = String(row["区域名称"] || "").trim();
-            const dtLabel = String(row["数据类型"] || "").trim();
-            const posStr = String(row["位置数据"] || "").trim();
-
-            if (!areaLabel || !name || !dtLabel || !posStr) return;
-            if (seenNames.has(name) || existingNames.has(name)) {
-              skipped++;
-              return;
-            }
-
-            const areaValue = labelToValue[areaLabel];
-            if (!areaValue) {
-              skipped++;
-              return;
-            }
-
-            const dtValue =
-              dtLabel === "区域"
-                ? "0"
-                : dtLabel === "点"
-                ? "1"
-                : dtLabel === "线"
-                ? "2"
-                : "";
-            if (!dtValue) {
-              skipped++;
-              return;
-            }
-
-            let points: GeoPoint[] = [];
-            try {
-              points = posStr.split(";").map(seg => {
-                const clean = seg.replace(/[()]/g, "").trim();
-                const [lng, lat] = clean.split(",").map(Number);
-                return { lng: isNaN(lng) ? 0 : lng, lat: isNaN(lat) ? 0 : lat };
-              });
-            } catch {
-              skipped++;
-              return;
-            }
-
-            seenNames.add(name);
-            existingNames.add(name);
-            tableData.value.push({
-              sid: genId(),
-              areatype: areaValue,
-              name,
-              datatype: dtValue,
-              data: points,
-              user: localStorage.getItem("username") || "",
-              create_time: formatDateTime(new Date())
-            });
-            added++;
-          });
-
-          if (added > 0) {
-            ElMessage.success(
-              `导入成功 ${added} 条${skipped ? `，跳过 ${skipped} 条` : ""}`
-            );
-          } else {
-            ElMessage.warning(
-              "未导入任何数据（重复、格式有误或水域类型不存在）"
-            );
-          }
-        } catch {
-          ElMessage.error("读取文件失败");
-        }
-      };
-      reader.readAsArrayBuffer(file);
+      importFencesFromFile(file).catch(err => {
+        console.error("[elefence] 导入失败:", err);
+        ElMessage.error("读取文件失败");
+      });
     };
     input.click();
   };
 
   return {
+    loading,
     searchQuery,
     filteredData,
     dataList,
@@ -538,8 +715,8 @@ export function useFenceList(boatId: Ref<string>) {
     editForm,
     addRules,
     editRules,
-    areaOptions: AREA_TYPE_OPTIONS,
-    areaTypeMap: AREA_TYPE_MAP,
+    areaOptions: areaTypeOptions,
+    areaTypeMap,
     dataTypeMap: DATA_TYPE_MAP,
     formatPoints,
     handleAdd,

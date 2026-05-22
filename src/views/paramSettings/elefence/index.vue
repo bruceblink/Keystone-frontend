@@ -7,7 +7,7 @@ import Delete from "@iconify-icons/ep/delete";
 import Download from "@iconify-icons/ep/download";
 import Upload from "@iconify-icons/ep/upload";
 import Search from "@iconify-icons/ep/search";
-import { toRef } from "vue";
+import { toRef, onMounted } from "vue";
 import { useFenceList } from "./utils";
 import type { FenceItem } from "./utils/types";
 import FenceDialog from "./components/FenceDialog.vue";
@@ -44,10 +44,15 @@ const {
   submitEdit,
   handleDelete,
   handleBatchDelete,
+  loading,
   handleRefresh,
   handleExport,
   handleImport
 } = useFenceList(toRef(boatStore, "selectedBoatId"));
+
+onMounted(() => {
+  boatStore.fetchBoatList();
+});
 </script>
 
 <template>
@@ -64,6 +69,7 @@ const {
         placeholder="请选择船只"
         clearable
         filterable
+        :loading="boatStore.boatsLoading"
         class="!w-[320px]"
         @update:model-value="boatStore.setSelectedBoatId"
       >
@@ -130,6 +136,7 @@ const {
           type="success"
           plain
           :icon="useRenderIcon(Download)"
+          :disabled="!multipleSelection.length"
           @click="handleExport"
         >
           导出
@@ -153,6 +160,7 @@ const {
           :size="size"
           row-key="sid"
           adaptive
+          :loading="loading"
           :data="dataList"
           :columns="dynamicColumns"
           :pagination="pagination"
