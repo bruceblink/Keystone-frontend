@@ -64,6 +64,15 @@ export default {
         title: "报警类型",
         icon: "bell"
       }
+    },
+    {
+      path: "/paramSettings/shipShoreComm",
+      name: "ParamShipShoreComm",
+      component: () => import("@/views/paramSettings/shipShoreComm/index.vue"),
+      meta: {
+        title: "船岸通信",
+        icon: "promotion"
+      }
     }
   ]
 } as RouteConfigsTable;
