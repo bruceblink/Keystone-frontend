@@ -75,13 +75,35 @@ export default {
       }
     },
     {
-      path: "/paramSettings/device/camera",
-      name: "ParamDeviceCamera",
-      component: () => import("@/views/paramSettings/device/camera/index.vue"),
+      path: "/paramSettings/device",
+      name: "ParamDevice",
+      redirect: "/paramSettings/device/camera",
       meta: {
-        title: "摄像机",
-        icon: "video-camera"
-      }
+        title: "设备管理"
+        // icon: "monitor"
+      },
+      children: [
+        {
+          path: "/paramSettings/device/camera",
+          name: "ParamDeviceCamera",
+          component: () =>
+            import("@/views/paramSettings/device/camera/index.vue"),
+          meta: {
+            title: "摄像机",
+            icon: "video-camera"
+          }
+        },
+        {
+          path: "/paramSettings/device/laser",
+          name: "ParamDeviceLaser",
+          component: () =>
+            import("@/views/paramSettings/device/laser/index.vue"),
+          meta: {
+            title: "激光设备",
+            icon: "aim"
+          }
+        }
+      ]
     }
   ]
 } as RouteConfigsTable;
