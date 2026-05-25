@@ -73,6 +73,15 @@ export default {
         title: "船岸通信",
         icon: "promotion"
       }
+    },
+    {
+      path: "/paramSettings/device/camera",
+      name: "ParamDeviceCamera",
+      component: () => import("@/views/paramSettings/device/camera/index.vue"),
+      meta: {
+        title: "摄像机",
+        icon: "video-camera"
+      }
     }
   ]
 } as RouteConfigsTable;
