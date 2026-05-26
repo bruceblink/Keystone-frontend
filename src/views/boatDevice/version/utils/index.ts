@@ -1,15 +1,56 @@
-import { ref, reactive, computed } from "vue";
+/**
+ * 版本发布页业务逻辑
+ *
+ * useVersionList — 版本列表 CRUD，供 VersionList 与页面 index 调用
+ * useChunkUpload — 分片上传，由 PublishForm 使用（见 useChunkUpload.ts）
+ *
+ * 接口：
+ * - GET    /device/version/query   列表
+ * - POST   /device/version/add     发布（需先完成分片上传拿到 fileUrl）
+ * - POST   /device/version/update  编辑
+ * - DELETE /device/version/delete  删除
+ */
+import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import type { VersionItem, VersionForm } from "./types";
-import { formatDateTime, genUuid, formatFileSize, MOCK_VERSIONS } from "./dict";
+import {
+  addDeviceVersion,
+  deleteDeviceVersion,
+  getDeviceVersionQuery,
+  updateDeviceVersion,
+  type DeviceVersionItemDTO,
+  type DeviceVersionSaveDTO
+} from "@/api/boatDevice/version";
+import { formatDateTime, genUuid } from "./dict";
+
+export { useChunkUpload } from "./useChunkUpload";
+export type { ChunkUploadMeta } from "./useChunkUpload";
+
+/** 将接口 DTO 转为页面 VersionItem，兼容多种字段命名 */
+const normalizeVersion = (item: DeviceVersionItemDTO): VersionItem => ({
+  uuid: String(item.uuid ?? ""),
+  ver_name: String(item.ver_name ?? ""),
+  version: String(item.version ?? ""),
+  ver_des: String(item.ver_des ?? ""),
+  client_path: String(item.client_path ?? item.path ?? ""),
+  fileUrl: String(item.fileUrl ?? item.url ?? item.server_url ?? ""),
+  md5: String(item.md5 ?? ""),
+  size: String(item.size ?? ""),
+  filename: String(item.filename ?? ""),
+  create_time: String(item.create_time ?? "")
+});
+
+/** 比较版本号时忽略前缀 v */
+const normVersion = (v: string) => (v.startsWith("v") ? v.slice(1) : v);
 
 export function useVersionList() {
-  // ===== 版本列表 =====
-  const versionList = ref<VersionItem[]>(MOCK_VERSIONS.map(r => ({ ...r })));
+  const versionList = ref<VersionItem[]>([]);
   const searchQuery = ref("");
   const refreshing = ref(false);
+  const listLoading = ref(false);
   const deletingUuid = ref<string | null>(null);
 
+  /** 本地搜索 + 按发布时间倒序 */
   const filteredVersionList = computed(() => {
     let list = [...versionList.value];
     if (searchQuery.value.trim()) {
@@ -29,15 +70,30 @@ export function useVersionList() {
     );
   });
 
+  /** GET /device/version/query — 拉取全部版本 */
+  const fetchVersionList = async () => {
+    listLoading.value = true;
+    try {
+      const res = await getDeviceVersionQuery();
+      versionList.value = (res.data ?? []).map(normalizeVersion);
+    } catch (err) {
+      console.error("[version] /device/version/query 失败:", err);
+      ElMessage.error("版本列表加载失败");
+      versionList.value = [];
+    } finally {
+      listLoading.value = false;
+    }
+  };
+
   const handleRefreshList = async () => {
     refreshing.value = true;
-    await new Promise(r => setTimeout(r, 400));
-    versionList.value = MOCK_VERSIONS.map(r => ({ ...r }));
     searchQuery.value = "";
+    await fetchVersionList();
     refreshing.value = false;
     ElMessage.success("已刷新");
   };
 
+  /** DELETE /device/version/delete */
   const handleDeleteVersion = (version: VersionItem) => {
     ElMessageBox.confirm(
       `确定要删除版本「${version.ver_name} ${version.version}」吗？此操作不可逆。`,
@@ -48,18 +104,23 @@ export function useVersionList() {
         type: "warning"
       }
     )
-      .then(() => {
+      .then(async () => {
         deletingUuid.value = version.uuid;
-        versionList.value = versionList.value.filter(
-          item => item.uuid !== version.uuid
-        );
-        deletingUuid.value = null;
-        ElMessage.success("版本删除成功");
+        try {
+          await deleteDeviceVersion(version.uuid);
+          ElMessage.success("版本删除成功");
+          await fetchVersionList();
+        } catch (err) {
+          console.error("[version] /device/version/delete 失败:", err);
+          ElMessage.error("版本删除失败");
+        } finally {
+          deletingUuid.value = null;
+        }
       })
       .catch(() => {});
   };
 
-  // ===== 编辑弹窗 =====
+  // ----- 编辑弹窗 -----
   const editVisible = ref(false);
   const publishing = ref(false);
   const editForm = reactive<VersionForm>({
@@ -92,44 +153,86 @@ export function useVersionList() {
     editVisible.value = true;
   };
 
-  const submitEdit = () => {
-    const idx = versionList.value.findIndex(
-      item => item.uuid === editForm.uuid
-    );
-    if (idx !== -1) {
-      Object.assign(versionList.value[idx], {
-        ver_name: editForm.ver_name,
+  /** POST /device/version/update */
+  const submitEdit = async () => {
+    publishing.value = true;
+    try {
+      const payload: DeviceVersionSaveDTO = {
+        uuid: editForm.uuid!,
         version: editForm.version,
+        md5: editForm.md5,
+        filename: editForm.filename,
+        ver_name: editForm.ver_name,
         ver_des: editForm.ver_des,
-        client_path: editForm.client_path
-      });
+        server_url: editForm.fileUrl,
+        client_path: editForm.client_path,
+        create_time: editForm.create_time,
+        size: editForm.size,
+        fileUrl: editForm.fileUrl
+      };
+      await updateDeviceVersion(payload);
+      editVisible.value = false;
+      ElMessage.success("版本修改成功");
+      await fetchVersionList();
+    } catch (err) {
+      console.error("[version] /device/version/update 失败:", err);
+      ElMessage.error("版本修改失败");
+    } finally {
+      publishing.value = false;
     }
-    editVisible.value = false;
-    ElMessage.success("版本修改成功");
   };
 
-  // ===== 发布 =====
-  const addToList = (form: VersionForm, filename: string, size: number) => {
-    versionList.value.unshift({
+  /**
+   * POST /device/version/add
+   * @returns false 表示同软件同版本号已存在；true 发布成功
+   */
+  const publishVersion = async (payload: {
+    ver_name: string;
+    version: string;
+    ver_des: string;
+    client_path: string;
+    filename: string;
+    fileSize: number;
+    fileUrl: string;
+    md5?: string;
+  }) => {
+    const dup = versionList.value.some(
+      item =>
+        item.ver_name === payload.ver_name &&
+        normVersion(item.version) === normVersion(payload.version)
+    );
+    if (dup) return false;
+
+    const body: DeviceVersionSaveDTO = {
       uuid: genUuid(),
-      ver_name: form.ver_name,
-      version: form.version,
-      ver_des: form.ver_des,
-      client_path: form.client_path,
-      fileUrl: form.fileUrl,
-      md5: form.md5,
-      size: (size / 1024 / 1024).toFixed(2),
-      filename,
+      ver_name: payload.ver_name,
+      version: payload.version,
+      ver_des: payload.ver_des,
+      client_path: payload.client_path,
+      filename: payload.filename,
+      md5: payload.md5 ?? "",
+      server_url: payload.fileUrl,
+      fileUrl: payload.fileUrl,
+      size: Math.max(0.01, payload.fileSize / 1024 / 1024).toFixed(2),
       create_time: formatDateTime(new Date())
-    });
+    };
+    await addDeviceVersion(body);
+    await fetchVersionList();
+    return true;
   };
+
+  onMounted(() => {
+    fetchVersionList();
+  });
 
   return {
     versionList,
     searchQuery,
     refreshing,
+    listLoading,
     deletingUuid,
     filteredVersionList,
+    fetchVersionList,
     handleRefreshList,
     handleDeleteVersion,
     editVisible,
@@ -138,155 +241,6 @@ export function useVersionList() {
     editRules,
     handleEditVersion,
     submitEdit,
-    addToList
-  };
-}
-
-// ===== 文件上传（模拟） =====
-export function useFileUpload() {
-  const selectedFile = ref<File | null>(null);
-  const uploading = ref(false);
-  const isPaused = ref(false);
-  const isMerging = ref(false);
-  const isMerged = ref(false);
-  const uploadPercentage = ref(0);
-  const uploadSpeed = ref("0");
-  const timeLeft = ref(0);
-  const uploadStatus = ref<"" | "success" | "exception">("");
-  const mergedFileName = ref("");
-  const mergedFileSize = ref(0);
-  const uploadTime = ref<Date | null>(null);
-
-  let uploadTimer: ReturnType<typeof setInterval> | null = null;
-
-  const VALID_TYPES = /\.(zip|tar|gz|exe|bin)$/i;
-  const MAX_SIZE_GB = 1;
-
-  const validateFile = (file: File): string | null => {
-    if (!VALID_TYPES.test(file.name))
-      return "只能上传 .zip .tar .gz .exe .bin 格式的文件";
-    if (file.size / 1024 / 1024 / 1024 > MAX_SIZE_GB)
-      return "文件大小不能超过 1GB";
-    return null;
-  };
-
-  const resetState = () => {
-    if (uploadTimer) {
-      clearInterval(uploadTimer);
-      uploadTimer = null;
-    }
-    uploading.value = false;
-    isPaused.value = false;
-    isMerging.value = false;
-    isMerged.value = false;
-    uploadPercentage.value = 0;
-    uploadSpeed.value = "0";
-    timeLeft.value = 0;
-    uploadStatus.value = "";
-    mergedFileName.value = "";
-    mergedFileSize.value = 0;
-    uploadTime.value = null;
-  };
-
-  const selectFile = (file: File): boolean => {
-    const err = validateFile(file);
-    if (err) {
-      ElMessage.error(err);
-      return false;
-    }
-    selectedFile.value = file;
-    resetState();
-    return true;
-  };
-
-  const startUpload = () => {
-    if (!selectedFile.value || uploading.value) return;
-    uploading.value = true;
-    isPaused.value = false;
-
-    uploadTimer = setInterval(() => {
-      if (isPaused.value) return;
-      const speed = ((selectedFile.value!.size / 1024 / 1024) * 0.12).toFixed(
-        2
-      );
-      uploadSpeed.value = speed;
-
-      const increment = 2 + Math.random() * 3;
-      uploadPercentage.value = Math.min(
-        100,
-        uploadPercentage.value + increment
-      );
-
-      const remaining = 100 - uploadPercentage.value;
-      timeLeft.value = Math.max(
-        0,
-        Math.round(remaining / (parseFloat(speed) || 1))
-      );
-
-      if (uploadPercentage.value >= 100) {
-        clearInterval(uploadTimer!);
-        uploadTimer = null;
-        uploading.value = false;
-        isMerging.value = true;
-        uploadStatus.value = "success";
-
-        setTimeout(() => {
-          isMerging.value = false;
-          isMerged.value = true;
-          mergedFileName.value = selectedFile.value!.name;
-          mergedFileSize.value = selectedFile.value!.size;
-          uploadTime.value = new Date();
-          ElMessage.success("文件上传成功");
-        }, 800);
-      }
-    }, 200);
-  };
-
-  const pauseUpload = () => {
-    if (!uploading.value) return;
-    isPaused.value = true;
-    ElMessage.info("上传已暂停");
-  };
-
-  const resumeUpload = () => {
-    if (!isPaused.value) return;
-    isPaused.value = false;
-    ElMessage.info("上传已恢复");
-  };
-
-  const handleReupload = () => {
-    ElMessageBox.confirm(
-      "确定要重新上传文件吗？这将清除当前已选择的文件。",
-      "确认重新上传",
-      { confirmButtonText: "确定", cancelButtonText: "取消", type: "warning" }
-    )
-      .then(() => {
-        selectedFile.value = null;
-        resetState();
-        ElMessage.success("已清除，请重新选择文件");
-      })
-      .catch(() => {});
-  };
-
-  return {
-    selectedFile,
-    uploading,
-    isPaused,
-    isMerging,
-    isMerged,
-    uploadPercentage,
-    uploadSpeed,
-    timeLeft,
-    uploadStatus,
-    mergedFileName,
-    mergedFileSize,
-    uploadTime,
-    selectFile,
-    startUpload,
-    pauseUpload,
-    resumeUpload,
-    handleReupload,
-    resetState,
-    formatFileSize
+    publishVersion
   };
 }

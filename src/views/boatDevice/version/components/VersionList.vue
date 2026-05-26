@@ -6,12 +6,12 @@ import Delete from "@iconify-icons/ep/delete";
 import EditPen from "@iconify-icons/ep/edit-pen";
 import { useVersionList } from "../utils";
 import { formatFileSize } from "../utils/dict";
-import type { VersionItem } from "../utils/types";
 import EditVersionDialog from "./EditVersionDialog.vue";
 
 const {
   searchQuery,
   refreshing,
+  listLoading,
   deletingUuid,
   filteredVersionList,
   handleRefreshList,
@@ -21,26 +21,10 @@ const {
   editRules,
   handleEditVersion,
   submitEdit,
-  addToList
+  publishVersion
 } = useVersionList();
 
-function addVersion(
-  payload: Omit<VersionItem, "uuid" | "create_time">,
-  filename: string,
-  fileSize: number
-) {
-  const norm = (v: string) => (v.startsWith("v") ? v.slice(1) : v);
-  const dup = filteredVersionList.value.some(
-    item =>
-      item.ver_name === payload.ver_name &&
-      norm(item.version) === norm(payload.version)
-  );
-  if (dup) return false;
-  addToList(payload, filename, fileSize);
-  return true;
-}
-
-defineExpose({ addVersion });
+defineExpose({ publishVersion });
 </script>
 
 <template>
@@ -75,7 +59,7 @@ defineExpose({ addVersion });
       </el-button>
     </div>
 
-    <div class="list-body">
+    <div v-loading="listLoading" class="list-body">
       <el-empty v-if="!filteredVersionList.length" description="暂无版本信息" />
       <el-table
         v-else
