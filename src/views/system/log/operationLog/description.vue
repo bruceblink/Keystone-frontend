@@ -1,17 +1,28 @@
 <script setup lang="ts">
 import { useUserStoreHook } from "@/store/modules/user";
 import { OperationLogDTO } from "@/api/system/log";
+import { computed } from "vue";
 
 type TagType = "primary" | "success" | "warning" | "danger" | "info";
 
 /** TODO 有其他方式  来换掉这个props 父子组件传值吗？ */
 const props = defineProps<OperationLogDTO>();
 
-const operationLogStatusMap =
-  useUserStoreHook().dictionaryMap["sysOperationLog.status"];
+const operationLogStatusMap = computed(
+  () => useUserStoreHook().dictionaryMap["sysOperationLog.status"] ?? {}
+);
 
-function getTagType(status: number): TagType {
-  return (operationLogStatusMap?.[status]?.cssTag || "info") as TagType;
+const operationLogStatus = computed(() => {
+  return (
+    operationLogStatusMap.value[props.status] ?? {
+      cssTag: "info",
+      label: props.statusStr ?? String(props.status ?? "-")
+    }
+  );
+});
+
+function getTagType(value?: string): TagType {
+  return (value || "info") as TagType;
 }
 </script>
 
@@ -80,8 +91,8 @@ function getTagType(status: number): TagType {
       </el-text>
     </el-descriptions-item>
     <el-descriptions-item label="状态:"
-      ><el-tag :type="getTagType(props.status)" effect="plain">
-        {{ operationLogStatusMap[props.status].label }}
+      ><el-tag :type="getTagType(operationLogStatus.cssTag)" effect="plain">
+        {{ operationLogStatus.label }}
       </el-tag></el-descriptions-item
     >
     <el-descriptions-item label="操作时间:">{{
