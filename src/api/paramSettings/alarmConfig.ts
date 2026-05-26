@@ -1,7 +1,7 @@
 import { http } from "@/utils/http";
 import type { RequestMethods } from "@/utils/http/types.d";
 import type { PureHttpRequestConfig } from "@/utils/http/types.d";
-import type { AreaItem } from "@/views/paramSettings/alarmConfig/utils/types";
+import type { AreaItem } from "@/views/alarm/alarmConfig/utils/types";
 import type { ReasonTypeListItemDTO } from "@/api/paramSettings/alarmType";
 
 export type { ReasonTypeListItemDTO };

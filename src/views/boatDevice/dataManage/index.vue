@@ -5,28 +5,24 @@ import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
 import AlarmImg from "./components/AlarmImg.vue";
-import {
-  ALARM_TYPE_LIST,
-  GROUP_MAP,
-  REGION_MAP,
-  MOCK_ALARM_LIST,
-  type AlarmRecord,
-  type AlarmType
-} from "./utils/dict";
-import { useBoatStoreHook } from "@/store/modules/boat";
+import { GROUP_MAP, type AlarmRecord } from "./utils/dict";
+import { useDataManage } from "./utils/hook";
 import { useDraggableMap } from "./utils/map";
 
 defineOptions({ name: "BoatDataManage" });
 
-const boatStore = useBoatStoreHook();
-
-/* ----- 搜索表单 ----- */
-const searchForm = ref({
-  alarmType: [] as number[],
-  timeRange: [] as string[],
-  review: -1,
-  projectGroup: "-1"
-});
+const {
+  searchForm,
+  alarmTypeOptions,
+  regionMap,
+  eleFenceList,
+  tableData,
+  listLoading,
+  shipNameMap,
+  alarmTypeNameMap,
+  handleSearch,
+  handleReset
+} = useDataManage();
 
 const processStatusOptions = [
   { label: "全部", value: -1 },
@@ -39,7 +35,6 @@ const processStatusOptions = [
 ];
 
 /* ----- 报警类型下拉 ----- */
-const alarmTypeOptions = ref<AlarmType[]>(ALARM_TYPE_LIST);
 const alarmTypeSearchQuery = ref("");
 const filteredAlarmTypeOptions = computed(() => {
   if (!alarmTypeSearchQuery.value) return alarmTypeOptions.value;
@@ -68,16 +63,7 @@ const handleAlarmTypeCheckAll = (val: boolean) => {
     : [];
 };
 
-/* ----- 映射表 ----- */
-const shipNameMap = computed<Record<string, string>>(() =>
-  Object.fromEntries(boatStore.allBoats.map(b => [b.devid, b.shipname_cn]))
-);
-const alarmTypeNameMap = computed<Record<number, string>>(() =>
-  Object.fromEntries(alarmTypeOptions.value.map(i => [i.id, i.des]))
-);
-
 /* ----- 表格数据 ----- */
-const tableData = ref<AlarmRecord[]>([...MOCK_ALARM_LIST]);
 const tableSearchKeyword = ref("");
 
 const filteredTableData = computed(() => {
@@ -217,35 +203,9 @@ const hasInput = computed(
     searchForm.value.projectGroup !== "-1"
 );
 
-const handleSearch = () => {
-  const sf = searchForm.value;
-  let result = [...MOCK_ALARM_LIST];
-  if (sf.projectGroup !== "-1") {
-    const devids = boatStore.allBoats
-      .filter(b => b.type === sf.projectGroup)
-      .map(b => b.devid);
-    result = result.filter(r => devids.includes(r.devid));
-  }
-  if (sf.alarmType.length)
-    result = result.filter(r => sf.alarmType.includes(r.alarmtype));
-  if (sf.review !== -1) result = result.filter(r => r.review === sf.review);
-  if (sf.timeRange.length === 2) {
-    const [start, end] = sf.timeRange;
-    result = result.filter(r => r.stime >= start && r.stime <= end);
-  }
-  tableData.value = result;
+const onSearch = () => {
   currentPage.value = 1;
-};
-
-const handleReset = () => {
-  searchForm.value = {
-    alarmType: [],
-    timeRange: [],
-    review: -1,
-    projectGroup: "-1"
-  };
-  tableData.value = [...MOCK_ALARM_LIST];
-  currentPage.value = 1;
+  handleSearch();
 };
 
 /* ----- 操作 ----- */
@@ -299,6 +259,7 @@ const {
   onResizeStart,
   highlightAlarmMarker,
   clearHighlight,
+  drawFences,
   clearFences
 } = useDraggableMap({
   zoom: 5,
@@ -309,12 +270,16 @@ const {
 watch(mapVisible, val => {
   if (val) {
     nextTick(() => {
-      if (rowData.value && mapInstance.value)
+      if (rowData.value && mapInstance.value) {
         highlightAlarmMarker(
           rowData.value,
           shipNameMap.value,
           alarmTypeNameMap.value
         );
+      }
+      if (eleFenceList.value.length && mapInstance.value) {
+        drawFences(eleFenceList.value);
+      }
     });
   } else {
     clearHighlight();
@@ -356,11 +321,7 @@ const REVIEW_TAG: Record<
 <template>
   <div class="dm-page">
     <!-- 搜索栏 -->
-    <el-form
-      inline
-      :model="searchForm"
-      class="search-form bg-bg_color w-[99/100] pl-8 pt-[12px]"
-    >
+    <el-form inline :model="searchForm" class="search-form bg-bg_color">
       <el-form-item label="报警类型">
         <el-select
           v-model="searchForm.alarmType"
@@ -427,7 +388,7 @@ const REVIEW_TAG: Record<
         <el-button
           type="primary"
           :icon="useRenderIcon(Search)"
-          @click="handleSearch"
+          @click="onSearch"
           >搜索</el-button
         >
         <el-button
@@ -439,8 +400,8 @@ const REVIEW_TAG: Record<
       </el-form-item>
     </el-form>
 
-    <!-- 主内容区 -->
-    <div class="dm-content">
+    <!-- 主内容区（宽度与上方筛选栏一致） -->
+    <div class="dm-content bg-bg_color">
       <!-- 左：表格面板 -->
       <div class="table-panel">
         <!-- 表内搜索 -->
@@ -482,64 +443,71 @@ const REVIEW_TAG: Record<
         </div>
 
         <!-- 表格 -->
-        <el-table
-          ref="tableRef"
-          :data="paginatedTableData"
-          border
-          class="flex-table"
-          :row-class-name="tableRowClassName"
-          :header-cell-style="{
-            background: 'var(--el-table-row-hover-bg-color)',
-            color: 'var(--el-text-color-primary)'
-          }"
-          @row-click="rowClick"
-        >
-          <el-table-column
-            label="船舶"
-            align="center"
-            width="110"
-            show-overflow-tooltip
+        <div v-loading="listLoading" class="table-wrap">
+          <el-table
+            ref="tableRef"
+            :data="paginatedTableData"
+            border
+            height="100%"
+            class="flex-table"
+            :row-class-name="tableRowClassName"
+            :header-cell-style="{
+              background: 'var(--el-table-row-hover-bg-color)',
+              color: 'var(--el-text-color-primary)'
+            }"
+            @row-click="rowClick"
           >
-            <template #default="{ row }">{{
-              shipNameMap[row.devid] || row.devid
-            }}</template>
-          </el-table-column>
-          <el-table-column
-            label="报警原因"
-            align="center"
-            show-overflow-tooltip
-          >
-            <template #default="{ row }">{{
-              alarmTypeNameMap[row.reason] || row.reason
-            }}</template>
-          </el-table-column>
-          <el-table-column label="等级" align="center" width="90">
-            <template #default="{ row }">
-              <el-tag :type="LEVEL_TAG[row.level]" size="small" effect="plain">
-                {{ LEVEL_LABEL[row.level] ?? "--" }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="上传状态" align="center" width="110">
-            <template #default="{ row }">
-              <el-tag
-                :type="REVIEW_TAG[row.review]"
-                size="small"
-                effect="plain"
-              >
-                {{ REVIEW_LABEL[row.review] ?? "未知" }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="时间"
-            align="center"
-            width="160"
-            show-overflow-tooltip
-          >
-            <template #default="{ row }">{{ row.stime || "--" }}</template>
-          </el-table-column>
-        </el-table>
+            <el-table-column
+              label="船舶"
+              align="center"
+              width="110"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">{{
+                shipNameMap[row.devid] || row.devid
+              }}</template>
+            </el-table-column>
+            <el-table-column
+              label="报警原因"
+              align="center"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">{{
+                alarmTypeNameMap[row.reason] || row.reason
+              }}</template>
+            </el-table-column>
+            <el-table-column label="等级" align="center" width="90">
+              <template #default="{ row }">
+                <el-tag
+                  :type="LEVEL_TAG[row.level]"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ LEVEL_LABEL[row.level] ?? "--" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="上传状态" align="center" width="110">
+              <template #default="{ row }">
+                <el-tag
+                  :type="REVIEW_TAG[row.review]"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ REVIEW_LABEL[row.review] ?? "未知" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="时间"
+              align="center"
+              width="160"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">{{ row.stime || "--" }}</template>
+            </el-table-column>
+          </el-table>
+        </div>
 
         <!-- 分页 -->
         <div class="table-footer">
@@ -548,7 +516,7 @@ const REVIEW_TAG: Record<
             v-model:page-size="pageSize"
             :page-sizes="[10, 20, 50, 100]"
             size="small"
-            layout="total, sizes, prev, pager, next, jumper"
+            layout="total, sizes, prev, pager, next"
             :total="tableDataTotal"
             :pager-count="5"
             @size-change="handleSizeChange"
@@ -591,7 +559,7 @@ const REVIEW_TAG: Record<
           :rowData="rowData"
           :alarmTypeNameMap="alarmTypeNameMap"
           :shipNameMap="shipNameMap"
-          :regionMap="REGION_MAP"
+          :regionMap="regionMap"
         />
       </div>
     </div>
@@ -764,43 +732,118 @@ const REVIEW_TAG: Record<
 }
 
 /* 地图面板（teleport 到 body，非 scoped） */
+
+/* 数据管理页：锁定视口（main-content 与 dm-page 在同一根节点，不能用 :has） */
+.app-main:has(.dm-page) {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.app-main:has(.dm-page) .el-scrollbar {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.app-main:has(.dm-page) .el-scrollbar__wrap,
+.app-main:has(.dm-page) .el-scrollbar__view {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.app-main:has(.dm-page) .el-scrollbar__wrap {
+  overflow-y: hidden !important;
+}
+
+.app-main:has(.dm-page) .el-scrollbar__view {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+}
+
+.app-main .dm-page {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: calc(100vh - 85px);
+  padding: 12px 24px 16px;
+  margin: 0 !important;
+  overflow: hidden;
+}
 </style>
 
 <style scoped lang="scss">
 @media (width <= 1100px) {
   .dm-content {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .table-panel,
+  .preview-panel {
+    flex: 1 1 0 !important;
   }
 }
 
 .dm-page {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .search-form {
   flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-top: 12px;
+  overflow: hidden;
+
+  :deep(.el-form--inline) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 4px;
+  }
 
   :deep(.el-form-item) {
+    margin-right: 12px;
     margin-bottom: 12px;
+  }
+
+  :deep(.el-date-editor),
+  :deep(.el-select),
+  :deep(.el-input) {
+    max-width: 100%;
   }
 }
 
 .dm-content {
-  display: grid;
+  box-sizing: border-box;
+  display: flex;
   flex: 1;
-  grid-template-columns: minmax(380px, 0.75fr) minmax(0, 1.25fr);
   gap: 12px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
-  padding: 0 12px 12px;
+  overflow: hidden;
 }
 
 /* ---- 表格面板 ---- */
 .table-panel {
   display: flex;
+  flex: 3 1 0;
   flex-direction: column;
   gap: 8px;
+  width: 0;
+  min-width: 0;
   min-height: 0;
   padding: 12px;
   overflow: hidden;
@@ -810,11 +853,21 @@ const REVIEW_TAG: Record<
   box-shadow: 0 2px 12px rgb(0 0 0 / 6%);
 }
 
+.table-wrap {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .table-toolbar {
   display: flex;
   flex-shrink: 0;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  min-width: 0;
 }
 
 .toolbar-total {
@@ -825,12 +878,29 @@ const REVIEW_TAG: Record<
 }
 
 .flex-table {
-  flex: 1;
-  min-height: 0;
+  width: 100% !important;
+  max-width: 100%;
   cursor: pointer;
 
+  :deep(.el-table__inner-wrapper) {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  :deep(table) {
+    width: 100% !important;
+    table-layout: fixed;
+  }
+
+  :deep(.el-table__header-wrapper),
   :deep(.el-table__body-wrapper) {
-    overflow-y: auto;
+    width: 100% !important;
+    overflow-x: hidden;
+  }
+
+  :deep(.el-table__header),
+  :deep(.el-table__body) {
+    width: 100% !important;
   }
 
   :deep(.is-selected-row td) {
@@ -846,14 +916,25 @@ const REVIEW_TAG: Record<
   display: flex;
   flex-shrink: 0;
   justify-content: center;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+
+  :deep(.el-pagination) {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }
 
 .action-bar {
   display: flex;
   flex-shrink: 0;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  min-width: 0;
   padding-top: 4px;
   border-top: 1px solid var(--el-border-color-lighter);
 }
@@ -865,6 +946,11 @@ const REVIEW_TAG: Record<
 
 /* ---- 图片预览面板 ---- */
 .preview-panel {
+  display: flex;
+  flex: 5 1 0;
+  flex-direction: column;
+  width: 0;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: var(--el-bg-color);

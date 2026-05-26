@@ -16,8 +16,8 @@ export default {
       name: "BoatDevice",
       component: () => import("@/views/boatDevice/shipForm/index.vue"),
       meta: {
-        title: "设备列表",
-        icon: "list"
+        title: "设备列表"
+        // icon: "list"
       }
     },
     {
@@ -25,8 +25,8 @@ export default {
       name: "BoatSoftware",
       component: () => import("@/views/boatDevice/software/index.vue"),
       meta: {
-        title: "软件更新",
-        icon: "upload"
+        title: "软件更新"
+        // icon: "upload"
       }
     },
     {
@@ -34,8 +34,8 @@ export default {
       name: "BoatVersion",
       component: () => import("@/views/boatDevice/version/index.vue"),
       meta: {
-        title: "版本发布",
-        icon: "rocket"
+        title: "版本发布"
+        // icon: "rocket"
       }
     },
     {
@@ -43,8 +43,8 @@ export default {
       name: "BoatDataManage",
       component: () => import("@/views/boatDevice/dataManage/index.vue"),
       meta: {
-        title: "数据管理",
-        icon: "dataAnalysis"
+        title: "数据管理"
+        // icon: "dataAnalysis"
       }
     }
   ]
