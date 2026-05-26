@@ -3,13 +3,12 @@ import { ref } from "vue";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import Delete from "@iconify-icons/ep/delete";
-import Refresh from "@iconify-icons/ep/refresh";
 import Search from "@iconify-icons/ep/search";
 import Upload from "@iconify-icons/ep/upload";
 import { getProgressStatus } from "./utils/dict";
 import { useUpdateList } from "./utils";
-import BatchUpdate from "./components/BatchUpdate.vue";
 import type { UpdateRecord } from "./utils/types";
+import BatchUpdate from "./components/BatchUpdate.vue";
 
 defineOptions({ name: "BoatSoftware" });
 
@@ -26,17 +25,16 @@ const {
   handleRefresh,
   handleDelete,
   handleBatchDelete,
-  addUpdateRecords
+  fetchUpdateList,
+  listLoading
 } = useUpdateList();
 
 const batchVisible = ref(false);
 
-const handleBatchSubmitted = (records: UpdateRecord[]) => {
-  addUpdateRecords(records);
+const handleBatchSubmitted = () => {
   batchVisible.value = false;
+  fetchUpdateList();
 };
-
-defineExpose({ addUpdateRecords });
 
 const STATUS_TABS = [
   { key: "all", label: "全部", dot: "#909399" },
@@ -81,14 +79,6 @@ const STATUS_LABEL: Record<string, string> = {
           @click="batchVisible = true"
         >
           批量更新
-        </el-button>
-        <el-button
-          type="primary"
-          plain
-          :icon="useRenderIcon(Refresh)"
-          @click="handleRefresh"
-        >
-          刷新
         </el-button>
         <el-button
           type="danger"
@@ -139,6 +129,7 @@ const STATUS_LABEL: Record<string, string> = {
     >
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
+          v-loading="listLoading"
           border
           align-whole="center"
           show-overflow-tooltip

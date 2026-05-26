@@ -16,6 +16,8 @@ export interface SoftwareVersion {
   version: string;
   size: string;
   create_time: string;
+  url?: string;
+  path?: string;
 }
 
 export interface DeviceItem {

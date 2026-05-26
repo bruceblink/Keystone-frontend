@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import Upload from "@iconify-icons/ep/upload";
-import type { UpdateRecord } from "../utils/types";
 import { useBatchUpdate } from "../utils/useBatchUpdate";
 
 defineOptions({ name: "SoftwareBatchUpdate" });
 
 const emit = defineEmits<{
-  (e: "submitted", records: UpdateRecord[]): void;
+  (e: "submitted"): void;
 }>();
 
 const {
@@ -15,6 +14,7 @@ const {
   selectedDevices,
   handleSelectionChange,
   deviceColumns,
+  versionsLoading,
   uniqueSoftwareList,
   filteredVersionList,
   formRef,
@@ -22,7 +22,7 @@ const {
   rules,
   submitting,
   handleSubmit
-} = useBatchUpdate(records => emit("submitted", records));
+} = useBatchUpdate(() => emit("submitted"));
 </script>
 
 <template>
@@ -36,6 +36,7 @@ const {
         </el-tag>
       </div>
       <pure-table
+        v-loading="versionsLoading"
         border
         align-whole="center"
         show-overflow-tooltip

@@ -1,21 +1,54 @@
-import { ref, reactive, computed, watch } from "vue";
+import { ref, reactive, computed, watch, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { DeviceItem, UpdateRecord, SoftwareVersion } from "./types";
-import { MOCK_DEVICES, MOCK_VERSIONS } from "./dict";
+import {
+  getDeviceVersionQuery,
+  postVersionUpdateAdd,
+  type DeviceVersionItemDTO
+} from "@/api/boatDevice/software";
+import { useBoatStoreHook } from "@/store/modules/boat";
+import type { DeviceItem, SoftwareVersion } from "./types";
 
-let _uidSeed = Date.now();
-const genId = () => `upd-${_uidSeed++}`;
+const genUuid = () =>
+  crypto.randomUUID
+    ? crypto.randomUUID()
+    : `upd-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-export function useBatchUpdate(onSubmitted: (records: UpdateRecord[]) => void) {
-  // ===== 设备列表 =====
-  const allDevices = ref<DeviceItem[]>(MOCK_DEVICES.map(d => ({ ...d })));
+const formatNow = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+
+const normalizeVersion = (item: DeviceVersionItemDTO): SoftwareVersion => ({
+  uuid: String(item.uuid ?? ""),
+  ver_name: String(item.ver_name ?? ""),
+  version: String(item.version ?? ""),
+  size: String(item.size ?? ""),
+  create_time: String(item.create_time ?? ""),
+  url: String(item.url ?? item.fileUrl ?? ""),
+  path: String(item.path ?? item.client_path ?? "")
+});
+
+export function useBatchUpdate(onSubmitted: () => void) {
+  const boatStore = useBoatStoreHook();
+  const versionsLoading = ref(false);
+
+  const allDevices = computed<DeviceItem[]>(() =>
+    boatStore.allBoats.map(b => ({
+      devid: b.devid,
+      shipname_cn: b.shipname_cn,
+      shipname_en: b.shipname_en,
+      type: b.type
+    }))
+  );
+
   const selectedDevices = ref<DeviceItem[]>([]);
-
   const handleSelectionChange = (rows: DeviceItem[]) => {
     selectedDevices.value = rows;
   };
 
-  // ===== 设备表格列 =====
   const deviceColumns: TableColumnList = [
     { type: "selection", align: "center", width: 50 },
     { label: "设备编号", prop: "devid", minWidth: 110 },
@@ -23,10 +56,21 @@ export function useBatchUpdate(onSubmitted: (records: UpdateRecord[]) => void) {
     { label: "船名（英文）", prop: "shipname_en", minWidth: 130 }
   ];
 
-  // ===== 版本列表 =====
-  const versionList = ref<SoftwareVersion[]>(
-    MOCK_VERSIONS.map(v => ({ ...v }))
-  );
+  const versionList = ref<SoftwareVersion[]>([]);
+
+  const fetchVersionList = async () => {
+    versionsLoading.value = true;
+    try {
+      const res = await getDeviceVersionQuery();
+      versionList.value = (res.data ?? []).map(normalizeVersion);
+    } catch (err) {
+      console.error("[software] /device/version/query 失败:", err);
+      ElMessage.error("版本列表加载失败");
+      versionList.value = [];
+    } finally {
+      versionsLoading.value = false;
+    }
+  };
 
   const uniqueSoftwareList = computed(() =>
     [...new Set(versionList.value.map(v => v.ver_name))].filter(Boolean)
@@ -49,7 +93,12 @@ export function useBatchUpdate(onSubmitted: (records: UpdateRecord[]) => void) {
       .sort((a, b) => compareVersions(a.version, b.version));
   });
 
-  // ===== 表单 =====
+  const selectedVersionMeta = computed(() =>
+    versionList.value.find(
+      v => v.ver_name === form.name && v.version === form.version
+    )
+  );
+
   const formRef = ref();
   const form = reactive({ name: "", version: "" });
   const submitting = ref(false);
@@ -66,7 +115,6 @@ export function useBatchUpdate(onSubmitted: (records: UpdateRecord[]) => void) {
     }
   );
 
-  // ===== 提交 =====
   const handleSubmit = async () => {
     if (!selectedDevices.value.length) {
       ElMessage.warning("请先选择要更新的设备");
@@ -76,7 +124,7 @@ export function useBatchUpdate(onSubmitted: (records: UpdateRecord[]) => void) {
     if (!valid) return;
 
     const deviceNames = selectedDevices.value
-      .map(d => d.shipname_cn)
+      .map(d => d.shipname_cn || d.devid)
       .join("、");
 
     try {
@@ -89,42 +137,54 @@ export function useBatchUpdate(onSubmitted: (records: UpdateRecord[]) => void) {
       return;
     }
 
+    const meta = selectedVersionMeta.value;
     submitting.value = true;
     try {
-      const now = new Date().toISOString().replace("T", " ").substring(0, 19);
-      const versionMeta = versionList.value.find(
-        v => v.ver_name === form.name && v.version === form.version
+      const createTime = formatNow();
+      const results = await Promise.all(
+        selectedDevices.value.map(device =>
+          postVersionUpdateAdd({
+            uuid: genUuid(),
+            devid: device.devid,
+            name: form.name,
+            version: form.version,
+            status: "0",
+            progress: "0",
+            url: meta?.url ?? "",
+            path: meta?.path ?? "",
+            create_time: createTime
+          })
+        )
       );
-      const records: UpdateRecord[] = selectedDevices.value.map(d => ({
-        uuid: genId(),
-        devid: d.devid,
-        shipname_cn: d.shipname_cn,
-        name: form.name,
-        version: form.version,
-        size: versionMeta?.size || "",
-        status: "0",
-        progress: "0",
-        create_time: now
-      }));
-      onSubmitted(records);
+      const ok = results.length;
       ElMessage.success(
-        `已为 ${records.length} 台设备添加 ${form.name} ${form.version} 更新任务`
+        `已为 ${ok} 台设备添加 ${form.name} ${form.version} 更新任务`
       );
       form.name = "";
       form.version = "";
-    } catch {
+      formRef.value?.resetFields();
+      onSubmitted();
+    } catch (err) {
+      console.error("[software] /version/update/add 失败:", err);
       ElMessage.error("添加失败");
     } finally {
       submitting.value = false;
     }
   };
 
+  onMounted(async () => {
+    if (!boatStore.allBoats.length) {
+      await boatStore.fetchBoatList();
+    }
+    await fetchVersionList();
+  });
+
   return {
     allDevices,
     selectedDevices,
     handleSelectionChange,
     deviceColumns,
-    versionList,
+    versionsLoading,
     uniqueSoftwareList,
     filteredVersionList,
     formRef,

@@ -25,7 +25,7 @@ export default {
       name: "BoatSoftware",
       component: () => import("@/views/boatDevice/software/index.vue"),
       meta: {
-        title: "软件更新"
+        title: "更新管理"
         // icon: "upload"
       }
     },

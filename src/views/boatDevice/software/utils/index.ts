@@ -1,18 +1,44 @@
-import { ref, computed, reactive, onMounted, onUnmounted } from "vue";
+import { ref, computed, reactive, onMounted, onUnmounted, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import {
+  batchDeleteVersionUpdate,
+  deleteVersionUpdate,
+  getVersionUpdateQuery,
+  type VersionUpdateItemDTO
+} from "@/api/boatDevice/software";
+import { useBoatStoreHook } from "@/store/modules/boat";
+import { GROUP_MAP } from "../../dict";
 import type { UpdateRecord } from "./types";
-import { GROUP_MAP, MOCK_UPDATES, MOCK_DEVICES } from "./dict";
+
+const normalizeUpdate = (
+  item: VersionUpdateItemDTO,
+  shipNameMap: Record<string, string>
+): UpdateRecord => ({
+  uuid: String(item.uuid ?? ""),
+  devid: String(item.devid ?? ""),
+  shipname_cn: item.shipname_cn ?? shipNameMap[String(item.devid ?? "")] ?? "",
+  name: String(item.name ?? ""),
+  version: String(item.version ?? ""),
+  size: String(item.size ?? ""),
+  status: String(item.status ?? "0"),
+  progress: String(item.progress ?? "0"),
+  create_time: String(item.create_time ?? "")
+});
 
 export function useUpdateList() {
-  // ===== 数据源 =====
-  const updateList = ref<UpdateRecord[]>(MOCK_UPDATES.map(r => ({ ...r })));
+  const boatStore = useBoatStoreHook();
+  const updateList = ref<UpdateRecord[]>([]);
+  const listLoading = ref(false);
+
+  const shipNameMap = computed<Record<string, string>>(() =>
+    Object.fromEntries(boatStore.allBoats.map(b => [b.devid, b.shipname_cn]))
+  );
 
   const getDeviceGroup = (devid: string) => {
-    const d = MOCK_DEVICES.find(x => x.devid === devid);
-    return d ? GROUP_MAP[d.type] || "未知" : "未知";
+    const boat = boatStore.allBoats.find(b => b.devid === devid);
+    return boat ? GROUP_MAP[String(boat.type)] ?? "未知" : "未知";
   };
 
-  // ===== 搜索 & 筛选 =====
   const searchQuery = ref("");
   const statusFilter = ref("all");
 
@@ -39,12 +65,11 @@ export function useUpdateList() {
     });
   });
 
-  const getStatusCount = (s: string) =>
-    s === "all"
-      ? updateList.value.length
-      : updateList.value.filter(r => r.status === s).length;
+  const getStatusCount = (s: string) => {
+    if (s === "all") return updateList.value.length;
+    return updateList.value.filter(r => r.status === s).length;
+  };
 
-  // ===== 分页 =====
   const pagination = reactive({
     currentPage: 1,
     pageSize: 15,
@@ -62,10 +87,8 @@ export function useUpdateList() {
     pagination.currentPage = 1;
   };
 
-  // ===== 多选 =====
   const multipleSelection = ref<UpdateRecord[]>([]);
 
-  // ===== 列定义 =====
   const columns: TableColumnList = [
     { type: "selection", align: "center", width: 50 },
     { label: "设备编号", prop: "devid", minWidth: 110 },
@@ -85,25 +108,47 @@ export function useUpdateList() {
     { label: "操作", fixed: "right", minWidth: 80, slot: "operation" }
   ];
 
-  // ===== 刷新 =====
-  const handleRefresh = () => {
-    updateList.value = MOCK_UPDATES.map(r => ({ ...r }));
+  const fetchUpdateList = async (silent = false) => {
+    if (!silent) listLoading.value = true;
+    try {
+      if (!boatStore.allBoats.length) {
+        await boatStore.fetchBoatList();
+      }
+      const res = await getVersionUpdateQuery({
+        devid: "-1",
+        status: "-1"
+      });
+      const map = shipNameMap.value;
+      updateList.value = (res.data ?? []).map(item =>
+        normalizeUpdate(item, map)
+      );
+    } catch (err) {
+      console.error("[software] /version/update/query 失败:", err);
+      if (!silent) ElMessage.error("更新列表加载失败");
+      updateList.value = [];
+    } finally {
+      if (!silent) listLoading.value = false;
+    }
+  };
+
+  const handleRefresh = async () => {
     searchQuery.value = "";
     statusFilter.value = "all";
     pagination.currentPage = 1;
+    await fetchUpdateList();
     ElMessage.success("已刷新");
   };
 
-  // ===== 删除 =====
   const handleDelete = (row: UpdateRecord) => {
     ElMessageBox.confirm(
-      `确定要删除设备 "${row.shipname_cn}" 的更新任务吗？`,
+      `确定要删除设备 "${row.shipname_cn || row.devid}" 的更新任务吗？`,
       "确认删除",
       { confirmButtonText: "确定", cancelButtonText: "取消", type: "warning" }
     )
-      .then(() => {
-        updateList.value = updateList.value.filter(r => r.uuid !== row.uuid);
+      .then(async () => {
+        await deleteVersionUpdate(row.uuid);
         ElMessage.success("删除成功");
+        await fetchUpdateList(true);
       })
       .catch(() => {});
   };
@@ -118,48 +163,41 @@ export function useUpdateList() {
       "确认批量删除",
       { confirmButtonText: "确定", cancelButtonText: "取消", type: "warning" }
     )
-      .then(() => {
-        const uuids = new Set(multipleSelection.value.map(r => r.uuid));
-        updateList.value = updateList.value.filter(r => !uuids.has(r.uuid));
+      .then(async () => {
+        const uuids = multipleSelection.value.map(r => r.uuid);
+        await batchDeleteVersionUpdate(uuids);
         multipleSelection.value = [];
         ElMessage.success("批量删除成功");
+        await fetchUpdateList(true);
       })
       .catch(() => {});
   };
 
-  // ===== 定时模拟进度推进 =====
-  let timer: ReturnType<typeof setInterval> | null = null;
-  onMounted(() => {
-    timer = setInterval(() => {
-      updateList.value.forEach(r => {
-        if (r.status === "1") {
-          const p = Math.min(parseFloat(r.progress) + Math.random() * 3, 100);
-          r.progress = p.toFixed(1);
-          if (p >= 100) r.status = "2";
-        }
-      });
-    }, 3000);
-  });
-  onUnmounted(() => {
-    if (timer) clearInterval(timer);
+  let refreshTimer: ReturnType<typeof setInterval> | null = null;
+  const startPolling = () => {
+    stopPolling();
+    refreshTimer = setInterval(() => fetchUpdateList(true), 10000);
+  };
+  const stopPolling = () => {
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  };
+
+  watch(statusFilter, () => {
+    pagination.currentPage = 1;
   });
 
-  // ===== 追加新任务（供父组件调用） =====
-  const addUpdateRecords = (records: UpdateRecord[]) => {
-    records.forEach(r => {
-      const idx = updateList.value.findIndex(
-        x => x.devid === r.devid && x.name === r.name
-      );
-      if (idx >= 0) {
-        updateList.value[idx] = { ...r };
-      } else {
-        updateList.value.unshift({ ...r });
-      }
-    });
-  };
+  onMounted(async () => {
+    await fetchUpdateList();
+    startPolling();
+  });
+  onUnmounted(stopPolling);
 
   return {
     updateList,
+    listLoading,
     getDeviceGroup,
     searchQuery,
     statusFilter,
@@ -173,6 +211,6 @@ export function useUpdateList() {
     handleRefresh,
     handleDelete,
     handleBatchDelete,
-    addUpdateRecords
+    fetchUpdateList
   };
 }
