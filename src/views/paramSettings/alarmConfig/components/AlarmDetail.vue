@@ -1,204 +1,46 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ref, toRef } from "vue";
 import { QuestionFilled } from "@element-plus/icons-vue";
 import AlarmDrawCanvas from "./AlarmDrawCanvas.vue";
-import type {
-  AlarmConfigTypeItem,
-  CameraItem,
-  AreaItem,
-  AlarmConfigRecord,
-  ExtParam
-} from "../utils/types";
-import {
-  MOCK_CAMERAS,
-  ALARM_PARAM_DEFS,
-  getBoatAlarmConfigs,
-  upsertAlarmConfig,
-  removeAlarmConfig,
-  genId,
-  formatDateTime
-} from "../utils/dict";
+import type { AlarmConfigTypeItem } from "../utils/types";
+import { useAlarmConfigDetail } from "../utils/configDetail";
 
 const props = defineProps<{
   alarmType: AlarmConfigTypeItem;
   boatId: string;
 }>();
 
-// ===== 摄像机列表 =====
-const cameraList = ref<CameraItem[]>(MOCK_CAMERAS);
-const treeRef = ref<InstanceType<any> | null>(null);
-const treeProps = { children: "children", label: "devname" };
-const selectedCamIds = ref<string[]>([]);
-const currentCamera = ref<CameraItem | null>(null);
+const alarmTypeRef = toRef(props, "alarmType");
+const boatIdRef = toRef(props, "boatId");
 
-const getAlarmRecords = (): AlarmConfigRecord[] => {
-  if (!props.boatId) return [];
-  return getBoatAlarmConfigs(props.boatId).filter(
-    r => String(r.alarmtype) === String(props.alarmType.id)
-  );
-};
+const {
+  detailLoading,
+  cameraList,
+  treeRef,
+  treeProps,
+  selectedCamIds,
+  currentCamera,
+  paramValues,
+  currentShapes,
+  cameraImageUrl,
+  imageLoadingError,
+  validParams,
+  isCameraConfigured,
+  handleCheck,
+  handleParamInput,
+  switchCamera,
+  handleSave
+} = useAlarmConfigDetail(boatIdRef, alarmTypeRef);
 
-const isCameraConfigured = (camid: string) =>
-  getAlarmRecords().some(r => r.camid === camid);
-
-const syncSelectedCameras = () => {
-  const configured = getAlarmRecords().map(r => r.camid);
-  selectedCamIds.value = cameraList.value
-    .filter(c => configured.includes(c.camid))
-    .map(c => c.camid);
-  treeRef.value?.setCheckedKeys(selectedCamIds.value);
-};
-
-const handleCheck = (
-  _: CameraItem,
-  { checkedKeys }: { checkedKeys: (string | number)[] }
-) => {
-  selectedCamIds.value = checkedKeys.map(String);
-};
-
-// ===== 参数定义 =====
-const validParams = computed<ExtParam[]>(
-  () => ALARM_PARAM_DEFS[props.alarmType.id] ?? []
-);
-const paramValues = ref<Record<string, string>>({});
-
-const handleParamInput = (value: string, key: string) => {
-  if (/[\u4e00-\u9fa5]/.test(value)) {
-    paramValues.value[key] = value.replace(/[\u4e00-\u9fa5]/g, "");
-    ElMessage.warning("不能输入中文");
-    return;
-  }
-  if (/[a-zA-Z]/.test(value)) {
-    paramValues.value[key] = value.replace(/[a-zA-Z]/g, "");
-    ElMessage.warning("不能输入英文");
-    return;
-  }
-  paramValues.value[key] = value;
-};
-
-// ===== 摄像机切换 =====
-const currentShapes = ref<AreaItem[]>([]);
 const canvasRef = ref<InstanceType<typeof AlarmDrawCanvas> | null>(null);
 
-const loadCameraData = (camid: string) => {
-  const record = getAlarmRecords().find(r => r.camid === camid);
-  if (record) {
-    for (let i = 1; i <= 8; i++) {
-      const key = `ext${i}` as keyof AlarmConfigRecord;
-      paramValues.value[`ext${i}`] = (record[key] as string) ?? "";
-    }
-    currentShapes.value = record.area ? [...record.area] : [];
-  } else {
-    paramValues.value = {};
-    currentShapes.value = [];
-  }
-  canvasRef.value?.resetShapes(currentShapes.value);
+const onSave = () => {
+  handleSave(() => canvasRef.value?.getShapes() ?? []);
 };
-
-const switchCamera = (data: CameraItem) => {
-  currentCamera.value = data;
-  loadCameraData(data.camid);
-};
-
-// ===== 保存 =====
-const executeSave = () => {
-  const camid = currentCamera.value?.camid;
-  if (!camid) {
-    ElMessage.warning("请先选择摄像机");
-    return;
-  }
-
-  const hasEmpty = validParams.value.some(p => {
-    const v = paramValues.value[p.key];
-    return v === undefined || v === null || String(v).trim() === "";
-  });
-  if (hasEmpty) {
-    ElMessage.warning("请填写完整的参数配置信息");
-    return;
-  }
-
-  const shapes = canvasRef.value?.getShapes() ?? [];
-  const extData: Record<string, string> = {};
-  for (let i = 1; i <= 8; i++)
-    extData[`ext${i}`] = paramValues.value[`ext${i}`] ?? "";
-
-  const existing = getAlarmRecords().find(r => r.camid === camid);
-  const record: AlarmConfigRecord = {
-    _id: existing?._id ?? genId(),
-    sid: existing?.sid ?? genId(),
-    camid,
-    alarmtype: String(props.alarmType.id),
-    devid: props.boatId,
-    ext1: extData.ext1,
-    ext2: extData.ext2,
-    ext3: extData.ext3,
-    ext4: extData.ext4,
-    ext5: extData.ext5,
-    ext6: extData.ext6,
-    ext7: extData.ext7,
-    ext8: extData.ext8,
-    area: shapes,
-    create_time: existing?.create_time ?? formatDateTime(new Date())
-  };
-  upsertAlarmConfig(props.boatId, record);
-  syncSelectedCameras();
-  ElMessage.success(existing ? "更新成功" : "保存成功");
-};
-
-const handleSave = async () => {
-  const camid = currentCamera.value?.camid;
-  if (!camid) {
-    ElMessage.warning("请先选择摄像机");
-    return;
-  }
-
-  if (!selectedCamIds.value.includes(camid)) {
-    const hasRecord = getAlarmRecords().some(r => r.camid === camid);
-    if (hasRecord) {
-      try {
-        await ElMessageBox.confirm(
-          "当前摄像机未勾选，继续将删除该摄像机的已配置参数，是否继续？",
-          "提示",
-          {
-            confirmButtonText: "继续",
-            cancelButtonText: "取消",
-            type: "warning"
-          }
-        );
-        const record = getAlarmRecords().find(r => r.camid === camid);
-        if (record) {
-          removeAlarmConfig(props.boatId, record._id);
-          paramValues.value = {};
-          currentShapes.value = [];
-          canvasRef.value?.resetShapes([]);
-          syncSelectedCameras();
-          ElMessage.success("已删除该摄像机的配置");
-        }
-      } catch {
-        /* 取消 */
-      }
-      return;
-    }
-  }
-  executeSave();
-};
-
-// ===== 初始化 =====
-watch(
-  () => [props.alarmType.id, props.boatId],
-  () => {
-    currentCamera.value = null;
-    paramValues.value = {};
-    currentShapes.value = [];
-    syncSelectedCameras();
-  },
-  { immediate: true }
-);
 </script>
 
 <template>
-  <div class="flex w-full h-full gap-3">
+  <div v-loading="detailLoading" class="flex w-full h-full gap-3 min-h-0">
     <!-- 左侧面板 -->
     <div class="w-[320px] min-w-[260px] shrink-0 flex flex-col gap-3">
       <!-- 摄像机列表 -->
@@ -295,29 +137,29 @@ watch(
     </div>
 
     <!-- 右侧画布区 -->
-    <div class="flex-1 min-w-0 relative max-h-[1050px]">
+    <div class="flex-1 min-w-0 relative max-h-[1050px] flex flex-col min-h-0">
       <AlarmDrawCanvas
         ref="canvasRef"
         :initial-shapes="currentShapes"
-        :readonly="false"
-        class="w-full"
+        :image-url="cameraImageUrl"
+        :image-error="imageLoadingError"
+        class="w-full flex-1 min-h-0"
       >
         <template #save-btn>
           <el-button
             v-if="currentCamera"
             type="primary"
             size="small"
-            @click="handleSave"
+            @click="onSave"
           >
             保存配置
           </el-button>
         </template>
       </AlarmDrawCanvas>
 
-      <!-- 未选摄像机遮罩 -->
       <div
         v-if="!currentCamera"
-        class="absolute inset-0 flex items-center justify-center bg-[var(--el-bg-color)] rounded-lg pointer-events-none"
+        class="absolute inset-0 flex items-center justify-center bg-[var(--el-bg-color)] rounded-lg pointer-events-none z-10"
       >
         <el-empty description="请在左侧选择摄像机" :image-size="80" />
       </div>

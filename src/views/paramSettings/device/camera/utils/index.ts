@@ -92,11 +92,11 @@ const normalizeCamera = (item: DeviceListItemDTO): CameraItem => ({
   url: item.url ?? "",
   brand: String(item.brand ?? ""),
   type: String(item.type ?? CAMERA_TYPE),
-  status: String(item.status ?? "3"),
+  status: String(item.status ?? ""),
   areaid: String(item.areaid ?? ""),
   areacode: String(item.areacode ?? ""),
   sub_stream: item.sub_stream ?? "",
-  inference: String(item.inference ?? "0"),
+  inference: String(item.inference ?? ""),
   create_time: item.create_time ?? "",
   devid: item.devid ?? ""
 });

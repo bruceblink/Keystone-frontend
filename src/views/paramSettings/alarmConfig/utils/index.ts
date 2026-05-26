@@ -9,50 +9,130 @@ import {
   onDeactivated,
   type Ref
 } from "vue";
+import { ElMessage } from "element-plus";
 import type { AlarmConfigTypeItem, AlarmConfigRecord } from "./types";
-import { MOCK_ALARM_CONFIG_TYPES, getBoatAlarmConfigs } from "./dict";
+import {
+  getAlarmConditionList,
+  getAlarmReasonTypeListQuery
+} from "@/api/paramSettings/alarmConfig";
+import type { ReasonTypeListItemDTO } from "@/api/paramSettings/alarmType";
+import {
+  formatConfigTime,
+  normalizeAlarmConfigRecord,
+  normalizeAlarmConfigType
+} from "./dict";
 
+/**
+ * 报警规则配置列表页组合式逻辑
+ * @param boatId 当前选中船只 devid，未选时用 -1 查询全部报警原因
+ */
 export function useAlarmConfigList(boatId: Ref<string>) {
-  // 无船只时返回空列表；有船只时按船只加载对应报警类型
-  // 实际项目中应通过 API 按 boatId 获取该船支持的报警类型
-  const alarmTypes = computed<AlarmConfigTypeItem[]>(() => {
-    if (!boatId.value) return [];
-    return MOCK_ALARM_CONFIG_TYPES.filter(t => t.visibility === "1").map(t => ({
-      ...t
-    }));
-  });
+  const loading = ref(false);
+  /** 报警原因列表（来自 reasontype/dict/query） */
+  const alarmTypes = ref<AlarmConfigTypeItem[]>([]);
   const alarmConfigs = ref<AlarmConfigRecord[]>([]);
 
-  const loadConfigs = () => {
-    alarmConfigs.value = boatId.value ? getBoatAlarmConfigs(boatId.value) : [];
+  /**
+   * 拉取报警原因列表：GET /reasontype/dict/query?id=-1
+   */
+  const fetchAlarmTypes = async (devid?: string) => {
+    const queryDevid = devid ?? boatId.value ?? "-1";
+    try {
+      const res = await getAlarmReasonTypeListQuery({
+        id: "-1",
+        devid: queryDevid
+      });
+      const raw = res.data;
+      const list = Array.isArray(raw)
+        ? raw
+        : Array.isArray((raw as { list?: unknown })?.list)
+        ? (raw as { list: ReasonTypeListItemDTO[] }).list ?? []
+        : [];
+      // 接口返回全部展示；仅当 visibility 明确为 0 时隐藏
+      alarmTypes.value = list
+        .map(normalizeAlarmConfigType)
+        .filter(t => t.visibility !== "0");
+    } catch (err) {
+      console.error("[alarmConfig] 查询报警原因列表失败:", err);
+      alarmTypes.value = [];
+      ElMessage.error("查询报警原因列表失败");
+    }
+  };
+
+  /**
+   * 拉取当前船只报警参数，用于判断「已配置」（需已选船只）
+   */
+  const fetchAlarmConfigs = async (devid?: string) => {
+    const id = devid ?? boatId.value;
+    if (!id) {
+      alarmConfigs.value = [];
+      return;
+    }
+    try {
+      const res = await getAlarmConditionList(id, "-1");
+      const list = Array.isArray(res.data) ? res.data : [];
+      alarmConfigs.value = list.map(normalizeAlarmConfigRecord);
+    } catch (err) {
+      console.error("[alarmConfig] 查询报警参数列表失败:", err);
+      alarmConfigs.value = [];
+    }
+  };
+
+  /**
+   * 先拉报警原因列表，再按船只拉配置状态
+   */
+  const refreshAll = async (devid?: string) => {
+    loading.value = true;
+    try {
+      const queryDevid = devid ?? boatId.value ?? "-1";
+      await fetchAlarmTypes(queryDevid);
+      if (boatId.value) {
+        await fetchAlarmConfigs(boatId.value);
+      } else {
+        alarmConfigs.value = [];
+      }
+      pagination.currentPage = 1;
+    } finally {
+      loading.value = false;
+    }
   };
 
   let stopWatch: (() => void) | null = null;
+
+  /**
+   * 监听船只切换：重新按 devid 查报警原因并刷新配置状态
+   */
   const startWatch = () => {
     stopWatch?.();
-    stopWatch = watch(boatId, loadConfigs, { immediate: false });
+    stopWatch = watch(
+      boatId,
+      id => {
+        refreshAll(id || undefined);
+      },
+      { immediate: false }
+    );
   };
 
   onMounted(() => {
-    loadConfigs();
     startWatch();
+    refreshAll();
   });
   onBeforeUnmount(() => {
     stopWatch?.();
     stopWatch = null;
   });
   onActivated(() => {
-    loadConfigs();
     startWatch();
+    refreshAll();
   });
   onDeactivated(() => {
     stopWatch?.();
     stopWatch = null;
   });
 
-  // ===== 搜索 =====
   const searchQuery = ref("");
 
+  /** 按关键字过滤报警原因名称/编号 */
   const filteredTypes = computed(() => {
     const q = searchQuery.value.toLowerCase().trim();
     if (!q) return alarmTypes.value;
@@ -61,11 +141,11 @@ export function useAlarmConfigList(boatId: Ref<string>) {
     );
   });
 
+  /** 搜索时重置到第一页 */
   const onSearch = () => {
     pagination.currentPage = 1;
   };
 
-  // ===== 分页 =====
   const pagination = reactive({
     currentPage: 1,
     pageSize: 25,
@@ -73,68 +153,117 @@ export function useAlarmConfigList(boatId: Ref<string>) {
     background: true
   });
 
-  const isConfigured = (alarmTypeId: string) =>
-    alarmConfigs.value.some(c => String(c.alarmtype) === String(alarmTypeId));
+  /** 是否已选船只（未选时无法判断配置状态） */
+  const hasBoat = computed(() => Boolean(boatId.value));
 
+  /** 判断某报警原因是否已有参数配置 */
+  const isConfigured = (alarmTypeId: string) => {
+    if (!hasBoat.value) return false;
+    return alarmConfigs.value.some(
+      c => String(c.alarmtype) === String(alarmTypeId)
+    );
+  };
+
+  watch(
+    filteredTypes,
+    list => {
+      pagination.total = list.length;
+      const maxPage = Math.max(1, Math.ceil(list.length / pagination.pageSize));
+      if (pagination.currentPage > maxPage) pagination.currentPage = 1;
+    },
+    { immediate: true }
+  );
+
+  /** 当前页表格数据 */
   const dataList = computed(() => {
-    pagination.total = filteredTypes.value.length;
     const start = (pagination.currentPage - 1) * pagination.pageSize;
     return filteredTypes.value
       .slice(start, start + pagination.pageSize)
-      .map(item => ({ ...item, configured: isConfigured(item.id) }));
+      .map(item => ({
+        ...item,
+        configured: isConfigured(item.id),
+        configStatusText: hasBoat.value
+          ? isConfigured(item.id)
+            ? "已配置"
+            : "未配置"
+          : "—",
+        displayTime: formatConfigTime(
+          item.update_time ?? item.create_time ?? ""
+        )
+      }));
   });
 
-  const configuredCount = computed(
-    () => alarmTypes.value.filter(t => isConfigured(t.id)).length
-  );
-  const unconfiguredCount = computed(
-    () => alarmTypes.value.length - configuredCount.value
-  );
+  const totalCount = computed(() => alarmTypes.value.length);
 
-  // ===== 详情导航 =====
+  const configuredCount = computed(() => {
+    if (!hasBoat.value) return 0;
+    return alarmTypes.value.filter(t => isConfigured(t.id)).length;
+  });
+  const unconfiguredCount = computed(() => {
+    if (!hasBoat.value) return totalCount.value;
+    return totalCount.value - configuredCount.value;
+  });
+
   const showDetail = ref(false);
   const currentAlarmType = ref<AlarmConfigTypeItem | null>(null);
 
+  /** 打开报警原因详情配置页 */
   const handleViewDetail = (
     item: AlarmConfigTypeItem & { configured?: boolean }
   ) => {
+    if (!boatId.value) {
+      ElMessage.warning("请先选择船只，再配置报警参数");
+      return;
+    }
     currentAlarmType.value = JSON.parse(JSON.stringify(item));
     showDetail.value = true;
   };
 
+  /** 返回列表并刷新配置状态 */
   const handleBack = () => {
     showDetail.value = false;
-    loadConfigs();
     currentAlarmType.value = null;
+    refreshAll();
   };
 
-  // ===== 列定义 =====
+  /** 清空搜索并刷新列表 */
+  const handleRefresh = () => {
+    searchQuery.value = "";
+    refreshAll();
+    ElMessage.success("已刷新");
+  };
+
   const columns: TableColumnList = [
     { label: "序号", type: "index", width: 70 },
     {
-      label: "报警类型名称",
+      label: "报警原因",
       prop: "des",
       minWidth: 180,
       showOverflowTooltip: true
     },
     { label: "编号", prop: "id", width: 100 },
-    { label: "配置状态", prop: "configured", width: 130, slot: "configured" },
+    { label: "配置状态", width: 130, slot: "configured" },
+    { label: "更新时间", prop: "displayTime", width: 170 },
     { label: "操作", fixed: "right", width: 120, slot: "operation" }
   ];
 
   return {
+    loading,
     searchQuery,
     onSearch,
     dataList,
     filteredTypes,
     pagination,
+    totalCount,
     configuredCount,
     unconfiguredCount,
+    hasBoat,
     showDetail,
     currentAlarmType,
     handleViewDetail,
     handleBack,
-    loadConfigs,
+    handleRefresh,
+    refreshAll,
     alarmConfigs,
     columns
   };

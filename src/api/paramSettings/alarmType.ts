@@ -22,6 +22,7 @@ export type ReasonTypeListItemDTO = {
   visibility?: string | number;
   devid?: string;
   create_time?: string;
+  updated_at?: string;
   user?: string;
 };
 

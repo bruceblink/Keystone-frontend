@@ -4,7 +4,7 @@ import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import Search from "@iconify-icons/ep/search";
 import View from "@iconify-icons/ep/view";
 import ArrowLeft from "@iconify-icons/ep/arrow-left";
-import { toRef } from "vue";
+import { toRef, onMounted } from "vue";
 import { useAlarmConfigList } from "./utils";
 import { useBoatStoreHook } from "@/store/modules/boat";
 import AlarmDetail from "./components/AlarmDetail.vue";
@@ -14,22 +14,30 @@ defineOptions({ name: "ParamAlarmConfig" });
 const boatStore = useBoatStoreHook();
 
 const {
+  loading,
   searchQuery,
   onSearch,
   dataList,
   pagination,
+  totalCount,
   configuredCount,
   unconfiguredCount,
+  hasBoat,
   showDetail,
   currentAlarmType,
   handleViewDetail,
   handleBack,
+  handleRefresh,
   columns
 } = useAlarmConfigList(toRef(boatStore, "selectedBoatId"));
+
+onMounted(() => {
+  boatStore.fetchBoatList();
+});
 </script>
 
 <template>
-  <div class="flex flex-col w-full h-full overflow-hidden pr-10">
+  <div class="main">
     <!-- ========== 列表视图 ========== -->
     <template v-if="!showDetail">
       <!-- 船只选择器 -->
@@ -60,22 +68,19 @@ const {
           }}）
         </el-tag>
         <el-alert
-          v-else
-          title="请先选择船只，再查看或编辑报警配置"
-          type="warning"
+          v-if="!hasBoat"
+          title="未选船只时展示全部报警原因；选择船只后可查看配置状态并编辑"
+          type="info"
           :closable="false"
           class="!py-1 !w-auto"
         />
-        <div
-          v-if="boatStore.selectedBoatId"
-          class="flex items-center gap-[14px] ml-auto"
-        >
+        <div class="flex items-center gap-[14px] ml-auto">
           <span
             class="flex items-center gap-[5px] text-xs text-[var(--el-text-color-secondary)] whitespace-nowrap"
           >
             <i
               class="inline-block w-[7px] h-[7px] rounded-full shrink-0 bg-[var(--el-color-primary-light-3)]"
-            />全部 {{ dataList.length }}
+            />全部 {{ totalCount }}
           </span>
           <span
             class="flex items-center gap-[5px] text-xs text-[var(--el-text-color-secondary)] whitespace-nowrap"
@@ -91,89 +96,85 @@ const {
             <i
               class="inline-block w-[7px] h-[7px] rounded-full shrink-0 bg-[var(--el-color-warning)]"
               :style="{ boxShadow: '0 0 4px var(--el-color-warning)' }"
-            />待配置 {{ unconfiguredCount }}
+            />待配置 {{ hasBoat ? unconfiguredCount : "—" }}
           </span>
         </div>
       </div>
 
-      <!-- 未选船只时：空状态占位 -->
-      <div
-        v-if="!boatStore.selectedBoatId"
-        class="flex-1 flex items-center justify-center"
+      <el-form inline class="search-form bg-bg_color pl-8 pt-[12px]">
+        <el-form-item>
+          <el-input
+            v-model="searchQuery"
+            placeholder="搜索报警编号 / 名称"
+            clearable
+            class="!w-[280px]"
+            @input="onSearch"
+          >
+            <template #prefix>
+              <el-icon><component :is="useRenderIcon(Search)" /></el-icon>
+            </template>
+          </el-input>
+        </el-form-item>
+      </el-form>
+
+      <PureTableBar
+        title="报警规则配置"
+        :columns="columns"
+        @refresh="handleRefresh"
       >
-        <el-empty
-          description="请先选择船只，以查看该船的报警配置"
-          :image-size="120"
-        />
-      </div>
-
-      <!-- 已选船只：搜索 + 表格 -->
-      <template v-else>
-        <el-form inline class="search-form bg-bg_color pl-8 pt-[12px]">
-          <el-form-item>
-            <el-input
-              v-model="searchQuery"
-              placeholder="搜索报警编号 / 名称"
-              clearable
-              class="!w-[280px]"
-              @input="onSearch"
-            >
-              <template #prefix>
-                <el-icon><component :is="useRenderIcon(Search)" /></el-icon>
-              </template>
-            </el-input>
-          </el-form-item>
-        </el-form>
-
-        <PureTableBar title="报警规则配置" :columns="columns">
-          <template v-slot="{ size, dynamicColumns }">
-            <pure-table
-              border
-              align-whole="center"
-              show-overflow-tooltip
-              table-layout="auto"
-              :size="size"
-              row-key="_id"
-              adaptive
-              :data="dataList"
-              :columns="dynamicColumns"
-              :pagination="pagination"
-              :paginationSmall="size === 'small'"
-              :header-cell-style="{
-                background: 'var(--el-table-row-hover-bg-color)',
-                color: 'var(--el-text-color-primary)'
-              }"
-              @page-size-change="
-                v => {
-                  pagination.pageSize = v;
-                  pagination.currentPage = 1;
-                }
-              "
-              @page-current-change="v => (pagination.currentPage = v)"
-            >
-              <template #configured="{ row }">
-                <el-tag
-                  :type="row.configured ? 'success' : 'warning'"
-                  size="small"
-                >
-                  {{ row.configured ? "已配置" : "未配置" }}
-                </el-tag>
-              </template>
-              <template #operation="{ row }">
-                <el-button
-                  link
-                  type="primary"
-                  :size="size"
-                  :icon="useRenderIcon(View)"
-                  @click="handleViewDetail(row)"
-                >
-                  查看详情
-                </el-button>
-              </template>
-            </pure-table>
-          </template>
-        </PureTableBar>
-      </template>
+        <template v-slot="{ size, dynamicColumns }">
+          <pure-table
+            border
+            align-whole="center"
+            show-overflow-tooltip
+            table-layout="auto"
+            :size="size"
+            row-key="_id"
+            adaptive
+            :loading="loading"
+            :data="dataList"
+            :columns="dynamicColumns"
+            :pagination="pagination"
+            :paginationSmall="size === 'small'"
+            :header-cell-style="{
+              background: 'var(--el-table-row-hover-bg-color)',
+              color: 'var(--el-text-color-primary)'
+            }"
+            class="!min-h-[360px]"
+            @page-size-change="
+              v => {
+                pagination.pageSize = v;
+                pagination.currentPage = 1;
+              }
+            "
+            @page-current-change="v => (pagination.currentPage = v)"
+          >
+            <template #configured="{ row }">
+              <el-tag
+                v-if="hasBoat"
+                :type="row.configured ? 'success' : 'warning'"
+                size="small"
+              >
+                {{ row.configured ? "已配置" : "未配置" }}
+              </el-tag>
+              <span v-else class="text-[var(--el-text-color-placeholder)]"
+                >—</span
+              >
+            </template>
+            <template #operation="{ row }">
+              <el-button
+                link
+                type="primary"
+                :size="size"
+                :icon="useRenderIcon(View)"
+                @click="handleViewDetail(row)"
+              >
+                查看详情
+              </el-button>
+            </template>
+          </pure-table>
+        </template>
+      </PureTableBar>
     </template>
 
     <!-- ========== 详情视图 ========== -->

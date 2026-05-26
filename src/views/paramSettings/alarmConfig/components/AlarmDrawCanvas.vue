@@ -11,6 +11,10 @@ interface DrawShape extends AreaItem {
 const props = defineProps<{
   initialShapes?: AreaItem[];
   readonly?: boolean;
+  /** 摄像机快照地址，作为绘制底图 */
+  imageUrl?: string;
+  /** 底图加载失败 */
+  imageError?: boolean;
 }>();
 
 const canvasAreaRef = ref<HTMLDivElement | null>(null);
@@ -622,9 +626,21 @@ defineExpose({ getShapes, resetShapes });
       class="flex-1 min-h-0 relative border border-[var(--el-border-color-lighter)] rounded-lg overflow-hidden bg-[#f5f7fa]"
       ref="canvasAreaRef"
     >
+      <img
+        v-if="imageUrl && !imageError"
+        :src="imageUrl"
+        alt="摄像机画面"
+        class="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+      />
+      <div
+        v-else-if="imageError"
+        class="absolute inset-0 flex items-center justify-center text-[var(--el-text-color-placeholder)] text-sm pointer-events-none"
+      >
+        图片加载失败
+      </div>
       <canvas
         ref="drawingCanvas"
-        class="block w-full h-full object-contain"
+        class="block w-full h-full object-contain relative z-[1]"
         :class="{
           'cursor-crosshair': !readonly && currentTool && !isEditMode,
           'cursor-default': isEditMode
@@ -636,8 +652,8 @@ defineExpose({ getShapes, resetShapes });
         @contextmenu.prevent="onRightClick"
       />
       <div
-        v-if="!allShapes.length && !isDrawing"
-        class="absolute inset-0 flex flex-col items-center justify-center gap-[10px] text-[var(--el-text-color-placeholder)] text-[13px] pointer-events-none"
+        v-if="!allShapes.length && !isDrawing && !imageUrl"
+        class="absolute inset-0 flex flex-col items-center justify-center gap-[10px] text-[var(--el-text-color-placeholder)] text-[13px] pointer-events-none z-[2]"
       >
         <el-icon :size="32" class="!text-[var(--el-border-color)]"
           ><PictureRounded

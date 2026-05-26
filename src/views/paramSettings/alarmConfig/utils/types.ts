@@ -4,6 +4,7 @@ export interface AlarmConfigTypeItem {
   des: string;
   visibility: string;
   create_time?: string;
+  update_time?: string;
 }
 
 export interface AreaPos {
