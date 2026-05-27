@@ -42,17 +42,19 @@ const onSave = () => {
 <template>
   <div v-loading="detailLoading" class="flex w-full h-full gap-3 min-h-0">
     <!-- 左侧面板 -->
-    <div class="w-[320px] min-w-[260px] shrink-0 flex flex-col gap-3">
+    <div
+      class="w-[320px] min-w-[260px] shrink-0 flex flex-col gap-3 h-full min-h-0"
+    >
       <!-- 摄像机列表 -->
       <div
-        class="flex flex-col bg-[var(--el-bg-color)] border border-[var(--el-border-color-lighter)] rounded-lg overflow-hidden h-[520px]"
+        class="flex flex-1 flex-col min-h-0 bg-[var(--el-bg-color)] border border-[var(--el-border-color-lighter)] rounded-lg overflow-hidden"
       >
         <div
           class="px-4 py-3 text-sm font-semibold text-[var(--el-text-color-primary)] border-b border-[var(--el-border-color-lighter)] shrink-0 bg-[var(--el-fill-color-lighter)]"
         >
           摄像机列表
         </div>
-        <div class="p-3 h-[360px] overflow-y-auto">
+        <div class="p-3 flex-1 min-h-0 overflow-y-auto">
           <el-tree
             ref="treeRef"
             :data="cameraList"
@@ -93,14 +95,14 @@ const onSave = () => {
 
       <!-- 参数配置 -->
       <div
-        class="flex flex-col bg-[var(--el-bg-color)] border border-[var(--el-border-color-lighter)] rounded-lg overflow-hidden h-[520px]"
+        class="flex flex-1 flex-col min-h-0 bg-[var(--el-bg-color)] border border-[var(--el-border-color-lighter)] rounded-lg overflow-hidden"
       >
         <div
           class="px-4 py-3 text-sm font-semibold text-[var(--el-text-color-primary)] border-b border-[var(--el-border-color-lighter)] shrink-0 bg-[var(--el-fill-color-lighter)]"
         >
           参数配置
         </div>
-        <div class="p-3 h-[300px] overflow-y-auto flex flex-col gap-3">
+        <div class="p-3 flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
           <template v-if="currentCamera && validParams.length > 0">
             <div
               v-for="item in validParams"
@@ -137,7 +139,7 @@ const onSave = () => {
     </div>
 
     <!-- 右侧画布区 -->
-    <div class="flex-1 min-w-0 relative max-h-[1050px] flex flex-col min-h-0">
+    <div class="flex-1 min-w-0 relative flex flex-col min-h-0">
       <AlarmDrawCanvas
         ref="canvasRef"
         :initial-shapes="currentShapes"

@@ -24,7 +24,7 @@ import {
 
 /**
  * 报警规则配置列表页组合式逻辑
- * @param boatId 当前选中船只 devid，未选时用 -1 查询全部报警原因
+ * @param boatId 当前选中船只 devid，未选时不拉取报警原因
  */
 export function useAlarmConfigList(boatId: Ref<string>) {
   const loading = ref(false);
@@ -36,7 +36,11 @@ export function useAlarmConfigList(boatId: Ref<string>) {
    * 拉取报警原因列表：GET /reasontype/dict/query?id=-1
    */
   const fetchAlarmTypes = async (devid?: string) => {
-    const queryDevid = devid ?? boatId.value ?? "-1";
+    const queryDevid = devid ?? boatId.value;
+    if (!queryDevid) {
+      alarmTypes.value = [];
+      return;
+    }
     try {
       const res = await getAlarmReasonTypeListQuery({
         id: "-1",
@@ -79,18 +83,20 @@ export function useAlarmConfigList(boatId: Ref<string>) {
   };
 
   /**
-   * 先拉报警原因列表，再按船只拉配置状态
+   * 已选船只时拉取报警原因与配置状态；未选时清空列表
    */
   const refreshAll = async (devid?: string) => {
+    const id = devid ?? boatId.value;
+    if (!id) {
+      alarmTypes.value = [];
+      alarmConfigs.value = [];
+      pagination.currentPage = 1;
+      return;
+    }
     loading.value = true;
     try {
-      const queryDevid = devid ?? boatId.value ?? "-1";
-      await fetchAlarmTypes(queryDevid);
-      if (boatId.value) {
-        await fetchAlarmConfigs(boatId.value);
-      } else {
-        alarmConfigs.value = [];
-      }
+      await fetchAlarmTypes(id);
+      await fetchAlarmConfigs(id);
       pagination.currentPage = 1;
     } finally {
       loading.value = false;
