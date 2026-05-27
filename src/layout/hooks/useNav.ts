@@ -5,15 +5,12 @@ import { routeMetaType } from "../types";
 import userAvatar from "@/assets/user.jpg";
 import { getTopMenu } from "@/router/utils";
 import { useGlobal } from "@pureadmin/utils";
-import { routerArrays } from "@/layout/types";
 import { useRouter, useRoute } from "vue-router";
-import { router, remainingPaths, resetRouter } from "@/router";
+import { router, remainingPaths } from "@/router";
 import { computed, type CSSProperties } from "vue";
 import { useAppStoreHook } from "@/store/modules/app";
 import { useUserStoreHook } from "@/store/modules/user";
 import { usePermissionStoreHook } from "@/store/modules/permission";
-import { removeToken } from "@/utils/auth";
-import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 
 const errorInfo = "当前路由配置不正确，请检查配置";
 
@@ -70,12 +67,7 @@ export function useNav() {
 
   /** 退出登录 */
   function logout() {
-    useUserStoreHook().SET_USERNAME("");
-    useUserStoreHook().SET_ROLES([]);
-    removeToken();
-    useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
-    resetRouter();
-    router.push("/login");
+    return useUserStoreHook().logOut();
   }
 
   /** 个人中心 */

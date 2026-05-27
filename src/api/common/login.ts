@@ -106,6 +106,11 @@ export const loginByPassword = (data: LoginByPasswordDTO) => {
   return http.request<ResponseData<TokenDTO>>("post", "/login", { data });
 };
 
+/** 退出登录接口 */
+export const logout = () => {
+  return http.request<ResponseData<void>>("post", "/logout");
+};
+
 /** 获取当前登录用户接口 */
 export const getLoginUserInfo = () => {
   return http.request<ResponseData<TokenDTO>>("get", "/getLoginUserInfo");
