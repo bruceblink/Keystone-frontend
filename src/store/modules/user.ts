@@ -3,12 +3,17 @@ import { store } from "@/store";
 import { userType } from "./types";
 import { routerArrays } from "@/layout/types";
 import { router, resetRouter } from "@/router";
-import { storageSession } from "@pureadmin/utils";
+import { storageLocal, storageSession } from "@pureadmin/utils";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { removeToken, sessionKey } from "@/utils/auth";
-import { DictionaryData, TokenDTO } from "@/api/common/login";
-import { storageLocal } from "@pureadmin/utils";
-import { logout as logoutApi } from "@/api/common/login";
+import {
+  DictionaryData,
+  TokenDTO,
+  logout as logoutApi
+} from "@/api/common/login";
+import { getConfig } from "@/config";
+import { useAppStoreHook } from "@/store/modules/app";
+import { useEpThemeStoreHook } from "@/store/modules/epTheme";
 
 const dictionaryListKey = "ag-dictionary-list";
 const dictionaryMapKey = "ag-dictionary-map";
@@ -77,17 +82,39 @@ export const useUserStore = defineStore({
     },
 
     /** 登出 */
-    async logOut() {
+    async logOut(options: { clearStorage?: boolean } = {}) {
       try {
         await logoutApi();
       } finally {
-        this.username = "";
-        this.roles = [];
-        removeToken();
-        useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
-        resetRouter();
-        router.push("/login");
+        this.clearLoginState(options);
       }
+    },
+
+    /** 清理登录态并返回登录页 */
+    clearLoginState(options: { clearStorage?: boolean } = {}) {
+      this.username = "";
+      this.roles = [];
+      removeToken();
+
+      if (options.clearStorage) {
+        storageLocal().clear();
+        storageSession().clear();
+        const { Grey, Weak, MultiTagsCache, EpThemeColor, Layout } =
+          getConfig();
+        useAppStoreHook().setLayout(Layout);
+        useEpThemeStoreHook().setEpThemeColor(EpThemeColor);
+        useMultiTagsStoreHook().multiTagsCacheChange(MultiTagsCache);
+        document.querySelector("html")?.classList.toggle("html-grey", Grey);
+        document.querySelector("html")?.classList.toggle("html-weakness", Weak);
+        document.documentElement.style.setProperty(
+          "--el-color-primary",
+          EpThemeColor
+        );
+      }
+
+      useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
+      resetRouter();
+      router.push("/login");
     }
   }
 });

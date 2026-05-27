@@ -8,33 +8,21 @@ import {
   nextTick,
   onBeforeMount
 } from "vue";
-import {
-  useDark,
-  debounce,
-  useGlobal,
-  storageLocal,
-  storageSession
-} from "@pureadmin/utils";
-import { getConfig } from "@/config";
-import { useRouter } from "vue-router";
+import { useDark, debounce, useGlobal } from "@pureadmin/utils";
 import panel from "../panel/index.vue";
 import { emitter } from "@/utils/mitt";
-import { resetRouter } from "@/router";
-import { removeToken } from "@/utils/auth";
-import { routerArrays } from "@/layout/types";
 import { useNav } from "@/layout/hooks/useNav";
 import { useAppStoreHook } from "@/store/modules/app";
 import { toggleTheme } from "@pureadmin/theme/dist/browser-utils";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
-import { logout as logoutApi } from "@/api/common/login";
+import { useUserStoreHook } from "@/store/modules/user";
 
 import dayIcon from "@/assets/svg/day.svg?component";
 import darkIcon from "@/assets/svg/dark.svg?component";
 import Check from "@iconify-icons/ep/check";
 import Logout from "@iconify-icons/ri/logout-circle-r-line";
 
-const router = useRouter();
 const { isDark } = useDark();
 const { device, tooltipEffect } = useNav();
 const { $storage } = useGlobal<GlobalPropertiesApi>();
@@ -48,7 +36,6 @@ const {
   layoutTheme,
   themeColors,
   dataThemeChange,
-  setEpThemeColor,
   setLayoutThemeColor
 } = useDataThemeChange();
 
@@ -130,28 +117,8 @@ const multiTagsCacheChange = () => {
   useMultiTagsStoreHook().multiTagsCacheChange(multiTagsCache);
 };
 
-/** 清空缓存并返回登录页 */
-async function onReset() {
-  try {
-    await logoutApi();
-  } finally {
-    clearLocalCacheAndRedirectToLogin();
-  }
-}
-
-function clearLocalCacheAndRedirectToLogin() {
-  removeToken();
-  storageLocal().clear();
-  storageSession().clear();
-  const { Grey, Weak, MultiTagsCache, EpThemeColor, Layout } = getConfig();
-  useAppStoreHook().setLayout(Layout);
-  setEpThemeColor(EpThemeColor);
-  useMultiTagsStoreHook().multiTagsCacheChange(MultiTagsCache);
-  toggleClass(Grey, "html-grey", document.querySelector("html"));
-  toggleClass(Weak, "html-weakness", document.querySelector("html"));
-  router.push("/login");
-  useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
-  resetRouter();
+function onReset() {
+  return useUserStoreHook().logOut({ clearStorage: true });
 }
 
 function onChange(label) {
