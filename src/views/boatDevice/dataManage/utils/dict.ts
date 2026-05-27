@@ -34,11 +34,5 @@ export interface AlarmRecord {
   review: number;
 }
 
-export const GROUP_MAP = [
-  { value: "-1", label: "全部" },
-  { value: "1", label: "中远散运" },
-  { value: "2", label: "中远能源" },
-  { value: "3", label: "中远特运" },
-  { value: "4", label: "中远集运" },
-  { value: "5", label: "内部自测" }
-];
+/** 项目分组（dataManage / shipForm / software / version 共用） */
+export { GROUP_MAP, GROUP_OPTIONS, getGroupName } from "../../dict";

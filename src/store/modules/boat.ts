@@ -8,7 +8,7 @@ import {
 import type { DeviceRecord } from "@/views/boatDevice/shipForm/utils/types";
 
 const normalizeDevice = (item: DeviceListItemDTO): DeviceRecord => ({
-  devid: String(item.devid ?? ""),
+  devid: String(item.devid ?? "").trim(),
   shipname_cn: item.shipname_cn ?? "",
   shipname_en: item.shipname_en ?? "",
   type: String(item.type ?? ""),
@@ -35,14 +35,17 @@ export const useBoatStore = defineStore("boat", () => {
     boatsLoading.value = true;
     try {
       const res = await getDeviceListQuery();
-      const list = Array.isArray(res.data) ? res.data : [];
-      allBoats.value = list.map(normalizeDevice);
+      applyDeviceList(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("[boatStore] 获取船舶列表失败:", err);
       allBoats.value = [];
     } finally {
       boatsLoading.value = false;
     }
+  }
+
+  function applyDeviceList(list: DeviceListItemDTO[]) {
+    allBoats.value = list.map(normalizeDevice);
   }
 
   function setSelectedBoatId(id: string | undefined) {
@@ -55,6 +58,7 @@ export const useBoatStore = defineStore("boat", () => {
     selectedBoatId,
     selectedBoat,
     fetchBoatList,
+    applyDeviceList,
     setSelectedBoatId
   };
 });

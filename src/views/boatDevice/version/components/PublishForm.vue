@@ -9,7 +9,7 @@ import {
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import Upload from "@iconify-icons/ep/upload";
 import Refresh from "@iconify-icons/ep/refresh";
-import { useFileUpload } from "../utils";
+import { useChunkUpload } from "../utils";
 
 interface PublishPayload {
   ver_name: string;
@@ -18,11 +18,22 @@ interface PublishPayload {
   client_path: string;
   filename: string;
   fileSize: number;
+  fileUrl: string;
 }
 
 const emit = defineEmits<{
   publish: [payload: PublishPayload];
 }>();
+
+const formRef = ref<FormInstance | null>(null);
+const publishing = ref(false);
+
+const form = reactive({
+  ver_name: "",
+  version: "",
+  ver_des: "",
+  client_path: ""
+});
 
 const {
   selectedFile,
@@ -36,6 +47,7 @@ const {
   uploadStatus,
   mergedFileName,
   mergedFileSize,
+  fileUrl,
   selectFile,
   startUpload,
   pauseUpload,
@@ -43,17 +55,10 @@ const {
   handleReupload,
   resetState,
   formatFileSize
-} = useFileUpload();
-
-const formRef = ref<FormInstance | null>(null);
-const publishing = ref(false);
-
-const form = reactive({
-  ver_name: "",
-  version: "",
-  ver_des: "",
-  client_path: ""
-});
+} = useChunkUpload(() => ({
+  ver_name: form.ver_name,
+  version: form.version
+}));
 
 const isFormComplete = computed(
   () =>
@@ -168,7 +173,8 @@ function handlePublish() {
           ver_des: form.ver_des,
           client_path: form.client_path,
           filename: mergedFileName.value,
-          fileSize: mergedFileSize.value
+          fileSize: mergedFileSize.value,
+          fileUrl: fileUrl.value
         });
         publishing.value = false;
       })

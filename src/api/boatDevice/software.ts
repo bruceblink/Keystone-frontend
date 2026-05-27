@@ -31,6 +31,8 @@ export type VersionUpdateItemDTO = {
   size?: string | number;
   create_time?: string;
   shipname_cn?: string;
+  /** 所属分组编码 */
+  type?: string | number;
   [key: string]: unknown;
 };
 

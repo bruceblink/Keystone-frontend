@@ -29,3 +29,12 @@ export const GROUP_OPTIONS = [
 export const GROUP_FORM_OPTIONS = Object.entries(GROUP_MAP).map(
   ([value, label]) => ({ value, label })
 );
+
+/** 根据分组编码取显示名称（编码或已是中文名称均可） */
+export function getGroupName(type: string | number | null | undefined): string {
+  if (type == null || type === "") return "未知";
+  const key = String(type).trim();
+  if (GROUP_MAP[key]) return GROUP_MAP[key];
+  if (Object.values(GROUP_MAP).includes(key)) return key;
+  return "未知";
+}

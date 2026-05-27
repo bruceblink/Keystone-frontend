@@ -14,6 +14,7 @@ defineOptions({ name: "BoatSoftware" });
 
 const {
   getDeviceGroup,
+  getShipName,
   searchQuery,
   statusFilter,
   getStatusCount,
@@ -153,8 +154,12 @@ const STATUS_LABEL: Record<string, string> = {
           @page-current-change="v => (pagination.currentPage = v)"
           @selection-change="(rows: UpdateRecord[]) => (multipleSelection = rows)"
         >
+          <template #shipname="{ row }">
+            {{ getShipName(row) }}
+          </template>
+
           <template #group="{ row }">
-            {{ getDeviceGroup(row.devid) }}
+            {{ getDeviceGroup(row) }}
           </template>
 
           <template #status="{ row }">

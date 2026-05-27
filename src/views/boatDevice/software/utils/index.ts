@@ -6,37 +6,110 @@ import {
   getVersionUpdateQuery,
   type VersionUpdateItemDTO
 } from "@/api/boatDevice/software";
+import {
+  getDeviceListQuery,
+  type DeviceListItemDTO
+} from "@/api/boatDevice/shipForm";
 import { useBoatStoreHook } from "@/store/modules/boat";
-import { GROUP_MAP } from "../../dict";
+import { getGroupName } from "../../dict";
 import type { UpdateRecord } from "./types";
+
+type DeviceMeta = { shipname_cn: string; type: string };
+
+const normalizeDevid = (devid: unknown) => String(devid ?? "").trim();
+
+const readDeviceType = (
+  item: DeviceListItemDTO | VersionUpdateItemDTO
+): string => {
+  const raw = item as Record<string, unknown>;
+  for (const key of ["type", "Type", "group", "group_type", "projectGroup"]) {
+    const value = raw[key];
+    if (value != null && value !== "") return String(value);
+  }
+  return "";
+};
+
+const buildDeviceMetaMap = (list: DeviceListItemDTO[]) => {
+  const map: Record<string, DeviceMeta> = {};
+  list.forEach(item => {
+    const devid = normalizeDevid(item.devid);
+    if (!devid) return;
+    const meta: DeviceMeta = {
+      shipname_cn: item.shipname_cn ?? "",
+      type: readDeviceType(item)
+    };
+    map[devid] = meta;
+    map[devid.toLowerCase()] = meta;
+  });
+  return map;
+};
+
+const lookupDeviceMeta = (
+  devid: string,
+  map: Record<string, DeviceMeta>
+): DeviceMeta | null => {
+  const key = normalizeDevid(devid);
+  return map[key] ?? map[key.toLowerCase()] ?? null;
+};
 
 const normalizeUpdate = (
   item: VersionUpdateItemDTO,
-  shipNameMap: Record<string, string>
-): UpdateRecord => ({
-  uuid: String(item.uuid ?? ""),
-  devid: String(item.devid ?? ""),
-  shipname_cn: item.shipname_cn ?? shipNameMap[String(item.devid ?? "")] ?? "",
-  name: String(item.name ?? ""),
-  version: String(item.version ?? ""),
-  size: String(item.size ?? ""),
-  status: String(item.status ?? "0"),
-  progress: String(item.progress ?? "0"),
-  create_time: String(item.create_time ?? "")
-});
+  deviceMetaMap: Record<string, DeviceMeta>
+): UpdateRecord => {
+  const devid = normalizeDevid(item.devid);
+  const fromDevice = lookupDeviceMeta(devid, deviceMetaMap);
+  const raw = item as Record<string, unknown>;
+  const shipname_cn =
+    (typeof raw.shipname_cn === "string" && raw.shipname_cn) ||
+    (typeof raw.devname === "string" && raw.devname) ||
+    fromDevice?.shipname_cn ||
+    "";
+
+  return {
+    uuid: String(item.uuid ?? ""),
+    devid,
+    shipname_cn,
+    deviceType: readDeviceType(item) || fromDevice?.type || "",
+    name: String(item.name ?? ""),
+    version: String(item.version ?? ""),
+    size: String(item.size ?? ""),
+    status: String(item.status ?? "0"),
+    progress: String(item.progress ?? "0"),
+    create_time: String(item.create_time ?? "")
+  };
+};
 
 export function useUpdateList() {
   const boatStore = useBoatStoreHook();
   const updateList = ref<UpdateRecord[]>([]);
   const listLoading = ref(false);
+  const deviceMetaMap = ref<Record<string, DeviceMeta>>({});
 
-  const shipNameMap = computed<Record<string, string>>(() =>
-    Object.fromEntries(boatStore.allBoats.map(b => [b.devid, b.shipname_cn]))
-  );
+  /** 获取船舶列表，用于关联船名与项目分组 */
+  const fetchDeviceList = async () => {
+    try {
+      const res = await getDeviceListQuery();
+      const list = Array.isArray(res.data) ? res.data : [];
+      deviceMetaMap.value = buildDeviceMetaMap(list);
+      boatStore.applyDeviceList(list);
+      return list;
+    } catch (err) {
+      console.error("[software] /device/list/query 失败:", err);
+      deviceMetaMap.value = {};
+      boatStore.applyDeviceList([]);
+      return [];
+    }
+  };
 
-  const getDeviceGroup = (devid: string) => {
-    const boat = boatStore.allBoats.find(b => b.devid === devid);
-    return boat ? GROUP_MAP[String(boat.type)] ?? "未知" : "未知";
+  const getShipName = (row: UpdateRecord) => {
+    const meta = lookupDeviceMeta(row.devid, deviceMetaMap.value);
+    return row.shipname_cn || meta?.shipname_cn || "";
+  };
+
+  const getDeviceGroup = (row: UpdateRecord) => {
+    const meta = lookupDeviceMeta(row.devid, deviceMetaMap.value);
+    const type = row.deviceType || meta?.type || "";
+    return getGroupName(type);
   };
 
   const searchQuery = ref("");
@@ -52,9 +125,9 @@ export function useUpdateList() {
       list = list.filter(
         r =>
           r.devid.toLowerCase().includes(q) ||
-          r.shipname_cn.toLowerCase().includes(q) ||
+          getShipName(r).toLowerCase().includes(q) ||
           r.name.toLowerCase().includes(q) ||
-          getDeviceGroup(r.devid).toLowerCase().includes(q)
+          getDeviceGroup(r).toLowerCase().includes(q)
       );
     }
     return list.sort((a, b) => {
@@ -92,7 +165,7 @@ export function useUpdateList() {
   const columns: TableColumnList = [
     { type: "selection", align: "center", width: 50 },
     { label: "设备编号", prop: "devid", minWidth: 110 },
-    { label: "设备名称", prop: "shipname_cn", minWidth: 120 },
+    { label: "设备名称", minWidth: 120, slot: "shipname" },
     { label: "项目分组", minWidth: 100, slot: "group" },
     { label: "软件名称", prop: "name", minWidth: 110 },
     { label: "目标版本", prop: "version", minWidth: 100 },
@@ -111,16 +184,13 @@ export function useUpdateList() {
   const fetchUpdateList = async (silent = false) => {
     if (!silent) listLoading.value = true;
     try {
-      if (!boatStore.allBoats.length) {
-        await boatStore.fetchBoatList();
-      }
+      await fetchDeviceList();
       const res = await getVersionUpdateQuery({
         devid: "-1",
         status: "-1"
       });
-      const map = shipNameMap.value;
       updateList.value = (res.data ?? []).map(item =>
-        normalizeUpdate(item, map)
+        normalizeUpdate(item, deviceMetaMap.value)
       );
     } catch (err) {
       console.error("[software] /version/update/query 失败:", err);
@@ -141,7 +211,7 @@ export function useUpdateList() {
 
   const handleDelete = (row: UpdateRecord) => {
     ElMessageBox.confirm(
-      `确定要删除设备 "${row.shipname_cn || row.devid}" 的更新任务吗？`,
+      `确定要删除设备 "${getShipName(row) || row.devid}" 的更新任务吗？`,
       "确认删除",
       { confirmButtonText: "确定", cancelButtonText: "取消", type: "warning" }
     )
@@ -199,6 +269,7 @@ export function useUpdateList() {
     updateList,
     listLoading,
     getDeviceGroup,
+    getShipName,
     searchQuery,
     statusFilter,
     filteredList,
@@ -211,6 +282,7 @@ export function useUpdateList() {
     handleRefresh,
     handleDelete,
     handleBatchDelete,
-    fetchUpdateList
+    fetchUpdateList,
+    fetchDeviceList
   };
 }

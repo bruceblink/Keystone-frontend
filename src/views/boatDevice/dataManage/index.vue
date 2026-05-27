@@ -5,7 +5,7 @@ import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
 import AlarmImg from "./components/AlarmImg.vue";
-import { GROUP_MAP, type AlarmRecord } from "./utils/dict";
+import { GROUP_OPTIONS, type AlarmRecord } from "./utils/dict";
 import { useDataManage } from "./utils/hook";
 import { useDraggableMap } from "./utils/map";
 
@@ -354,7 +354,7 @@ const REVIEW_TAG: Record<
       <el-form-item label="项目分组">
         <el-select v-model="searchForm.projectGroup" class="!w-[140px]">
           <el-option
-            v-for="item in GROUP_MAP"
+            v-for="item in GROUP_OPTIONS"
             :key="item.value"
             :label="item.label"
             :value="item.value"

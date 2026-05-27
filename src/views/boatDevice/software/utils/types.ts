@@ -2,6 +2,8 @@ export interface UpdateRecord {
   uuid: string;
   devid: string;
   shipname_cn: string;
+  /** 设备所属分组编码，用于 GROUP_MAP 映射 */
+  deviceType: string;
   name: string;
   version: string;
   size: string;

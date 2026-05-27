@@ -4,7 +4,7 @@
  * 分组映射统一从 boatDevice/dict 引入。
  */
 import type { UpdateRecord, SoftwareVersion, DeviceItem } from "./types";
-export { GROUP_MAP } from "../../dict";
+export { GROUP_MAP, getGroupName } from "../../dict";
 
 export const UPDATE_STATUS_MAP: Record<string, string> = {
   "0": "未下载",
@@ -139,6 +139,7 @@ export const MOCK_UPDATES: UpdateRecord[] = [
     uuid: "u001",
     devid: "DEV001",
     shipname_cn: "东方红1号",
+    deviceType: "1",
     name: "检测软件",
     version: "2.1.0",
     size: "45.2",
@@ -150,6 +151,7 @@ export const MOCK_UPDATES: UpdateRecord[] = [
     uuid: "u002",
     devid: "DEV002",
     shipname_cn: "海洋探索者",
+    deviceType: "2",
     name: "模型",
     version: "1.4.0",
     size: "132.6",
@@ -161,6 +163,7 @@ export const MOCK_UPDATES: UpdateRecord[] = [
     uuid: "u003",
     devid: "DEV003",
     shipname_cn: "蓝鲸号",
+    deviceType: "3",
     name: "船端客户端",
     version: "3.0.1",
     size: "28.4",
@@ -172,6 +175,7 @@ export const MOCK_UPDATES: UpdateRecord[] = [
     uuid: "u004",
     devid: "DEV004",
     shipname_cn: "渔丰1号",
+    deviceType: "1",
     name: "同步软件",
     version: "1.2.3",
     size: "12.1",
@@ -183,6 +187,7 @@ export const MOCK_UPDATES: UpdateRecord[] = [
     uuid: "u005",
     devid: "DEV005",
     shipname_cn: "海星号",
+    deviceType: "4",
     name: "通信服务",
     version: "2.5.0",
     size: "18.7",
@@ -194,6 +199,7 @@ export const MOCK_UPDATES: UpdateRecord[] = [
     uuid: "u006",
     devid: "DEV006",
     shipname_cn: "南海一号",
+    deviceType: "5",
     name: "检测软件",
     version: "2.0.0",
     size: "43.8",
