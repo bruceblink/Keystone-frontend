@@ -1,5 +1,7 @@
 import { ref, computed, reactive, onMounted, onActivated } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { useBoatStoreHook } from "@/store/modules/boat";
 import * as XLSX from "xlsx";
 import type { DeviceRecord, SearchParams } from "./types";
 import { GROUP_MAP, NAV_STATUS_MAP, getOnlineStatus } from "./dict";
@@ -27,6 +29,9 @@ const emptySearchParams = (): SearchParams => ({
 });
 
 export function useBoatDeviceHook() {
+  const router = useRouter();
+  const boatStore = useBoatStoreHook();
+
   // ===== 数据源 =====
   const tableData = ref<DeviceRecord[]>([]);
   const loading = ref(false);
@@ -118,16 +123,21 @@ export function useBoatDeviceHook() {
       keyword: searchParams.keyword,
       type: searchParams.type,
       navstatus: searchParams.navstatus,
-      onlineStatus: searchParams.onlineStatus,
-      showFavoriteOnly: searchParams.showFavoriteOnly
+      onlineStatus: searchParams.onlineStatus
     });
     pagination.currentPage = 1;
+  };
+
+  /** 「仅显示关注」勾选即生效，不走搜索按钮 */
+  const onFavoriteFilterChange = () => {
+    pagination.currentPage = 1;
+    saveSearchConditions();
   };
 
   const onSearch = () => {
     applyLocalSearch();
     saveSearchConditions();
-    ElMessage.success(`搜索完成，共找到 ${filteredList.value.length} 条记录`);
+    ElMessage.success(`搜索完成，共找到 ${filteredList.value.length} 条记 录`);
   };
 
   const resetSearch = () => {
@@ -146,7 +156,7 @@ export function useBoatDeviceHook() {
   // ===== 本地过滤 + 分页 =====
   const filteredList = computed(() => {
     let list = [...tableData.value];
-    if (appliedSearchParams.showFavoriteOnly) {
+    if (searchParams.showFavoriteOnly) {
       list = list.filter(d => favorites.value.includes(d.devid));
     }
     if (appliedSearchParams.type) {
@@ -231,7 +241,7 @@ export function useBoatDeviceHook() {
       sortable: true,
       minWidth: 160
     },
-    { label: "操作", fixed: "right", minWidth: 160, slot: "operation" }
+    { label: "操作", fixed: "right", minWidth: 240, slot: "operation" }
   ];
 
   // ===== CRUD =====
@@ -249,6 +259,15 @@ export function useBoatDeviceHook() {
     dialogType.value = "edit";
     currentRow.value = { ...row };
     dialogVisible.value = true;
+  };
+
+  /** 跳转系统状态页并选中当前船舶 */
+  const goToParamConfig = (row: DeviceRecord) => {
+    boatStore.setSelectedBoatId(row.devid);
+    router.push({
+      name: "ParamSystemState",
+      query: { devid: row.devid }
+    });
   };
 
   const toSavePayload = (
@@ -343,6 +362,7 @@ export function useBoatDeviceHook() {
     searchParams,
     pagination,
     onSearch,
+    onFavoriteFilterChange,
     resetSearch,
     refreshList,
     dataList,
@@ -353,6 +373,7 @@ export function useBoatDeviceHook() {
     currentRow,
     openAdd,
     openEdit,
+    goToParamConfig,
     handleSubmit,
     handleDelete,
     handleExport

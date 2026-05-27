@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { toRef, onMounted } from "vue";
+import { toRef, onMounted, onActivated } from "vue";
+import { useRoute } from "vue-router";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import Refresh from "@iconify-icons/ep/refresh";
 import View from "@iconify-icons/ep/view";
@@ -10,8 +11,16 @@ import ModuleDetailDialog from "./components/ModuleDetailDialog.vue";
 
 defineOptions({ name: "ParamSystemState" });
 
+const route = useRoute();
 const boatStore = useBoatStoreHook();
 const boatId = toRef(boatStore, "selectedBoatId");
+
+const applyDevidFromRoute = () => {
+  const devid = route.query.devid;
+  if (typeof devid === "string" && devid.trim()) {
+    boatStore.setSelectedBoatId(devid.trim());
+  }
+};
 
 const {
   loading,
@@ -32,8 +41,13 @@ const {
   DEFAULT_DIALOG_LABELS
 } = useSystemState(boatId);
 
-onMounted(() => {
-  boatStore.fetchBoatList();
+onMounted(async () => {
+  await boatStore.fetchBoatList();
+  applyDevidFromRoute();
+});
+
+onActivated(() => {
+  applyDevidFromRoute();
 });
 </script>
 

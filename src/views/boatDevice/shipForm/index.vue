@@ -13,6 +13,7 @@ import FormDialog from "./components/formDialog.vue";
 
 import Delete from "@iconify-icons/ep/delete";
 import EditPen from "@iconify-icons/ep/edit-pen";
+import Setting from "@iconify-icons/ep/setting";
 import AddFill from "@iconify-icons/ri/add-circle-line";
 import Download from "@iconify-icons/ep/download";
 
@@ -26,6 +27,7 @@ const {
   searchParams,
   pagination,
   onSearch,
+  onFavoriteFilterChange,
   resetSearch,
   refreshList,
   dataList,
@@ -36,6 +38,7 @@ const {
   currentRow,
   openAdd,
   openEdit,
+  goToParamConfig,
   handleSubmit,
   handleDelete,
   handleExport
@@ -48,6 +51,7 @@ const {
     <search-form
       v-model="searchParams"
       @search="onSearch"
+      @favorite-filter-change="onFavoriteFilterChange"
       @reset="resetSearch"
     />
 
@@ -146,6 +150,16 @@ const {
               @click="openEdit(row)"
             >
               编辑
+            </el-button>
+            <el-button
+              class="reset-margin"
+              link
+              type="primary"
+              :size="size"
+              :icon="useRenderIcon(Setting)"
+              @click="goToParamConfig(row)"
+            >
+              参数配置
             </el-button>
             <el-popconfirm
               :title="`确认删除设备 ${row.devid}？`"

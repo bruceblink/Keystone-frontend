@@ -17,6 +17,7 @@ const emit = defineEmits<{
   (e: "update:modelValue", v: SearchParams): void;
   (e: "search"): void;
   (e: "reset"): void;
+  (e: "favorite-filter-change"): void;
 }>();
 
 const params = computed({
@@ -85,7 +86,12 @@ const params = computed({
       </el-select>
     </el-form-item>
     <el-form-item>
-      <el-checkbox v-model="params.showFavoriteOnly"> 仅显示关注 </el-checkbox>
+      <el-checkbox
+        v-model="params.showFavoriteOnly"
+        @change="emit('favorite-filter-change')"
+      >
+        仅显示关注
+      </el-checkbox>
     </el-form-item>
     <el-form-item>
       <el-button
