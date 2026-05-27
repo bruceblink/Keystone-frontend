@@ -1,6 +1,5 @@
 import Cookies from "js-cookie";
 import { storageSession } from "@pureadmin/utils";
-import { useUserStoreHook } from "@/store/modules/user";
 import { aesEncrypt, aesDecrypt } from "@/utils/crypt";
 import { TokenDTO } from "@/api/common/login";
 
@@ -39,9 +38,6 @@ export function getToken(): TokenDTO {
 export function setTokenFromBackend(data: TokenDTO): void {
   const cookieString = JSON.stringify(data);
   Cookies.set(tokenKey, cookieString);
-
-  useUserStoreHook().SET_USERNAME(data.currentUser.userInfo.username);
-  useUserStoreHook().SET_ROLES([data.currentUser.roleKey]);
   storageSession().setItem(sessionKey, data);
 }
 

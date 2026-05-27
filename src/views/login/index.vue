@@ -96,6 +96,8 @@ const onLogin = async (formEl: FormInstance | undefined) => {
     }).then(({ data }) => {
       // 登录成功后 将token存储到sessionStorage中
       setTokenFromBackend(data);
+      useUserStoreHook().SET_USERNAME(data.currentUser.userInfo.username);
+      useUserStoreHook().SET_ROLES([data.currentUser.roleKey]);
       // 获取后端路由
       initRouter().then(() => {
         router.push(getTopMenu(true).path);
