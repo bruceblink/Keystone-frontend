@@ -27,6 +27,7 @@ import { useAppStoreHook } from "@/store/modules/app";
 import { toggleTheme } from "@pureadmin/theme/dist/browser-utils";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
+import { logout as logoutApi } from "@/api/common/login";
 
 import dayIcon from "@/assets/svg/day.svg?component";
 import darkIcon from "@/assets/svg/dark.svg?component";
@@ -130,7 +131,15 @@ const multiTagsCacheChange = () => {
 };
 
 /** 清空缓存并返回登录页 */
-function onReset() {
+async function onReset() {
+  try {
+    await logoutApi();
+  } finally {
+    clearLocalCacheAndRedirectToLogin();
+  }
+}
+
+function clearLocalCacheAndRedirectToLogin() {
   removeToken();
   storageLocal().clear();
   storageSession().clear();
