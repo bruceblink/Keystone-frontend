@@ -8,6 +8,7 @@ import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { removeToken, sessionKey } from "@/utils/auth";
 import { DictionaryData, TokenDTO } from "@/api/common/login";
 import { storageLocal } from "@pureadmin/utils";
+import { logout as logoutApi } from "@/api/common/login";
 
 const dictionaryListKey = "ag-dictionary-list";
 const dictionaryMapKey = "ag-dictionary-map";
@@ -75,14 +76,18 @@ export const useUserStore = defineStore({
       );
     },
 
-    /** 前端登出（不调用接口） */
-    logOut() {
-      this.username = "";
-      this.roles = [];
-      removeToken();
-      useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
-      resetRouter();
-      router.push("/login");
+    /** 登出 */
+    async logOut() {
+      try {
+        await logoutApi();
+      } finally {
+        this.username = "";
+        this.roles = [];
+        removeToken();
+        useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
+        resetRouter();
+        router.push("/login");
+      }
     }
   }
 });

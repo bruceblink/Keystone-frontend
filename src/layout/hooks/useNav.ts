@@ -14,6 +14,7 @@ import { useUserStoreHook } from "@/store/modules/user";
 import { usePermissionStoreHook } from "@/store/modules/permission";
 import { removeToken } from "@/utils/auth";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
+import { logout as logoutApi } from "@/api/common/login";
 
 const errorInfo = "当前路由配置不正确，请检查配置";
 
@@ -69,7 +70,15 @@ export function useNav() {
   }
 
   /** 退出登录 */
-  function logout() {
+  async function logout() {
+    try {
+      await logoutApi();
+    } finally {
+      clearLocalLoginState();
+    }
+  }
+
+  function clearLocalLoginState() {
     useUserStoreHook().SET_USERNAME("");
     useUserStoreHook().SET_ROLES([]);
     removeToken();
