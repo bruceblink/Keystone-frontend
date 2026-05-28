@@ -13,13 +13,13 @@ import { stringify } from "qs";
 import NProgress from "../progress";
 import { getToken, formatToken } from "@/utils/auth";
 import { message } from "../message";
-import { ElMessageBox } from "element-plus";
-import { router } from "@/router";
-import { removeToken } from "@/utils/auth";
+import { clearLoginSession } from "@/utils/session";
 import { downloadByData } from "@pureadmin/utils";
 // console.log("Utils:" + router);
 
 const { VITE_APP_BASE_API } = import.meta.env;
+const AUTH_ERROR_CODES = [106, 107, 108];
+const AUTH_HTTP_STATUSES = [401, 403];
 // 相关配置请参考：www.axios-js.com/zh-cn/docs/#axios-request-config-1
 const defaultConfig: AxiosRequestConfig = {
   // 请求超时时间
@@ -55,6 +55,9 @@ class PureHttp {
   /** 保存当前Axios实例对象 */
   private static axiosInstance: AxiosInstance = Axios.create(defaultConfig);
 
+  /** 防止并发请求重复触发登录态清理 */
+  private static isRedirectingToLogin = false;
+
   /** 重连原始请求 */
   private static retryOriginalRequest(config: PureHttpRequestConfig) {
     return new Promise(resolve => {
@@ -88,18 +91,36 @@ class PureHttp {
           "/captchaImage",
           "/getConfig"
         ];
-        return whiteList.some(v => config.url.endsWith(v))
+        const isWhiteListed = whiteList.some(v => config.url.endsWith(v));
+        return isWhiteListed
           ? config
-          : new Promise(resolve => {
+          : new Promise((resolve, reject) => {
               const data = getToken();
+              if (!data?.token) {
+                PureHttp.redirectToLoginOnAuthError();
+                reject(new Error("登录状态已过期，请重新登录"));
+                return;
+              }
               config.headers["Authorization"] = formatToken(data.token);
               resolve(config);
             });
       },
       error => {
+        NProgress.done();
         return Promise.reject(error);
       }
     );
+  }
+
+  private static redirectToLoginOnAuthError(msg?: string) {
+    if (!PureHttp.isRedirectingToLogin) {
+      PureHttp.isRedirectingToLogin = true;
+      message(msg || "登录状态已过期，请重新登录", { type: "warning" });
+      clearLoginSession();
+      setTimeout(() => {
+        PureHttp.isRedirectingToLogin = false;
+      }, 1000);
+    }
   }
 
   /** 响应拦截 */
@@ -149,33 +170,14 @@ class PureHttp {
         }
 
         // 请求返回失败时，有业务错误时，弹出错误提示
-        if (response.data.code !== 0) {
-          // token失效时弹出过期提示
-          if (response.data.code === 106) {
-            ElMessageBox.confirm(
-              "登录状态已过期，您可以继续留在该页面，或者重新登录",
-              "系统提示",
-              {
-                confirmButtonText: "重新登录",
-                cancelButtonText: "取消",
-                type: "warning"
-              }
-            )
-              .then(() => {
-                removeToken();
-                router.push("/login");
-              })
-              .catch(() => {
-                message("取消重新登录", { type: "info" });
-              });
-            NProgress.done();
-            return Promise.reject(msg);
+        if (code !== 0) {
+          if (AUTH_ERROR_CODES.includes(code)) {
+            PureHttp.redirectToLoginOnAuthError(msg);
           } else {
-            // 其余情况弹出错误提示框
             message(msg, { type: "error" });
-            NProgress.done();
-            return Promise.reject(msg);
           }
+          NProgress.done();
+          return Promise.reject(msg);
         }
 
         /** 修改 */
@@ -198,6 +200,12 @@ class PureHttp {
         $error.isCancelRequest = Axios.isCancel($error);
         // 关闭进度条动画
         NProgress.done();
+        if (
+          $error.response &&
+          AUTH_HTTP_STATUSES.includes($error.response.status)
+        ) {
+          PureHttp.redirectToLoginOnAuthError($error.response.statusText);
+        }
         // 所有的响应异常 区分来源为取消请求/非取消请求
         return Promise.reject($error);
       }
@@ -226,7 +234,14 @@ class PureHttp {
           resolve(response);
         })
         .catch(error => {
-          const status = error?.response?.status;
+          if (
+            error.response &&
+            AUTH_HTTP_STATUSES.includes(error.response.status)
+          ) {
+            reject(error);
+            return;
+          }
+
           // 某些情况网络失效，此时直接进入error流程，所以在这边也进行拦截
           // 修改 if (error.response && error.response.status >= 500) {
           if (typeof status === "number" && status >= 500) {
