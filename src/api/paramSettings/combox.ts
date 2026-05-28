@@ -19,6 +19,7 @@ export type ComboxRegionItemDTO = {
 
 /** 下拉字典项（接口可能返回多种字段） */
 export type ComboxDictItemDTO = {
+  item?: string;
   value?: string | number;
   label?: string;
   text?: string;
@@ -78,7 +79,13 @@ export function normalizeComboxOptions(
   const options: ComboxOption[] = [];
   for (const item of list) {
     const label = String(
-      item.label ?? item.text ?? item.name ?? item.keyname ?? item.des ?? ""
+      item.item ??
+        item.label ??
+        item.text ??
+        item.name ??
+        item.keyname ??
+        item.des ??
+        ""
     ).trim();
     const value = String(
       item.value ?? item.keyvalue ?? item.id ?? item.keyname ?? ""
