@@ -24,6 +24,8 @@ export type LoginByPasswordDTO = {
   captchaCode: string;
   /** 验证码对应的缓存key */
   captchaCodeKey: string;
+  /** 是否接管旧会话 */
+  forceLogin?: boolean;
 };
 
 export type RsaPublicKeyDTO = {

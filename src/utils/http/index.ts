@@ -225,7 +225,7 @@ class PureHttp {
             message(msg, { type: "error" });
           }
           NProgress.done();
-          return Promise.reject(msg);
+          return Promise.reject({ code, msg });
         }
 
         const $config = response.config;
