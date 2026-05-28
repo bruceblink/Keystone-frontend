@@ -26,6 +26,7 @@ import { getTopMenu, initRouter } from "@/router/utils";
 import { avatar, bg, illustration } from "./utils/static";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
+import { ElMessageBox } from "element-plus";
 import {
   getIsRememberMe,
   getPassword,
@@ -43,6 +44,8 @@ import * as CommonAPI from "@/api/common/login";
 import { useUserStoreHook } from "@/store/modules/user";
 import dayjs from "dayjs";
 
+const LOGIN_ACCOUNT_ALREADY_LOGGED_IN = 10210;
+
 defineOptions({
   name: "Login"
 });
@@ -55,6 +58,7 @@ const isCaptchaOn = ref(false);
 const router = useRouter();
 const loading = ref(false);
 const isRememberMe = ref(false);
+const pendingForceLogin = ref(false);
 const ruleFormRef = ref<FormInstance>();
 // 判断登录页面显示哪个组件（0：登录（默认）、1：手机登录、2：二维码登录、3：注册、4：忘记密码）
 const currentPage = ref(0);
@@ -73,6 +77,31 @@ const ruleForm = reactive({
   captchaCodeKey: ""
 });
 
+const finishLogin = (data: CommonAPI.TokenDTO) => {
+  setTokenFromBackend(data);
+  useUserStoreHook().SET_USERNAME(data.currentUser.userInfo.username);
+  useUserStoreHook().SET_ROLES([data.currentUser.roleKey]);
+  initRouter().then(() => {
+    router.push(getTopMenu(true).path);
+    message("登录成功", { type: "success" });
+  });
+  if (isRememberMe.value) {
+    savePassword(ruleForm.password);
+  }
+};
+
+const submitLogin = async (forceLogin = false) => {
+  const rsaPublicKeyRes = await CommonAPI.getRsaPublicKey();
+  const response = await CommonAPI.loginByPassword({
+    username: ruleForm.username,
+    password: rsaEncrypt(ruleForm.password, rsaPublicKeyRes.data.publicKey),
+    captchaCode: ruleForm.captchaCode,
+    captchaCodeKey: ruleForm.captchaCodeKey,
+    forceLogin
+  });
+  finishLogin(response.data);
+};
+
 const onLogin = async (formEl: FormInstance | undefined) => {
   loading.value = true;
   if (!formEl) {
@@ -87,27 +116,38 @@ const onLogin = async (formEl: FormInstance | undefined) => {
   }
 
   try {
-    const rsaPublicKeyRes = await CommonAPI.getRsaPublicKey();
-    await CommonAPI.loginByPassword({
-      username: ruleForm.username,
-      password: rsaEncrypt(ruleForm.password, rsaPublicKeyRes.data.publicKey),
-      captchaCode: ruleForm.captchaCode,
-      captchaCodeKey: ruleForm.captchaCodeKey
-    }).then(({ data }) => {
-      // 登录成功后 将token存储到sessionStorage中
-      setTokenFromBackend(data);
-      useUserStoreHook().SET_USERNAME(data.currentUser.userInfo.username);
-      useUserStoreHook().SET_ROLES([data.currentUser.roleKey]);
-      // 获取后端路由
-      initRouter().then(() => {
-        router.push(getTopMenu(true).path);
-        message("登录成功", { type: "success" });
-      });
-      if (isRememberMe.value) {
-        savePassword(ruleForm.password);
+    await submitLogin(pendingForceLogin.value);
+    pendingForceLogin.value = false;
+  } catch (error: any) {
+    if (error?.code === LOGIN_ACCOUNT_ALREADY_LOGGED_IN) {
+      pendingForceLogin.value = false;
+      loading.value = false;
+      try {
+        await ElMessageBox.confirm(
+          "该账号已有在线会话。继续登录会踢出旧会话，是否继续？",
+          "账号已登录",
+          {
+            confirmButtonText: "强制登录",
+            cancelButtonText: "取消",
+            type: "warning"
+          }
+        );
+        loading.value = true;
+        if (isCaptchaOn.value) {
+          message("请重新输入验证码后再强制登录", { type: "warning" });
+          pendingForceLogin.value = true;
+          await getCaptchaCode();
+          ruleForm.captchaCode = "";
+          return;
+        }
+        await submitLogin(true);
+      } catch {
+        // 用户取消或强制登录失败时，回到登录页等待用户处理。
+      } finally {
+        loading.value = false;
       }
-    });
-  } catch {
+      return;
+    }
     loading.value = false;
     //如果登陆失败则重新获取验证码
     getCaptchaCode();

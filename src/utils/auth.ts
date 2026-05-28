@@ -1,7 +1,7 @@
 import Cookies from "js-cookie";
 import { storageSession } from "@pureadmin/utils";
 import { aesEncrypt, aesDecrypt } from "@/utils/crypt";
-import { TokenDTO } from "@/api/common/login";
+import type { TokenDTO } from "@/api/common/login";
 
 /**
  * 原版前端token实现
@@ -32,13 +32,23 @@ export function getToken(): TokenDTO {
     : storageSession().getItem<TokenDTO>(sessionKey);
 }
 
+export function getRefreshToken(): string {
+  return getToken()?.refreshToken;
+}
+
 /**
  * 后端处理token
  */
 export function setTokenFromBackend(data: TokenDTO): void {
-  const cookieString = JSON.stringify(data);
+  const currentToken = getToken();
+  const mergedToken = {
+    ...currentToken,
+    ...data,
+    currentUser: data.currentUser ?? currentToken?.currentUser
+  } as TokenDTO;
+  const cookieString = JSON.stringify(mergedToken);
   Cookies.set(tokenKey, cookieString);
-  storageSession().setItem(sessionKey, data);
+  storageSession().setItem(sessionKey, mergedToken);
 }
 
 /** 兼容旧版单点登录参数写入 */

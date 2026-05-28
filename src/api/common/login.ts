@@ -24,6 +24,8 @@ export type LoginByPasswordDTO = {
   captchaCode: string;
   /** 验证码对应的缓存key */
   captchaCodeKey: string;
+  /** 是否接管旧会话 */
+  forceLogin?: boolean;
 };
 
 export type RsaPublicKeyDTO = {
@@ -37,8 +39,18 @@ export type RsaPublicKeyDTO = {
 export type TokenDTO = {
   /** token */
   token: string;
+  /** refresh token */
+  refreshToken?: string;
+  /** access token 剩余有效秒数 */
+  expiresIn?: number;
+  /** refresh token 剩余有效秒数 */
+  refreshExpiresIn?: number;
   /** 当前登录的用户 */
-  currentUser: CurrentLoginUserDTO;
+  currentUser?: CurrentLoginUserDTO;
+};
+
+export type RefreshTokenDTO = {
+  refreshToken: string;
 };
 
 export type CurrentLoginUserDTO = {
@@ -109,6 +121,20 @@ export const loginByPassword = (data: LoginByPasswordDTO) => {
 /** 退出登录接口 */
 export const logout = () => {
   return http.request<ResponseData<void>>("post", "/logout");
+};
+
+/** 刷新 Keystone token */
+export const refreshToken = (data: RefreshTokenDTO) => {
+  return http.request<ResponseData<TokenDTO>>("post", "/refresh-token", {
+    data
+  });
+};
+
+/** access token 已失效时，通过 refresh token 主动释放后端会话 */
+export const logoutRefreshToken = (data: RefreshTokenDTO) => {
+  return http.request<ResponseData<void>>("post", "/logout-refresh-token", {
+    data
+  });
 };
 
 /** 获取当前登录用户接口 */
