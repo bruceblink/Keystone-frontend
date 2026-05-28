@@ -2,6 +2,7 @@ import Axios from "axios";
 import { http } from "@/utils/http";
 import type { RequestMethods } from "@/utils/http/types.d";
 import type { PureHttpRequestConfig } from "@/utils/http/types.d";
+import { getToken, formatToken } from "@/utils/auth";
 
 export type DeviceVersionItemDTO = {
   uuid?: string;
@@ -88,6 +89,14 @@ const chunkHttp = Axios.create({
   timeout: 0
 });
 
+chunkHttp.interceptors.request.use(config => {
+  const data = getToken();
+  if (data?.token) {
+    config.headers["Authorization"] = formatToken(data.token);
+  }
+  return config;
+});
+
 /** 查询设备版本 — GET /device/version/query */
 export const getDeviceVersionQuery = (params?: {
   uuid?: string;
@@ -119,7 +128,7 @@ export const deleteDeviceVersion = (uuid: string) =>
     params: { uuid }
   });
 
-/** 上传文件分片 — POST /api/Flie/chunk */
+/** 上传文件分片 — POST /api/Flie/chunk（与 ConfigurePlatform 一致，元数据走 FormData） */
 export const uploadFileChunk = (
   formData: FormData,
   onProgress?: (loaded: number, total: number) => void,
@@ -127,7 +136,6 @@ export const uploadFileChunk = (
 ) => {
   return chunkHttp
     .post<DeviceRawResponse<unknown>>("/api/Flie/chunk", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
       signal,
       onUploadProgress: e => {
         if (onProgress && e.total) onProgress(e.loaded, e.total);

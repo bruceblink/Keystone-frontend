@@ -15,8 +15,10 @@ import {
 } from "@/api/boatDevice/version";
 import { formatFileSize } from "./dict";
 
-/** 单片大小 25MB，与 ConfigurePlatform ReleaseSoftware 保持一致 */
-const CHUNK_SIZE = 25 * 1024 * 1024;
+/** 单片 5MB，避免代理/网关对单次请求体大小限制导致大分片失败 */
+const CHUNK_SIZE = 5 * 1024 * 1024;
+/** 并发上传分片数，与 ConfigurePlatform ReleaseSoftware 一致 */
+const MAX_CONCURRENT = 3;
 /** 合并状态轮询间隔 */
 const STATUS_CHECK_INTERVAL = 2000;
 /** 等待服务端合并的最长时间 */
@@ -173,28 +175,50 @@ export function useChunkUpload(getMeta: () => ChunkUploadMeta) {
     }
   };
 
-  /** 顺序消费分片队列，失败分片重新入队重试 */
-  const processQueue = async () => {
+  /** 并发上传分片队列（与 ConfigurePlatform 一致） */
+  const processQueue = () => {
     if (processing) return;
     processing = true;
-    while (chunkQueue.length > 0 && !isPaused.value) {
-      const chunkIndex = chunkQueue.shift()!;
-      try {
-        await uploadChunk(chunkIndex);
-      } catch (err) {
-        if ((err as Error).name === "CanceledError") break;
-        chunkQueue.unshift(chunkIndex);
-        await new Promise(r => setTimeout(r, 1000));
+    let currentConcurrent = 0;
+    let firstChunkCompleted = false;
+
+    const pump = async () => {
+      while (chunkQueue.length > 0 && !isPaused.value) {
+        if (currentConcurrent >= MAX_CONCURRENT) {
+          await new Promise(r => setTimeout(r, 100));
+          continue;
+        }
+        currentConcurrent++;
+        const chunkIndex = chunkQueue.shift()!;
+
+        const uploadOne = async (retryCount = 0) => {
+          try {
+            await uploadChunk(chunkIndex);
+            if (!firstChunkCompleted) {
+              firstChunkCompleted = true;
+              startStatusCheck();
+            }
+          } catch (err) {
+            if ((err as Error).name === "CanceledError") return;
+            if (retryCount < 3 && !isPaused.value) {
+              await new Promise(r => setTimeout(r, 1000));
+              return uploadOne(retryCount + 1);
+            }
+            if (!isPaused.value) chunkQueue.push(chunkIndex);
+          } finally {
+            currentConcurrent--;
+          }
+        };
+
+        void uploadOne();
+        if (chunkQueue.length > 0) {
+          await new Promise(r => setTimeout(r, 50));
+        }
       }
-      if (chunkQueue.length > 0) {
-        await new Promise(r => setTimeout(r, 50));
-      }
-    }
-    processing = false;
-    // 全部分片上传完毕后，由服务端合并，前端轮询状态
-    if (completedChunks >= totalChunks && !isMerged.value) {
-      startStatusCheck();
-    }
+      processing = false;
+    };
+
+    void pump();
   };
 
   /** 轮询 GET /api/Flie/status/{fileIdentifier}，直到 isMerged 或超时 */
@@ -281,7 +305,7 @@ export function useChunkUpload(getMeta: () => ChunkUploadMeta) {
     completedChunks = 0;
     chunkQueue = Array.from({ length: totalChunks }, (_, i) => i);
     updateProgress();
-    await processQueue();
+    processQueue();
   };
 
   const pauseUpload = () => {

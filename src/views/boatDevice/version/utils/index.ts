@@ -21,7 +21,7 @@ import {
   type DeviceVersionItemDTO,
   type DeviceVersionSaveDTO
 } from "@/api/boatDevice/version";
-import { formatDateTime, genUuid } from "./dict";
+import { formatDateTime } from "./dict";
 
 export { useChunkUpload } from "./useChunkUpload";
 export type { ChunkUploadMeta } from "./useChunkUpload";
@@ -204,7 +204,7 @@ export function useVersionList() {
     if (dup) return false;
 
     const body: DeviceVersionSaveDTO = {
-      uuid: genUuid(),
+      uuid: "",
       ver_name: payload.ver_name,
       version: payload.version,
       ver_des: payload.ver_des,

@@ -45,7 +45,8 @@ export default ({ command, mode }: ConfigEnv): UserConfigExport => {
         "/api": {
           target: "http://10.17.17.74:18080",
           changeOrigin: true,
-          rewrite: path => path.replace(/^\/api/, "")
+          rewrite: path => path.replace(/^\/api/, ""),
+          timeout: 0
         },
         "/v3": {
           target: "http://localhost:18080",
