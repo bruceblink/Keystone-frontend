@@ -5,7 +5,6 @@ import {
   onMounted,
   reactive,
   ref,
-  toRaw,
   watch
 } from "vue";
 import Motion from "./utils/motion";
@@ -23,9 +22,8 @@ import { operates, thirdParty } from "./utils/enums";
 import { useLayout } from "@/layout/hooks/useLayout";
 import { rsaEncrypt } from "@/utils/crypt";
 import { getTopMenu, initRouter } from "@/router/utils";
-import { avatar, bg, illustration } from "./utils/static";
+import { avatar } from "./utils/static";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 import { ElMessageBox } from "element-plus";
 import {
   getIsRememberMe,
@@ -36,14 +34,10 @@ import {
   setTokenFromBackend
 } from "@/utils/auth";
 
-import dayIcon from "@/assets/svg/day.svg?component";
-import darkIcon from "@/assets/svg/dark.svg?component";
 import Lock from "@iconify-icons/ri/lock-fill";
 import User from "@iconify-icons/ri/user-3-fill";
 import * as CommonAPI from "@/api/common/login";
 import { useUserStoreHook } from "@/store/modules/user";
-import dayjs from "dayjs";
-
 const LOGIN_ACCOUNT_ALREADY_LOGGED_IN = 10210;
 
 defineOptions({
@@ -65,8 +59,6 @@ const currentPage = ref(0);
 
 const { initStorage } = useLayout();
 initStorage();
-const { dataTheme, dataThemeChange } = useDataThemeChange();
-dataThemeChange();
 // const { title, getDropdownItemStyle, getDropdownItemClass } = useNav();
 const { title } = useNav();
 
@@ -204,178 +196,177 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="select-none">
-    <img :src="bg" class="wave" alt="" />
-    <div class="absolute flex-c right-5 top-3">
-      <!-- 主题 -->
-      <el-switch
-        v-model="dataTheme"
-        :active-icon="dayIcon"
-        :inactive-icon="darkIcon"
-        inline-prompt
-        @change="dataThemeChange"
-      />
-    </div>
-    <div class="login-container">
-      <div class="img">
-        <!-- 登录页面的背景图 -->
-        <component :is="toRaw(illustration)" />
-      </div>
-      <div class="login-box">
-        <div class="login-form">
-          <!-- 登录窗口上面的LOGO -->
-          <avatar class="avatar" />
-          <Motion>
-            <h2 class="outline-none">
-              <TypeIt :cursor="false" :speed="150" :values="[title]" />
-            </h2>
-          </Motion>
-
-          <el-form
-            v-if="currentPage === 0"
-            ref="ruleFormRef"
-            :model="ruleForm"
-            :rules="loginRules"
-            size="large"
-          >
-            <Motion :delay="100">
-              <el-form-item
-                :rules="[
-                  {
-                    required: true,
-                    message: '请输入账号',
-                    trigger: 'blur'
-                  }
-                ]"
-                prop="username"
-              >
-                <el-input
-                  v-model="ruleForm.username"
-                  :prefix-icon="useRenderIcon(User)"
-                  clearable
-                  placeholder="账号"
-                />
-              </el-form-item>
+    <div class="login-page">
+      <div class="login-card">
+        <div class="login-left">
+          <div class="bg-circle bg-circle-1" />
+          <div class="bg-circle bg-circle-2" />
+          <div class="bg-circle bg-circle-3" />
+          <div class="login-left-content">
+            <avatar class="left-logo" />
+            <h1 class="left-title">船舶参数配置平台</h1>
+            <p class="left-subtitle">专业的船舶参数管理与配置系统</p>
+          </div>
+        </div>
+        <div class="login-box">
+          <div class="login-form">
+            <!-- 登录窗口上面的LOGO -->
+            <avatar class="avatar" />
+            <Motion>
+              <h2 class="outline-none">
+                <TypeIt :cursor="false" :speed="150" :values="[title]" />
+              </h2>
             </Motion>
 
-            <Motion :delay="150">
-              <el-form-item prop="password">
-                <el-input
-                  v-model="ruleForm.password"
-                  :prefix-icon="useRenderIcon(Lock)"
-                  clearable
-                  placeholder="密码"
-                  show-password
-                />
-              </el-form-item>
-            </Motion>
-
-            <Motion :delay="200">
-              <el-form-item v-if="isCaptchaOn" prop="captchaCode">
-                <el-input
-                  v-model="ruleForm.captchaCode"
-                  :prefix-icon="useRenderIcon('ri:shield-keyhole-line')"
-                  clearable
-                  placeholder="验证码"
+            <el-form
+              v-if="currentPage === 0"
+              ref="ruleFormRef"
+              :model="ruleForm"
+              :rules="loginRules"
+              size="large"
+            >
+              <Motion :delay="100">
+                <el-form-item
+                  :rules="[
+                    {
+                      required: true,
+                      message: '请输入账号',
+                      trigger: 'blur'
+                    }
+                  ]"
+                  prop="username"
                 >
-                  <template v-slot:append>
-                    <el-image
-                      :src="captchaCodeBase64"
-                      style="
-                        justify-content: center;
-                        width: 120px;
-                        height: 40px;
-                      "
-                      @click="getCaptchaCode"
-                    >
-                      <template #error>
-                        <span>Loading</span>
-                      </template>
-                    </el-image>
-                  </template>
-                </el-input>
-              </el-form-item>
-            </Motion>
+                  <el-input
+                    v-model="ruleForm.username"
+                    :prefix-icon="useRenderIcon(User)"
+                    clearable
+                    placeholder="账号"
+                  />
+                </el-form-item>
+              </Motion>
 
-            <Motion :delay="250">
-              <el-form-item>
-                <div class="w-full h-[20px] flex justify-between items-center">
-                  <el-checkbox v-model="isRememberMe"> 记住密码</el-checkbox>
-                  <el-button link type="primary" @click="currentPage = 4">
-                    忘记密码
-                  </el-button>
-                </div>
-                <el-button
-                  :loading="loading"
-                  class="w-full mt-4"
-                  size="default"
-                  type="primary"
-                  @click="onLogin(ruleFormRef)"
-                >
-                  登录
-                </el-button>
-              </el-form-item>
-            </Motion>
+              <Motion :delay="150">
+                <el-form-item prop="password">
+                  <el-input
+                    v-model="ruleForm.password"
+                    :prefix-icon="useRenderIcon(Lock)"
+                    clearable
+                    placeholder="密码"
+                    show-password
+                  />
+                </el-form-item>
+              </Motion>
 
-            <Motion :delay="300">
-              <el-form-item>
-                <div class="w-full h-[20px] flex justify-between items-center">
+              <Motion :delay="200">
+                <el-form-item v-if="isCaptchaOn" prop="captchaCode">
+                  <el-input
+                    v-model="ruleForm.captchaCode"
+                    :prefix-icon="useRenderIcon('ri:shield-keyhole-line')"
+                    clearable
+                    placeholder="验证码"
+                  >
+                    <template v-slot:append>
+                      <el-image
+                        :src="captchaCodeBase64"
+                        style="
+                          justify-content: center;
+                          width: 120px;
+                          height: 40px;
+                        "
+                        @click="getCaptchaCode"
+                      >
+                        <template #error>
+                          <span>Loading</span>
+                        </template>
+                      </el-image>
+                    </template>
+                  </el-input>
+                </el-form-item>
+              </Motion>
+
+              <Motion :delay="250">
+                <el-form-item>
+                  <div
+                    class="w-full h-[20px] flex justify-between items-center"
+                  >
+                    <el-checkbox v-model="isRememberMe"> 记住密码</el-checkbox>
+                    <el-button link type="primary" @click="currentPage = 4">
+                      忘记密码
+                    </el-button>
+                  </div>
                   <el-button
-                    v-for="(item, index) in operates"
-                    :key="index"
+                    :loading="loading"
                     class="w-full mt-4"
                     size="default"
-                    @click="currentPage = item.page"
+                    type="primary"
+                    @click="onLogin(ruleFormRef)"
                   >
-                    {{ item.title }}
+                    登录
                   </el-button>
+                </el-form-item>
+              </Motion>
+
+              <Motion :delay="300">
+                <el-form-item>
+                  <div
+                    class="w-full h-[20px] flex justify-between items-center"
+                  >
+                    <el-button
+                      v-for="(item, index) in operates"
+                      :key="index"
+                      class="w-full mt-4"
+                      size="default"
+                      @click="currentPage = item.page"
+                    >
+                      {{ item.title }}
+                    </el-button>
+                  </div>
+                </el-form-item>
+              </Motion>
+            </el-form>
+
+            <Motion v-if="currentPage === 0" :delay="350">
+              <el-form-item>
+                <el-divider>
+                  <p class="text-xs text-gray-500">{{ "第三方登录" }}</p>
+                </el-divider>
+                <div class="flex w-full justify-evenly">
+                  <span
+                    v-for="(item, index) in thirdParty"
+                    :key="index"
+                    :title="item.title"
+                  >
+                    <IconifyIconOnline
+                      :icon="`ri:${item.icon}-fill`"
+                      class="text-gray-500 cursor-pointer hover:text-blue-400"
+                      width="20"
+                    />
+                  </span>
                 </div>
               </el-form-item>
             </Motion>
-          </el-form>
-
-          <Motion v-if="currentPage === 0" :delay="350">
-            <el-form-item>
-              <el-divider>
-                <p class="text-xs text-gray-500">{{ "第三方登录" }}</p>
-              </el-divider>
-              <div class="flex w-full justify-evenly">
-                <span
-                  v-for="(item, index) in thirdParty"
-                  :key="index"
-                  :title="item.title"
-                >
-                  <IconifyIconOnline
-                    :icon="`ri:${item.icon}-fill`"
-                    class="text-gray-500 cursor-pointer hover:text-blue-400"
-                    width="20"
-                  />
-                </span>
-              </div>
-            </el-form-item>
-          </Motion>
-          <!-- 手机号登录 -->
-          <phone v-if="currentPage === 1" v-model:current-page="currentPage" />
-          <!-- 二维码登录 -->
-          <qrCode v-if="currentPage === 2" v-model:current-page="currentPage" />
-          <!-- 注册 -->
-          <register
-            v-if="currentPage === 3"
-            v-model:current-page="currentPage"
-          />
-          <!-- 忘记密码 -->
-          <resetPassword
-            v-if="currentPage === 4"
-            v-model:current-page="currentPage"
-          />
+            <!-- 手机号登录 -->
+            <phone
+              v-if="currentPage === 1"
+              v-model:current-page="currentPage"
+            />
+            <!-- 二维码登录 -->
+            <qrCode
+              v-if="currentPage === 2"
+              v-model:current-page="currentPage"
+            />
+            <!-- 注册 -->
+            <register
+              v-if="currentPage === 3"
+              v-model:current-page="currentPage"
+            />
+            <!-- 忘记密码 -->
+            <resetPassword
+              v-if="currentPage === 4"
+              v-model:current-page="currentPage"
+            />
+          </div>
         </div>
-      </div>
-    </div>
-    <!--  底部  -->
-    <div class="flex items-center justify-center h-full">
-      <div class="flex flex-col items-center justify-center mb-3">
-        <span
-          >Copyright © {{ dayjs().year() }} Agileboot All Rights Reserved.
-        </span>
       </div>
     </div>
   </div>

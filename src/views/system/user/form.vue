@@ -66,7 +66,7 @@ defineExpose({ getFormRuleRef });
         </el-form-item>
       </re-col>
       <re-col :value="12">
-        <el-form-item label="部门">
+        <el-form-item label="部门" prop="deptId">
           <el-tree-select
             class="w-full"
             v-model="newFormInline.deptId"
