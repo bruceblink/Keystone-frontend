@@ -6,9 +6,11 @@ import { sessionKey } from "@/utils/auth";
 import {
   DictionaryData,
   TokenDTO,
-  logout as logoutApi
+  logout as logoutApi,
+  logoutRefreshToken
 } from "@/api/common/login";
 import { clearLoginSession } from "@/utils/session";
+import { getRefreshToken } from "@/utils/auth";
 
 const dictionaryListKey = "ag-dictionary-list";
 const dictionaryMapKey = "ag-dictionary-map";
@@ -78,8 +80,13 @@ export const useUserStore = defineStore({
 
     /** 登出 */
     async logOut(options: { clearStorage?: boolean } = {}) {
+      const refreshToken = getRefreshToken();
       try {
         await logoutApi();
+      } catch {
+        if (refreshToken) {
+          await logoutRefreshToken({ refreshToken }).catch(() => undefined);
+        }
       } finally {
         this.clearLoginState(options);
       }
