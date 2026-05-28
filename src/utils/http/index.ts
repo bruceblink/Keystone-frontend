@@ -9,9 +9,15 @@ import {
   PureHttpResponse,
   PureHttpRequestConfig
 } from "./types.d";
+import type { TokenDTO } from "@/api/common/login";
 import { stringify } from "qs";
 import NProgress from "../progress";
-import { getToken, formatToken } from "@/utils/auth";
+import {
+  getRefreshToken,
+  getToken,
+  formatToken,
+  setTokenFromBackend
+} from "@/utils/auth";
 import { message } from "../message";
 import { clearLoginSession } from "@/utils/session";
 import { downloadByData } from "@pureadmin/utils";
@@ -20,6 +26,14 @@ import { downloadByData } from "@pureadmin/utils";
 const { VITE_APP_BASE_API } = import.meta.env;
 const AUTH_ERROR_CODES = [106, 107, 108];
 const AUTH_HTTP_STATUSES = [401, 403];
+const AUTH_WHITE_LIST = [
+  "/refresh-token",
+  "/logout-refresh-token",
+  "/login",
+  "/login/rsa-public-key",
+  "/captchaImage",
+  "/getConfig"
+];
 // 相关配置请参考：www.axios-js.com/zh-cn/docs/#axios-request-config-1
 const defaultConfig: AxiosRequestConfig = {
   // 请求超时时间
@@ -43,30 +57,21 @@ class PureHttp {
     this.httpInterceptorsResponse();
   }
 
-  /** token过期后，暂存待执行的请求 */
-  private static requests = [];
-
-  /** 防止重复刷新token */
-  private static isRefreshing = false;
-
   /** 初始化配置对象 */
   private static initConfig: PureHttpRequestConfig = {};
 
   /** 保存当前Axios实例对象 */
   private static axiosInstance: AxiosInstance = Axios.create(defaultConfig);
 
+  /** 不挂载业务拦截器，专用于 refresh token */
+  private static refreshAxiosInstance: AxiosInstance =
+    Axios.create(defaultConfig);
+
   /** 防止并发请求重复触发登录态清理 */
   private static isRedirectingToLogin = false;
 
-  /** 重连原始请求 */
-  private static retryOriginalRequest(config: PureHttpRequestConfig) {
-    return new Promise(resolve => {
-      PureHttp.requests.push((token: string) => {
-        config.headers["Authorization"] = formatToken(token);
-        resolve(config);
-      });
-    });
-  }
+  /** 正在进行的刷新任务，用于单飞刷新 */
+  private static refreshTask: Promise<string> | null = null;
 
   /** 请求拦截 */
   private httpInterceptorsRequest(): void {
@@ -84,14 +89,7 @@ class PureHttp {
           return config;
         }
         /** 请求白名单，放置一些不需要token的接口（通过设置请求白名单，防止token过期后再请求造成的死循环问题） */
-        const whiteList = [
-          "/refreshToken",
-          "/login",
-          "/login/rsa-public-key",
-          "/captchaImage",
-          "/getConfig"
-        ];
-        const isWhiteListed = whiteList.some(v => config.url.endsWith(v));
+        const isWhiteListed = PureHttp.isWhiteListed(config.url);
         return isWhiteListed
           ? config
           : new Promise((resolve, reject) => {
@@ -121,6 +119,62 @@ class PureHttp {
         PureHttp.isRedirectingToLogin = false;
       }, 1000);
     }
+  }
+
+  private static isWhiteListed(url?: string) {
+    return AUTH_WHITE_LIST.some(v => url?.endsWith(v));
+  }
+
+  private static shouldRefresh(config?: PureHttpRequestConfig) {
+    return (
+      Boolean(config?.url) &&
+      !config?._retry &&
+      !PureHttp.isWhiteListed(config.url)
+    );
+  }
+
+  private static async refreshAccessToken(): Promise<string> {
+    if (PureHttp.refreshTask) {
+      return PureHttp.refreshTask;
+    }
+
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      throw new Error("refresh token missing");
+    }
+
+    PureHttp.refreshTask = PureHttp.refreshAxiosInstance
+      .request<ResponseData<TokenDTO>>({
+        method: "post",
+        url: "/refresh-token",
+        data: { refreshToken }
+      })
+      .then(response => {
+        const responseData = response.data;
+        if (
+          AUTH_ERROR_CODES.includes(responseData.code) ||
+          responseData.code !== 0
+        ) {
+          throw new Error(responseData.msg || "refresh token failed");
+        }
+        setTokenFromBackend(responseData.data);
+        return responseData.data.token;
+      })
+      .finally(() => {
+        PureHttp.refreshTask = null;
+      });
+
+    return PureHttp.refreshTask;
+  }
+
+  private static async retryWithRefreshedToken(
+    config: PureHttpRequestConfig
+  ): Promise<any> {
+    const token = await PureHttp.refreshAccessToken();
+    config.headers = config.headers || {};
+    config.headers["Authorization"] = formatToken(token);
+    config._retry = true;
+    return PureHttp.axiosInstance.request(config);
   }
 
   /** 响应拦截 */
@@ -158,7 +212,15 @@ class PureHttp {
         // 请求返回失败时，有业务错误时，弹出错误提示
         if (code !== 0) {
           if (AUTH_ERROR_CODES.includes(code)) {
-            PureHttp.redirectToLoginOnAuthError(msg);
+            if (PureHttp.shouldRefresh(response.config)) {
+              try {
+                return await PureHttp.retryWithRefreshedToken(response.config);
+              } catch {
+                PureHttp.redirectToLoginOnAuthError(msg);
+              }
+            } else {
+              PureHttp.redirectToLoginOnAuthError(msg);
+            }
           } else {
             message(msg, { type: "error" });
           }
@@ -180,7 +242,7 @@ class PureHttp {
         }
         return response.data;
       },
-      (error: PureHttpError) => {
+      async (error: PureHttpError) => {
         const $error = error;
         $error.isCancelRequest = Axios.isCancel($error);
         // 关闭进度条动画
@@ -189,7 +251,15 @@ class PureHttp {
           $error.response &&
           AUTH_HTTP_STATUSES.includes($error.response.status)
         ) {
-          PureHttp.redirectToLoginOnAuthError($error.response.statusText);
+          if (PureHttp.shouldRefresh($error.config)) {
+            try {
+              return await PureHttp.retryWithRefreshedToken($error.config);
+            } catch {
+              PureHttp.redirectToLoginOnAuthError($error.response.statusText);
+            }
+          } else {
+            PureHttp.redirectToLoginOnAuthError($error.response.statusText);
+          }
         }
         // 所有的响应异常 区分来源为取消请求/非取消请求
         return Promise.reject($error);
