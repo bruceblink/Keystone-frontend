@@ -200,6 +200,20 @@ class PureHttp {
           }
           // 正常的返回类型 直接获取code和msg字段
         } else {
+          /** 修改*/
+          const $config = response.config;
+          // 自定义响应回调时跳过全局 code 校验（如设备接口 code 为 200）
+          if (typeof $config.beforeResponseCallback === "function") {
+            NProgress.done();
+            $config.beforeResponseCallback(response);
+            return response.data;
+          }
+          if (PureHttp.initConfig.beforeResponseCallback) {
+            NProgress.done();
+            PureHttp.initConfig.beforeResponseCallback(response);
+            return response.data;
+          }
+          /** 结束 */
           code = response.data.code;
           msg = response.data.msg;
         }
@@ -228,18 +242,19 @@ class PureHttp {
           return Promise.reject({ code, msg });
         }
 
-        const $config = response.config;
+        /** 修改 */
+        // const $config = response.config;
         // 关闭进度条动画
         NProgress.done();
         // 优先判断post/get等方法是否传入回调，否则执行初始化设置等回调
-        if (typeof $config.beforeResponseCallback === "function") {
-          $config.beforeResponseCallback(response);
-          return response.data;
-        }
-        if (PureHttp.initConfig.beforeResponseCallback) {
-          PureHttp.initConfig.beforeResponseCallback(response);
-          return response.data;
-        }
+        // if (typeof $config.beforeResponseCallback === "function") {
+        //   $config.beforeResponseCallback(response);
+        //   return response.data;
+        // }
+        // if (PureHttp.initConfig.beforeResponseCallback) {
+        //   PureHttp.initConfig.beforeResponseCallback(response);
+        //   return response.data;
+        // }
         return response.data;
       },
       async (error: PureHttpError) => {
@@ -298,15 +313,16 @@ class PureHttp {
           }
 
           // 某些情况网络失效，此时直接进入error流程，所以在这边也进行拦截
-          if (error.response && error.response.status >= 500) {
+          // 修改 if (error.response && error.response.status >= 500) {
+          if (typeof status === "number" && status >= 500) {
             message("网络异常", { type: "error" });
           }
 
-          if (
-            error.response &&
-            error.response.status >= 400 &&
-            error.response.status < 500
-          ) {
+          // 修改 if ( error.response &&
+          //   error.response.status >= 400 &&
+          //   error.response.status < 500
+          // ) {
+          if (typeof status === "number" && status >= 400 && status < 500) {
             message("请求接口不存在", { type: "error" });
           }
 

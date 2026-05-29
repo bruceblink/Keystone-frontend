@@ -21,9 +21,6 @@ import { type PaginationProps } from "@pureadmin/table";
 import { reactive, ref, computed, onMounted, toRaw, h } from "vue";
 import { CommonUtils } from "@/utils/common";
 import { addDialog } from "@/components/ReDialog";
-import { handleTree, setDisabledForTreeOptions } from "@/utils/tree";
-import { DeptDTO, getDeptListApi } from "@/api/system/dept";
-import { PostPageResponse, getPostListApi } from "@/api/system/post";
 import { RoleDTO, getRoleListApi } from "@/api/system/role";
 
 type SwitchState = {
@@ -54,7 +51,6 @@ type UploadFormRef = {
 
 export function useHook() {
   const searchFormParams = reactive<UserQuery>({
-    deptId: null,
     phoneNumber: undefined,
     status: undefined,
     username: undefined,
@@ -74,8 +70,6 @@ export function useHook() {
     background: true
   });
 
-  const deptTreeList = ref<DeptDTO[]>([]);
-  const postOptions = ref<PostPageResponse[]>([]);
   const roleOptions = ref<RoleDTO[]>([]);
 
   const columns: TableColumnList = [
@@ -108,17 +102,6 @@ export function useHook() {
           {row.sex === 1 ? "男" : "女"}
         </el-tag>
       )
-    },
-    {
-      label: "部门ID",
-      prop: "deptId",
-      minWidth: 130,
-      hide: true
-    },
-    {
-      label: "部门",
-      prop: "deptName",
-      minWidth: 130
     },
     {
       label: "手机号码",
@@ -164,7 +147,7 @@ export function useHook() {
     {
       label: "操作",
       fixed: "right",
-      width: 180,
+      minWidth: 200,
       slot: "operation"
     }
   ];
@@ -283,18 +266,14 @@ export function useHook() {
           userId: row?.userId ?? 0,
           username: row?.username ?? "",
           nickname: row?.nickname ?? "",
-          deptId: row?.deptId ?? undefined,
           phoneNumber: row?.phoneNumber ?? "",
           email: row?.email ?? "",
           password: title == "新增" ? "" : undefined,
           sex: row?.sex ?? undefined,
-          status: row?.status ?? undefined,
-          postId: row?.postId ?? undefined,
+          status: row?.status ?? 1,
           roleId: row?.roleId ?? undefined,
           remark: row?.remark ?? ""
         },
-        deptOptions: deptTreeList,
-        postOptions: postOptions,
         roleOptions: roleOptions
       },
 
@@ -387,15 +366,6 @@ export function useHook() {
 
   onMounted(async () => {
     onSearch();
-    const deptResponse = await getDeptListApi();
-    deptTreeList.value = await setDisabledForTreeOptions(
-      handleTree(deptResponse.data),
-      "status"
-    );
-
-    const postResponse = await getPostListApi({});
-    postOptions.value = postResponse.data.rows;
-
     const roleResponse = await getRoleListApi({});
     roleOptions.value = roleResponse.data.rows;
   });

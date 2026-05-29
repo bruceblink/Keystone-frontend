@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite",
     "serve": "pnpm dev",
     "build": "rimraf dist && NODE_OPTIONS=--max-old-space-size=8192 vite build",
     "build:staging": "rimraf dist && vite build --mode staging",
@@ -29,6 +29,7 @@
     "not op_mini all"
   ],
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "@pureadmin/descriptions": "^1.1.1",
     "@pureadmin/table": "^2.3.2",
     "@pureadmin/utils": "^1.9.6",
@@ -53,6 +54,7 @@
     "sortablejs": "^1.15.0",
     "typeit": "^8.7.1",
     "vue": "^3.5.32",
+    "vue-demi": "^0.14.10",
     "vue-router": "^4.2.2",
     "vue-tippy": "^6.2.0",
     "vue-types": "^5.1.0",
@@ -79,6 +81,7 @@
     "@vue/eslint-config-typescript": "^11.0.3",
     "autoprefixer": "^10.4.14",
     "cloc": "^2.11.0",
+    "cross-env": "^10.1.0",
     "cssnano": "^6.0.1",
     "eslint": "^8.43.0",
     "eslint-plugin-prettier": "^4.2.1",
