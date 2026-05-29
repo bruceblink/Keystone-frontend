@@ -9,13 +9,12 @@ const emit = defineEmits<{
   (e: "submitted"): void;
 }>();
 
-const batchUpdate = useBatchUpdate(() => emit("submitted"));
-
 const {
   allDevices,
   selectedDevices,
   handleSelectionChange,
   deviceColumns,
+  versionsLoading,
   uniqueSoftwareList,
   filteredVersionList,
   formRef,
@@ -23,7 +22,7 @@ const {
   rules,
   submitting,
   handleSubmit
-} = batchUpdate;
+} = useBatchUpdate(() => emit("submitted"));
 </script>
 
 <template>
@@ -37,7 +36,7 @@ const {
         </el-tag>
       </div>
       <pure-table
-        v-loading="batchUpdate.versionsLoading"
+        v-loading="versionsLoading"
         border
         align-whole="center"
         show-overflow-tooltip

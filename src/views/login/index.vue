@@ -11,14 +11,9 @@ import Motion from "./utils/motion";
 import { useRouter } from "vue-router";
 import { message } from "@/utils/message";
 import { loginRules } from "./utils/rule";
-import phone from "./components/phone.vue";
 import TypeIt from "@/components/ReTypeit";
-import qrCode from "./components/qrCode.vue";
-import register from "./components/register.vue";
-import resetPassword from "./components/resetPassword.vue";
 import { useNav } from "@/layout/hooks/useNav";
 import type { FormInstance } from "element-plus";
-import { operates, thirdParty } from "./utils/enums";
 import { useLayout } from "@/layout/hooks/useLayout";
 import { rsaEncrypt } from "@/utils/crypt";
 import { getTopMenu, initRouter } from "@/router/utils";
@@ -54,8 +49,6 @@ const loading = ref(false);
 const isRememberMe = ref(false);
 const pendingForceLogin = ref(false);
 const ruleFormRef = ref<FormInstance>();
-// 判断登录页面显示哪个组件（0：登录（默认）、1：手机登录、2：二维码登录、3：注册、4：忘记密码）
-const currentPage = ref(0);
 
 const { initStorage } = useLayout();
 initStorage();
@@ -219,7 +212,6 @@ onBeforeUnmount(() => {
             </Motion>
 
             <el-form
-              v-if="currentPage === 0"
               ref="ruleFormRef"
               :model="ruleForm"
               :rules="loginRules"
@@ -258,42 +250,8 @@ onBeforeUnmount(() => {
               </Motion>
 
               <Motion :delay="200">
-                <el-form-item v-if="isCaptchaOn" prop="captchaCode">
-                  <el-input
-                    v-model="ruleForm.captchaCode"
-                    :prefix-icon="useRenderIcon('ri:shield-keyhole-line')"
-                    clearable
-                    placeholder="验证码"
-                  >
-                    <template v-slot:append>
-                      <el-image
-                        :src="captchaCodeBase64"
-                        style="
-                          justify-content: center;
-                          width: 120px;
-                          height: 40px;
-                        "
-                        @click="getCaptchaCode"
-                      >
-                        <template #error>
-                          <span>Loading</span>
-                        </template>
-                      </el-image>
-                    </template>
-                  </el-input>
-                </el-form-item>
-              </Motion>
-
-              <Motion :delay="250">
                 <el-form-item>
-                  <div
-                    class="w-full h-[20px] flex justify-between items-center"
-                  >
-                    <el-checkbox v-model="isRememberMe"> 记住密码</el-checkbox>
-                    <el-button link type="primary" @click="currentPage = 4">
-                      忘记密码
-                    </el-button>
-                  </div>
+                  <el-checkbox v-model="isRememberMe">记住密码</el-checkbox>
                   <el-button
                     :loading="loading"
                     class="w-full mt-4"
@@ -305,66 +263,7 @@ onBeforeUnmount(() => {
                   </el-button>
                 </el-form-item>
               </Motion>
-
-              <Motion :delay="300">
-                <el-form-item>
-                  <div
-                    class="w-full h-[20px] flex justify-between items-center"
-                  >
-                    <el-button
-                      v-for="(item, index) in operates"
-                      :key="index"
-                      class="w-full mt-4"
-                      size="default"
-                      @click="currentPage = item.page"
-                    >
-                      {{ item.title }}
-                    </el-button>
-                  </div>
-                </el-form-item>
-              </Motion>
             </el-form>
-
-            <Motion v-if="currentPage === 0" :delay="350">
-              <el-form-item>
-                <el-divider>
-                  <p class="text-xs text-gray-500">{{ "第三方登录" }}</p>
-                </el-divider>
-                <div class="flex w-full justify-evenly">
-                  <span
-                    v-for="(item, index) in thirdParty"
-                    :key="index"
-                    :title="item.title"
-                  >
-                    <IconifyIconOnline
-                      :icon="`ri:${item.icon}-fill`"
-                      class="text-gray-500 cursor-pointer hover:text-blue-400"
-                      width="20"
-                    />
-                  </span>
-                </div>
-              </el-form-item>
-            </Motion>
-            <!-- 手机号登录 -->
-            <phone
-              v-if="currentPage === 1"
-              v-model:current-page="currentPage"
-            />
-            <!-- 二维码登录 -->
-            <qrCode
-              v-if="currentPage === 2"
-              v-model:current-page="currentPage"
-            />
-            <!-- 注册 -->
-            <register
-              v-if="currentPage === 3"
-              v-model:current-page="currentPage"
-            />
-            <!-- 忘记密码 -->
-            <resetPassword
-              v-if="currentPage === 4"
-              v-model:current-page="currentPage"
-            />
           </div>
         </div>
       </div>
