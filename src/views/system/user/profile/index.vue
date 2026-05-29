@@ -11,9 +11,7 @@ import { useUserStoreHook } from "@/store/modules/user";
 
 const activeTab = ref("userinfo");
 const state = reactive({
-  user: {},
-  roleName: {},
-  postName: {}
+  user: {}
 });
 
 /** 用户名 */
@@ -26,7 +24,6 @@ function getUser() {
   // userApi.getUserProfile().then(response => {
   //   state.user = response.user;
   //   state.roleName = response.roleName;
-  //   state.postName = response.postName;
   // });
 }
 
@@ -58,10 +55,6 @@ getUser();
                 <el-descriptions-item label="用户邮箱">{{
                   currentUserInfo.email
                 }}</el-descriptions-item>
-                <el-descriptions-item label="部门 / 职位">
-                  {{ currentUserInfo.deptName }} /
-                  {{ currentUserInfo.postName }}
-                </el-descriptions-item>
                 <el-descriptions-item label="角色">
                   {{ currentUserInfo.roleName }}
                 </el-descriptions-item>

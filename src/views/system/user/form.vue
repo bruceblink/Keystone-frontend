@@ -1,16 +1,35 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import ReCol from "@/components/ReCol";
 import { formRules } from "./rule";
 import { UserRequest } from "@/api/system/user";
-import { PostPageResponse } from "@/api/system/post";
 import { RoleDTO } from "@/api/system/role";
+import { DictionaryData } from "@/api/common/login";
 import { useUserStoreHook } from "@/store/modules/user";
+
+function getDictList(key: string): DictionaryData[] {
+  const { dictionaryList } = useUserStoreHook();
+  if (dictionaryList instanceof Map) {
+    return dictionaryList.get(key) ?? [];
+  }
+  return (dictionaryList as Record<string, DictionaryData[]>)?.[key] ?? [];
+}
+
+function getDictOptions(...keys: string[]): DictionaryData[] {
+  const { dictionaryMap } = useUserStoreHook();
+  for (const key of keys) {
+    const list = getDictList(key);
+    if (list.length) return list;
+    const map = dictionaryMap?.[key];
+    if (map && Object.keys(map).length) {
+      return Object.values(map);
+    }
+  }
+  return [];
+}
 
 interface FormProps {
   formInline: UserRequest;
-  deptOptions: any[];
-  postOptions: PostPageResponse[];
   roleOptions: RoleDTO[];
 }
 
@@ -19,25 +38,28 @@ const props = withDefaults(defineProps<FormProps>(), {
     userId: 0,
     username: "",
     nickname: "",
-    deptId: 0,
     phone: "",
     email: "",
     password: "",
     sex: 0,
     status: 1,
-    postId: 0,
     roleId: 0,
     remark: ""
   }),
-  deptOptions: () => [],
-  postOptions: () => [],
   roleOptions: () => []
 });
 
 const newFormInline = ref(props.formInline);
-const deptOptions = ref(props.deptOptions);
 const roleOptions = ref(props.roleOptions);
-const postOptions = ref(props.postOptions);
+
+const statusOptions = computed(() => {
+  const options = getDictOptions("sysUser.status", "common.status");
+  if (options.length) return options;
+  return [
+    { label: "正常", value: 1, cssTag: "" },
+    { label: "停用", value: 0, cssTag: "" }
+  ];
+});
 
 const formRuleRef = ref();
 
@@ -62,24 +84,6 @@ defineExpose({ getFormRuleRef });
             v-model="newFormInline.username"
             clearable
             placeholder="请输入用户名"
-          />
-        </el-form-item>
-      </re-col>
-      <re-col :value="12">
-        <el-form-item label="部门" prop="deptId">
-          <el-tree-select
-            class="w-full"
-            v-model="newFormInline.deptId"
-            :data="deptOptions"
-            :show-all-levels="false"
-            check-strictly
-            value-key="id"
-            :props="{
-              label: 'deptName',
-              children: 'children'
-            }"
-            clearable
-            placeholder="请选择部门"
           />
         </el-form-item>
       </re-col>
@@ -133,25 +137,6 @@ defineExpose({ getFormRuleRef });
       </re-col>
 
       <re-col :value="12">
-        <el-form-item label="岗位" prop="postId">
-          <el-select
-            class="w-full"
-            v-model="newFormInline.postId"
-            placeholder="请选择岗位"
-            clearable
-          >
-            <el-option
-              v-for="item in postOptions"
-              :key="item.postId"
-              :label="item.postName"
-              :value="item.postId"
-              :disabled="item.status == 0"
-            />
-          </el-select>
-        </el-form-item>
-      </re-col>
-
-      <re-col :value="12">
         <el-form-item label="角色" prop="roleId">
           <el-select
             class="w-full"
@@ -174,12 +159,11 @@ defineExpose({ getFormRuleRef });
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="newFormInline.status">
             <el-radio
-              v-for="item in useUserStoreHook().dictionaryList[
-                'sysUser.status'
-              ]"
+              v-for="item in statusOptions"
               :key="item.value"
-              :label="item.value"
-              >{{ item.label }}
+              :value="item.value"
+            >
+              {{ item.label }}
             </el-radio>
           </el-radio-group>
         </el-form-item>

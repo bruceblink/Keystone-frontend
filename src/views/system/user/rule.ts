@@ -17,7 +17,6 @@ export const formRules = reactive(<FormRules>{
       trigger: "blur"
     }
   ],
-  deptId: [{ required: true, message: "部门为必填项", trigger: "change" }],
   email: [
     { required: true, message: "邮箱为必填项", trigger: "blur" },
     {
