@@ -11,6 +11,9 @@ import { useDraggableMap } from "./utils/map";
 
 defineOptions({ name: "BoatDataManage" });
 
+const SearchIcon = useRenderIcon(Search);
+const RefreshIcon = useRenderIcon(Refresh);
+
 const {
   searchForm,
   alarmTypeOptions,
@@ -123,10 +126,24 @@ const tableRowClassName = ({ row }: { row: AlarmRecord }) =>
 
 watch(
   paginatedTableData,
-  async newVal => {
+  async (newVal, oldVal) => {
+    // 如果数据内容没变（只是引用变了），跳过
+    if (
+      newVal.length === oldVal?.length &&
+      newVal.every((item, i) => item.uuid === oldVal[i]?.uuid)
+    ) {
+      return;
+    }
+
     if (newVal.length) {
-      rowData.value = newVal[0];
-      currentRowIndex.value = 0;
+      // 只在确实需要时更新
+      if (
+        rowData.value?.uuid !== newVal[0].uuid ||
+        currentRowIndex.value !== 0
+      ) {
+        rowData.value = newVal[0];
+        currentRowIndex.value = 0;
+      }
       await nextTick();
       tableRef.value?.scrollTo({ top: 0, behavior: "smooth" });
     } else {
@@ -134,7 +151,7 @@ watch(
       currentRowIndex.value = null;
     }
   },
-  { immediate: true }
+  { immediate: true, flush: "post" }
 );
 
 const scrollToRow = async (rowIndex: number) => {
@@ -385,14 +402,11 @@ const REVIEW_TAG: Record<
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button
-          type="primary"
-          :icon="useRenderIcon(Search)"
-          @click="onSearch"
+        <el-button type="primary" :icon="SearchIcon" @click="onSearch"
           >搜索</el-button
         >
         <el-button
-          :icon="useRenderIcon(Refresh)"
+          :icon="RefreshIcon"
           @click="handleReset"
           :disabled="!hasInput"
           >重置</el-button
@@ -413,7 +427,7 @@ const REVIEW_TAG: Record<
             class="!w-[220px]"
           >
             <template #prefix>
-              <el-icon><component :is="useRenderIcon(Search)" /></el-icon>
+              <el-icon><component :is="SearchIcon" /></el-icon>
             </template>
           </el-input>
           <span class="toolbar-total">共 {{ tableDataTotal }} 条</span>

@@ -133,10 +133,12 @@ export function dedupeAlarmTypeOptions(
     const des = String(item.des ?? "");
     if (!desMap.has(des)) desMap.set(des, item);
   }
-  return Array.from(desMap.values()).map(item => ({
-    id: Number(item.id),
-    des: item.des ?? String(item.id ?? "")
-  }));
+  return Array.from(desMap.values())
+    .map(item => ({
+      id: Number(item.id),
+      des: item.des ?? String(item.id ?? "")
+    }))
+    .filter(item => !Number.isNaN(item.id));
 }
 
 /** 所属水域 — GET /combox/dict/query */
