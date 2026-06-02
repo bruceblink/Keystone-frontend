@@ -19,7 +19,6 @@ import type {
   UpdateServiceClientRequest
 } from "@/api/system/serviceClient";
 
-import View from "@iconify-icons/ep/view";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
 import EditPen from "@iconify-icons/ep/edit-pen";
@@ -480,16 +479,6 @@ onMounted(() => {
             </el-tag>
           </template>
           <template #operation="{ row }">
-            <el-button
-              class="reset-margin"
-              link
-              type="primary"
-              :size="size"
-              :icon="useRenderIcon(View)"
-              @click="openDialog('detail', row)"
-            >
-              详情
-            </el-button>
             <el-button
               class="reset-margin"
               link
