@@ -14,10 +14,13 @@ import { useBoatStoreHook } from "@/store/modules/boat";
 import { getGroupName } from "../../dict";
 import type { UpdateRecord } from "./types";
 
+/** 软件版本更新任务列表页：查询、筛选、轮询进度、删除 */
+
 type DeviceMeta = { shipname_cn: string; type: string };
 
 const normalizeDevid = (devid: unknown) => String(devid ?? "").trim();
 
+/** 兼容后端/历史数据中项目分组字段命名不一致 */
 const readDeviceType = (
   item: DeviceListItemDTO | VersionUpdateItemDTO
 ): string => {
@@ -29,6 +32,7 @@ const readDeviceType = (
   return "";
 };
 
+/** 以 devid 为键建立船名/分组索引，同时写入小写键以忽略大小写差异 */
 const buildDeviceMetaMap = (list: DeviceListItemDTO[]) => {
   const map: Record<string, DeviceMeta> = {};
   list.forEach(item => {
@@ -52,6 +56,10 @@ const lookupDeviceMeta = (
   return map[key] ?? map[key.toLowerCase()] ?? null;
 };
 
+/**
+ * 将更新任务 DTO 转为表格行数据；
+ * 任务接口可能不带船名/分组，需用设备列表 meta 补全展示字段
+ */
 const normalizeUpdate = (
   item: VersionUpdateItemDTO,
   deviceMetaMap: Record<string, DeviceMeta>
@@ -79,13 +87,15 @@ const normalizeUpdate = (
   };
 };
 
+/** 更新任务列表页主逻辑（index.vue 使用） */
 export function useUpdateList() {
   const boatStore = useBoatStoreHook();
   const updateList = ref<UpdateRecord[]>([]);
   const listLoading = ref(false);
+  /** 设备维表缓存，供 normalizeUpdate 与 getShipName/getDeviceGroup 使用 */
   const deviceMetaMap = ref<Record<string, DeviceMeta>>({});
 
-  /** 获取船舶列表，用于关联船名与项目分组 */
+  /** 拉取全量设备并同步到 boatStore（批量更新弹窗共用同一数据源） */
   const fetchDeviceList = async () => {
     try {
       const res = await getDeviceListQuery();
@@ -113,8 +123,10 @@ export function useUpdateList() {
   };
 
   const searchQuery = ref("");
+  /** 状态 tab：all | 0 未下载 | 1 下载中 | 2 下载完成 */
   const statusFilter = ref("all");
 
+  /** 前端筛选 + 排序：先按状态升序，同状态按更新时间倒序 */
   const filteredList = computed(() => {
     let list = [...updateList.value];
     if (statusFilter.value !== "all") {
@@ -150,12 +162,12 @@ export function useUpdateList() {
     background: true
   });
 
+  /** 前端分页切片，不再次请求接口 */
   const dataList = computed(() => {
     pagination.total = filteredList.value.length;
     const start = (pagination.currentPage - 1) * pagination.pageSize;
     return filteredList.value.slice(start, start + pagination.pageSize);
   });
-
   const onSearch = () => {
     pagination.currentPage = 1;
   };
@@ -181,19 +193,30 @@ export function useUpdateList() {
     { label: "操作", fixed: "right", minWidth: 80, slot: "operation" }
   ];
 
-  const fetchUpdateList = async (silent = false) => {
+  /** 仅查询更新任务（devid/status 为 -1 表示全部） */
+  const fetchUpdateTasks = async () => {
+    const res = await getVersionUpdateQuery({
+      devid: "-1",
+      status: "-1"
+    });
+    updateList.value = (res.data ?? []).map(item =>
+      normalizeUpdate(item, deviceMetaMap.value)
+    );
+  };
+
+  /**
+   * @param silent 为 true 时不显示 loading（定时轮询、删除后静默刷新）
+   * @param refreshDevices 是否同步拉取设备列表；轮询时默认 false，仅刷新任务进度
+   */
+  const fetchUpdateList = async (silent = false, refreshDevices = !silent) => {
     if (!silent) listLoading.value = true;
     try {
-      await fetchDeviceList();
-      const res = await getVersionUpdateQuery({
-        devid: "-1",
-        status: "-1"
-      });
-      updateList.value = (res.data ?? []).map(item =>
-        normalizeUpdate(item, deviceMetaMap.value)
-      );
+      if (refreshDevices) {
+        await fetchDeviceList();
+      }
+      await fetchUpdateTasks();
     } catch (err) {
-      console.error("[software] /version/update/query 失败:", err);
+      console.error("[software] 更新列表加载失败:", err);
       if (!silent) ElMessage.error("更新列表加载失败");
       updateList.value = [];
     } finally {
@@ -205,7 +228,7 @@ export function useUpdateList() {
     searchQuery.value = "";
     statusFilter.value = "all";
     pagination.currentPage = 1;
-    await fetchUpdateList();
+    await fetchUpdateList(false, true);
     ElMessage.success("已刷新");
   };
 
@@ -243,11 +266,13 @@ export function useUpdateList() {
       .catch(() => {});
   };
 
+  /** 定时轮询任务进度，离开页面时 stopPolling 释放定时器 */
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
   const startPolling = () => {
     stopPolling();
-    refreshTimer = setInterval(() => fetchUpdateList(true), 10000);
+    refreshTimer = setInterval(() => fetchUpdateList(true, false), 10000);
   };
+
   const stopPolling = () => {
     if (refreshTimer) {
       clearInterval(refreshTimer);

@@ -11,7 +11,10 @@ const emit = defineEmits<{
 
 const {
   allDevices,
+  deviceSearch,
+  filteredDevices,
   selectedDevices,
+  deviceTableRef,
   handleSelectionChange,
   deviceColumns,
   versionsLoading,
@@ -35,13 +38,24 @@ const {
           已选 {{ selectedDevices.length }} / {{ allDevices.length }} 台
         </el-tag>
       </div>
+      <div class="search-bar">
+        <el-input
+          v-model="deviceSearch"
+          placeholder="搜索设备编号 / 船名"
+          clearable
+          size="small"
+        />
+      </div>
       <pure-table
+        ref="deviceTableRef"
         v-loading="versionsLoading"
         border
         align-whole="center"
         show-overflow-tooltip
         table-layout="auto"
-        :data="allDevices"
+        row-key="devid"
+        :height="420"
+        :data="filteredDevices"
         :columns="deviceColumns"
         :header-cell-style="{
           background: 'var(--el-table-row-hover-bg-color)',
@@ -98,7 +112,7 @@ const {
             >
               <div class="version-opt">
                 <span class="v-num">{{ v.version }}</span>
-                <span class="v-size">{{ v.size }} MB</span>
+                <span class="v-size">{{ v.size }}</span>
               </div>
             </el-option>
           </el-select>
@@ -158,6 +172,11 @@ const {
   font-size: 14px;
   font-weight: 600;
   background: var(--el-table-row-hover-bg-color);
+  border-bottom: 1px solid var(--el-border-color);
+}
+
+.search-bar {
+  padding: 8px 12px;
   border-bottom: 1px solid var(--el-border-color);
 }
 
