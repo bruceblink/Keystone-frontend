@@ -42,7 +42,7 @@ defineExpose({ publishVersion });
         v-model="searchQuery"
         placeholder="搜索软件名称、版本号、路径、说明"
         clearable
-        class="!w-[260px]"
+        class="!w-[360px]"
       >
         <template #prefix>
           <el-icon>

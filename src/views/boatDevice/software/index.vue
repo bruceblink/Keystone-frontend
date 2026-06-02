@@ -100,6 +100,11 @@ const STATUS_LABEL: Record<string, string> = {
       width="860px"
       destroy-on-close
       :close-on-click-modal="false"
+      :body-style="{
+        maxHeight: '80vh',
+        overflowY: 'auto',
+        padding: '0 20px 20px'
+      }"
     >
       <BatchUpdate @submitted="handleBatchSubmitted" />
     </el-dialog>
