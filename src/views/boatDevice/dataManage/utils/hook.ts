@@ -1,4 +1,4 @@
-import { ref, computed, onMounted } from "vue";
+import { ref, shallowRef, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { useBoatStoreHook } from "@/store/modules/boat";
 import {
@@ -91,7 +91,7 @@ export function useDataManage() {
     projectGroup: "-1"
   });
 
-  const alarmTypeOptions = ref<AlarmType[]>([]);
+  const alarmTypeOptions = shallowRef<AlarmType[]>([]);
   const regionMap = ref<Record<number, string>>({});
   const eleFenceList = ref<FenceItem[]>([]);
   const tableData = ref<AlarmRecord[]>([]);
