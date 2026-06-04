@@ -23,6 +23,21 @@ export type DictListItemDTO = {
   create_time?: string;
 };
 
+type DeviceConfigItemDTO = {
+  id?: string;
+  _id?: string;
+  value?: string;
+  label?: string;
+  keyname?: string;
+  keyvalue?: string;
+  devid?: string;
+  extra?: {
+    valueType?: string;
+    description?: string;
+    user?: string;
+  };
+};
+
 /** 新增/编辑数据字典请求体 */
 export type DictSaveDTO = {
   _id?: string;
@@ -73,44 +88,73 @@ const deviceRequest = <T>(
 
 /** 查询数据字典列表 */
 export const getDictListQuery = (params?: DictListQuery) => {
-  return deviceRequest<DictListItemDTO[]>("get", "/data/dict/query", {
+  return deviceRequest<DeviceConfigItemDTO[]>("get", "/device/configs", {
     params: {
-      keyname: params?.keyname ?? "default",
-      devid: params?.devid ?? "-1"
+      devid: params?.devid ?? "-1",
+      includeGlobal: true
     }
-  });
+  }).then(res => ({
+    ...res,
+    data: (Array.isArray(res.data) ? res.data : [])
+      .filter(item => {
+        const key = item.value ?? item.keyname ?? "";
+        return (
+          !params?.keyname ||
+          params.keyname === "default" ||
+          key === params.keyname
+        );
+      })
+      .map(item => ({
+        _id: item._id ?? item.id,
+        keyname: item.value ?? item.keyname,
+        keyvalue: item.label ?? item.keyvalue,
+        type: item.extra?.valueType,
+        descripton: item.extra?.description,
+        user: item.extra?.user,
+        devid: item.devid
+      }))
+  }));
 };
-
-const buildDictSaveBody = (data: DictSaveDTO) => ({
-  keyname: data.keyname,
-  keyvalue: data.keyvalue,
-  type: data.type,
-  descripton: data.descripton,
-  user: data.user ?? "",
-  devid: data.devid,
-  create_time: data.create_time ?? "",
-  _id: data._id ?? ""
-});
 
 /** 新增数据字典 */
 export const addDictList = (data: DictSaveDTO) => {
-  return deviceRequest<void>("post", "/data/dict/add", {
+  return deviceRequest<void>("post", "/device/configs", {
     params: { devid: data.devid },
-    data: buildDictSaveBody(data)
+    data: {
+      id: data._id ?? "",
+      dictType: "device.config",
+      value: data.keyname,
+      label: data.keyvalue,
+      status: 1,
+      devid: data.devid,
+      extra: {
+        valueType: data.type,
+        description: data.descripton,
+        user: data.user ?? ""
+      }
+    }
   });
 };
 
 /** 编辑数据字典 */
 export const updateDictList = (data: DictSaveDTO) => {
-  return deviceRequest<void>("post", "/data/dict/edit", {
-    params: { devid: data.devid },
-    data: buildDictSaveBody(data)
+  return deviceRequest<void>("put", `/device/configs/${data._id}`, {
+    data: {
+      dictType: "device.config",
+      value: data.keyname,
+      label: data.keyvalue,
+      status: 1,
+      devid: data.devid,
+      extra: {
+        valueType: data.type,
+        description: data.descripton,
+        user: data.user ?? ""
+      }
+    }
   });
 };
 
 /** 删除数据字典 */
 export const deleteDictList = (_id: string) => {
-  return deviceRequest<void>("delete", "/data/dict/delete", {
-    params: { _id }
-  });
+  return deviceRequest<void>("delete", `/device/dictionaries/items/${_id}`);
 };

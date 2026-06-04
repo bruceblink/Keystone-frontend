@@ -24,6 +24,15 @@ export type ReasonTypeListItemDTO = {
   create_time?: string;
   updated_at?: string;
   user?: string;
+  extra?: {
+    alarmid?: string;
+    s2cloud?: string | number;
+    s2ship?: string | number;
+    visibility?: string | number;
+    type?: string;
+  };
+  label?: string;
+  value?: string | number;
 };
 
 /** 新增/编辑原因类型请求体 */
@@ -80,48 +89,79 @@ const deviceRequest = <T>(
 export const getReasonTypeListQuery = (params?: ReasonTypeListQuery) => {
   return deviceRequest<ReasonTypeListItemDTO[]>(
     "get",
-    "/reasontype/dict/query",
+    "/device/dictionaries/items",
     {
       params: {
-        id: params?.id ?? "-1",
-        devid: params?.devid ?? "-1"
+        dictType: "device.reasonType",
+        value: params?.id && params.id !== "-1" ? params.id : undefined,
+        devid: params?.devid ?? "-1",
+        status: 1,
+        includeGlobal: true
       }
     }
-  );
+  ).then(res => ({
+    ...res,
+    data: (Array.isArray(res.data) ? res.data : []).map<ReasonTypeListItemDTO>(
+      item => ({
+        ...item,
+        _id: String(item._id ?? item.id ?? ""),
+        id: String(item.value ?? item.id ?? ""),
+        alarmid: String(item.alarmid ?? item.extra?.alarmid ?? ""),
+        des: String(item.des ?? item.label ?? ""),
+        type: String(item.type ?? item.extra?.type ?? ""),
+        s2cloud: item.s2cloud ?? item.extra?.s2cloud,
+        s2ship: item.s2ship ?? item.extra?.s2ship,
+        visibility: item.visibility ?? item.extra?.visibility
+      })
+    )
+  }));
 };
-
-const buildReasonTypeSaveBody = (data: ReasonTypeSaveDTO) => ({
-  id: data.id,
-  alarmid: data.alarmid,
-  des: data.des,
-  type: data.type ?? "1",
-  s2cloud: data.s2cloud,
-  s2ship: data.s2ship,
-  visibility: data.visibility,
-  devid: data.devid,
-  create_time: data.create_time ?? "",
-  _id: data._id ?? ""
-});
 
 /** 新增原因类型 */
 export const addReasonTypeList = (data: ReasonTypeSaveDTO) => {
-  return deviceRequest<void>("post", "/reasontype/dict/add", {
+  return deviceRequest<void>("post", "/device/dictionaries/items", {
     params: { devid: data.devid },
-    data: buildReasonTypeSaveBody(data)
+    data: {
+      id: data._id ?? "",
+      dictType: "device.reasonType",
+      value: data.id,
+      label: data.des,
+      parentValue: data.alarmid,
+      status: 1,
+      devid: data.devid,
+      extra: {
+        alarmid: data.alarmid,
+        type: data.type ?? "1",
+        s2cloud: data.s2cloud,
+        s2ship: data.s2ship,
+        visibility: data.visibility
+      }
+    }
   });
 };
 
 /** 编辑原因类型 */
 export const updateReasonTypeList = (data: ReasonTypeSaveDTO) => {
-  return deviceRequest<void>("post", "/reasontype/dict/edit", {
-    params: { devid: data.devid },
-    data: buildReasonTypeSaveBody(data)
+  return deviceRequest<void>("put", `/device/dictionaries/items/${data._id}`, {
+    data: {
+      dictType: "device.reasonType",
+      value: data.id,
+      label: data.des,
+      parentValue: data.alarmid,
+      status: 1,
+      devid: data.devid,
+      extra: {
+        alarmid: data.alarmid,
+        type: data.type ?? "1",
+        s2cloud: data.s2cloud,
+        s2ship: data.s2ship,
+        visibility: data.visibility
+      }
+    }
   });
 };
 
 /** 删除原因类型 */
 export const deleteReasonTypeList = (_id: string) => {
-  return deviceRequest<void>("delete", "/reasontype/dict/delete", {
-    params: { _id }
-  });
+  return deviceRequest<void>("delete", `/device/dictionaries/items/${_id}`);
 };

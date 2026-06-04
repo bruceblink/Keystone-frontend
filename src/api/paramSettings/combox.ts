@@ -114,10 +114,16 @@ export function normalizeComboxRegionMap(
 
 /** 查询下拉字典 */
 export const getComboxDictQuery = (params: ComboxDictQuery) => {
-  return deviceRequest<ComboxDictItemDTO[]>("get", "/combox/dict/query", {
-    params: {
-      name: params.name,
-      devid: params.devid
+  return deviceRequest<ComboxDictItemDTO[]>(
+    "get",
+    "/device/dictionaries/items",
+    {
+      params: {
+        dictType: params.name,
+        devid: params.devid,
+        status: 1,
+        includeGlobal: true
+      }
     }
-  });
+  );
 };
