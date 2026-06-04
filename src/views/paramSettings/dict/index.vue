@@ -29,7 +29,10 @@ const {
   categoryOptions,
   scopeOptions,
   needsBoat,
+  isConfigTab,
   showModuleFilter,
+  itemTabTitle,
+  searchPlaceholder,
   dataList,
   pagination,
   onSearch,
@@ -116,17 +119,18 @@ onMounted(() => {
     </div>
 
     <el-tabs v-model="activeTab" class="dict-tabs bg-bg_color w-[99/100] px-6">
-      <el-tab-pane label="字典值" name="items" />
+      <el-tab-pane label="设备配置" name="config" />
       <el-tab-pane label="字典类型" name="types" />
+      <el-tab-pane label="字典值" name="items" />
     </el-tabs>
 
     <!-- 搜索栏 -->
     <el-form
-      v-if="activeTab === 'items'"
+      v-if="activeTab !== 'types'"
       inline
       class="search-form bg-bg_color w-[99/100] pl-8 pt-[12px]"
     >
-      <el-form-item>
+      <el-form-item v-if="activeTab === 'items'">
         <el-select
           v-model="selectedDictType"
           placeholder="字典类型"
@@ -142,7 +146,7 @@ onMounted(() => {
           />
         </el-select>
       </el-form-item>
-      <el-form-item v-if="showModuleFilter">
+      <el-form-item v-if="isConfigTab">
         <el-select
           v-model="groupFilter"
           placeholder="模块"
@@ -163,7 +167,7 @@ onMounted(() => {
       <el-form-item>
         <el-input
           v-model="searchQuery"
-          placeholder="搜索值标识 / 显示名称 / 描述"
+          :placeholder="searchPlaceholder"
           clearable
           class="!w-[280px]"
           :disabled="needsBoat && !boatStore.selectedBoatId"
@@ -199,8 +203,8 @@ onMounted(() => {
     </el-form>
 
     <PureTableBar
-      v-if="activeTab === 'items'"
-      title="字典值"
+      v-if="activeTab !== 'types'"
+      :title="itemTabTitle"
       :columns="columns"
       @refresh="handleRefresh"
     >
@@ -382,6 +386,7 @@ onMounted(() => {
       :formRules="formRules"
       :moduleOptions="moduleOptions"
       :showModuleField="showModuleFilter"
+      :isConfigMode="isConfigTab"
       :onKeyValueInput="onKeyValueInput"
       @submit="submitAdd"
     />
@@ -394,6 +399,7 @@ onMounted(() => {
       :formRules="formRules"
       :moduleOptions="moduleOptions"
       :showModuleField="showModuleFilter"
+      :isConfigMode="isConfigTab"
       :onKeyValueInput="onKeyValueInput"
       @submit="submitEdit"
     />

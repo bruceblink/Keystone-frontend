@@ -8,6 +8,7 @@ defineProps<{
   formRules: FormRules;
   moduleOptions: Array<{ label: string; value: string }>;
   showModuleField: boolean;
+  isConfigMode: boolean;
   onKeyValueInput: (v: string, form: DictForm) => void;
 }>();
 
@@ -27,26 +28,31 @@ function handleSubmit() {
 <template>
   <el-dialog
     v-model="visible"
-    :title="mode === 'add' ? '新增字典值' : '编辑字典值'"
+    :title="`${mode === 'add' ? '新增' : '编辑'}${
+      isConfigMode ? '设备配置' : '字典值'
+    }`"
     width="480px"
     :close-on-click-modal="false"
     destroy-on-close
   >
-    <el-form ref="formRef" :model="form" :rules="formRules" label-width="70px">
+    <el-form ref="formRef" :model="form" :rules="formRules" label-width="82px">
       <el-form-item
-        label="值标识"
+        :label="isConfigMode ? '配置项' : '值标识'"
         :prop="mode === 'add' ? 'keyname' : undefined"
       >
         <el-input
           v-model="form.keyname"
-          placeholder="请输入值标识"
+          :placeholder="isConfigMode ? '请输入配置项' : '请输入值标识'"
           :disabled="mode === 'edit'"
         />
       </el-form-item>
-      <el-form-item label="显示名称" prop="keyvalue">
+      <el-form-item
+        :label="isConfigMode ? '配置值' : '显示名称'"
+        prop="keyvalue"
+      >
         <el-input
           v-model="form.keyvalue"
-          placeholder="请输入显示名称"
+          :placeholder="isConfigMode ? '请输入配置值' : '请输入显示名称'"
           @input="(v: string) => onKeyValueInput(v, form)"
         />
       </el-form-item>
