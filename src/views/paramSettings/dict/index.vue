@@ -9,8 +9,9 @@ import Search from "@iconify-icons/ep/search";
 import EditPen from "@iconify-icons/ep/edit-pen";
 import { toRef, onMounted } from "vue";
 import { useDictList } from "./utils";
-import type { DictItem } from "./utils/types";
+import type { DictItem, DictTypeItem } from "./utils/types";
 import DictDialog from "./components/DictDialog.vue";
+import DictTypeDialog from "./components/DictTypeDialog.vue";
 import { useBoatStoreHook } from "@/store/modules/boat";
 
 defineOptions({ name: "ParamDict" });
@@ -19,6 +20,7 @@ const boatStore = useBoatStoreHook();
 
 const {
   loading,
+  activeTab,
   searchQuery,
   groupFilter,
   moduleOptions,
@@ -42,7 +44,23 @@ const {
   handleBatchDelete,
   handleRefresh,
   handleExport,
-  handleImport
+  handleImport,
+  typeLoading,
+  typeSearchQuery,
+  typeDataList,
+  typePagination,
+  typeColumns,
+  typeAddVisible,
+  typeEditVisible,
+  typeAddForm,
+  typeEditForm,
+  typeFormRules,
+  handleTypeAdd,
+  submitTypeAdd,
+  handleTypeEdit,
+  submitTypeEdit,
+  handleTypeDelete,
+  handleTypeRefresh
 } = useDictList(toRef(boatStore, "selectedBoatId"));
 
 onMounted(() => {
@@ -90,8 +108,17 @@ onMounted(() => {
       />
     </div>
 
+    <el-tabs v-model="activeTab" class="dict-tabs bg-bg_color w-[99/100] px-6">
+      <el-tab-pane label="字段值" name="items" />
+      <el-tab-pane label="字典类型" name="types" />
+    </el-tabs>
+
     <!-- 搜索栏 -->
-    <el-form inline class="search-form bg-bg_color w-[99/100] pl-8 pt-[12px]">
+    <el-form
+      v-if="activeTab === 'items'"
+      inline
+      class="search-form bg-bg_color w-[99/100] pl-8 pt-[12px]"
+    >
       <el-form-item>
         <el-select
           v-model="groupFilter"
@@ -127,8 +154,33 @@ onMounted(() => {
         </el-input>
       </el-form-item>
     </el-form>
+    <el-form
+      v-else
+      inline
+      class="search-form bg-bg_color w-[99/100] pl-8 pt-[12px]"
+    >
+      <el-form-item>
+        <el-input
+          v-model="typeSearchQuery"
+          placeholder="搜索类型标识 / 名称 / 别名 / 备注"
+          clearable
+          class="!w-[320px]"
+        >
+          <template #prefix>
+            <el-icon>
+              <component :is="useRenderIcon(Search)" />
+            </el-icon>
+          </template>
+        </el-input>
+      </el-form-item>
+    </el-form>
 
-    <PureTableBar title="数据字典" :columns="columns" @refresh="handleRefresh">
+    <PureTableBar
+      v-if="activeTab === 'items'"
+      title="数据字典"
+      :columns="columns"
+      @refresh="handleRefresh"
+    >
       <template #buttons>
         <el-button
           type="primary"
@@ -216,6 +268,89 @@ onMounted(() => {
       </template>
     </PureTableBar>
 
+    <PureTableBar
+      v-else
+      title="字典类型"
+      :columns="typeColumns"
+      @refresh="handleTypeRefresh"
+    >
+      <template #buttons>
+        <el-button
+          type="primary"
+          :icon="useRenderIcon(AddFill)"
+          @click="handleTypeAdd"
+        >
+          新增
+        </el-button>
+      </template>
+
+      <template v-slot="{ size, dynamicColumns }">
+        <pure-table
+          border
+          align-whole="center"
+          show-overflow-tooltip
+          table-layout="auto"
+          :size="size"
+          adaptive
+          row-key="dictType"
+          :loading="typeLoading"
+          :data="typeDataList"
+          :columns="dynamicColumns"
+          :pagination="typePagination"
+          :paginationSmall="size === 'small'"
+          :header-cell-style="{
+            background: 'var(--el-table-row-hover-bg-color)',
+            color: 'var(--el-text-color-primary)'
+          }"
+          @page-size-change="
+            v => {
+              typePagination.pageSize = v;
+              typePagination.currentPage = 1;
+            }
+          "
+          @page-current-change="v => (typePagination.currentPage = v)"
+        >
+          <template #status="{ row }">
+            <el-tag :type="row.status === 1 ? 'success' : 'info'">
+              {{ row.status === 1 ? "启用" : "停用" }}
+            </el-tag>
+          </template>
+          <template #aliases="{ row }">
+            <div class="alias-list">
+              <el-tag
+                v-for="alias in row.aliases"
+                :key="alias"
+                size="small"
+                effect="plain"
+              >
+                {{ alias }}
+              </el-tag>
+            </div>
+          </template>
+          <template #operation="{ row }">
+            <el-button
+              link
+              type="primary"
+              :size="size"
+              :icon="useRenderIcon(EditPen)"
+              @click="handleTypeEdit(row as DictTypeItem)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              :size="size"
+              :icon="useRenderIcon(Delete)"
+              @click="handleTypeDelete(row as DictTypeItem)"
+            >
+              删除
+            </el-button>
+          </template>
+        </pure-table>
+      </template>
+    </PureTableBar>
+
     <!-- 新增弹窗 -->
     <DictDialog
       v-model:visible="addVisible"
@@ -237,6 +372,22 @@ onMounted(() => {
       :onKeyValueInput="onKeyValueInput"
       @submit="submitEdit"
     />
+
+    <DictTypeDialog
+      v-model:visible="typeAddVisible"
+      v-model:form="typeAddForm"
+      mode="add"
+      :formRules="typeFormRules"
+      @submit="submitTypeAdd"
+    />
+
+    <DictTypeDialog
+      v-model:visible="typeEditVisible"
+      v-model:form="typeEditForm"
+      mode="edit"
+      :formRules="typeFormRules"
+      @submit="submitTypeEdit"
+    />
   </div>
 </template>
 
@@ -249,5 +400,20 @@ onMounted(() => {
 
 .boat-selector-bar {
   border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.dict-tabs {
+  border-bottom: 1px solid var(--el-border-color-lighter);
+
+  :deep(.el-tabs__header) {
+    margin-bottom: 0;
+  }
+}
+
+.alias-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
 }
 </style>

@@ -20,3 +20,25 @@ export interface DictForm {
   user: string;
   create_time?: string;
 }
+
+export interface DictTypeItem {
+  dictType: string;
+  dictName: string;
+  category: string;
+  scope: string;
+  status: number;
+  sort: number;
+  remark: string;
+  aliases: string[];
+}
+
+export interface DictTypeForm {
+  dictType: string;
+  dictName: string;
+  category: string;
+  scope: string;
+  status: number;
+  sort: number;
+  remark: string;
+  aliases: string[];
+}

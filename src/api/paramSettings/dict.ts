@@ -47,6 +47,28 @@ export type ConfigModuleOption = {
   value: string;
 };
 
+export type DeviceDictionaryTypeDTO = {
+  dictType?: string;
+  dictName?: string;
+  category?: string;
+  scope?: string;
+  status?: number;
+  sort?: number;
+  remark?: string;
+  aliases?: string[];
+};
+
+export type DeviceDictionaryTypeSaveDTO = {
+  dictType: string;
+  dictName: string;
+  category: string;
+  scope: string;
+  status: number;
+  sort: number;
+  remark?: string;
+  aliases?: string[];
+};
+
 /** 新增/编辑数据字典请求体 */
 export type DictSaveDTO = {
   _id?: string;
@@ -156,6 +178,37 @@ export const getConfigModuleOptions = () => {
       }))
       .filter(item => item.label && item.value)
   }));
+};
+
+/** 查询字典类型 */
+export const getDeviceDictionaryTypes = () => {
+  return deviceRequest<DeviceDictionaryTypeDTO[]>(
+    "get",
+    "/device/dictionaries/types"
+  );
+};
+
+/** 新增字典类型 */
+export const addDeviceDictionaryType = (data: DeviceDictionaryTypeSaveDTO) => {
+  return deviceRequest<void>("post", "/device/dictionaries/types", { data });
+};
+
+/** 编辑字典类型 */
+export const updateDeviceDictionaryType = (
+  dictType: string,
+  data: DeviceDictionaryTypeSaveDTO
+) => {
+  return deviceRequest<void>("put", `/device/dictionaries/types/${dictType}`, {
+    data
+  });
+};
+
+/** 删除字典类型 */
+export const deleteDeviceDictionaryType = (dictType: string) => {
+  return deviceRequest<void>(
+    "delete",
+    `/device/dictionaries/types/${dictType}`
+  );
 };
 
 /** 新增数据字典 */

@@ -11,15 +11,21 @@ import {
 } from "vue";
 import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import * as XLSX from "xlsx";
-import type { DictItem, DictForm } from "./types";
+import type { DictItem, DictForm, DictTypeForm, DictTypeItem } from "./types";
 import {
   addDictList,
+  addDeviceDictionaryType,
   deleteDictList,
+  deleteDeviceDictionaryType,
+  getDeviceDictionaryTypes,
   getConfigModuleOptions,
   getDictListQuery,
+  updateDeviceDictionaryType,
   updateDictList,
   type ConfigModuleOption,
   type DictListItemDTO,
+  type DeviceDictionaryTypeDTO,
+  type DeviceDictionaryTypeSaveDTO,
   type DictSaveDTO
 } from "@/api/paramSettings/dict";
 import { formatDateTime, genId, getValueType } from "./dict";
@@ -53,6 +59,17 @@ const normalizeDict = (
   createdTime: item.create_time ?? ""
 });
 
+const normalizeDictType = (item: DeviceDictionaryTypeDTO): DictTypeItem => ({
+  dictType: item.dictType ?? "",
+  dictName: item.dictName ?? "",
+  category: item.category ?? "",
+  scope: item.scope ?? "",
+  status: item.status ?? 1,
+  sort: item.sort ?? 0,
+  remark: item.remark ?? "",
+  aliases: Array.isArray(item.aliases) ? item.aliases : []
+});
+
 const toSavePayload = (
   form: DictForm,
   devid: string,
@@ -69,12 +86,26 @@ const toSavePayload = (
   create_time: options?.create_time ?? form.create_time ?? ""
 });
 
+const toTypeSavePayload = (
+  form: DictTypeForm
+): DeviceDictionaryTypeSaveDTO => ({
+  dictType: form.dictType,
+  dictName: form.dictName,
+  category: form.category || "dictionary",
+  scope: form.scope || "device",
+  status: form.status ?? 1,
+  sort: form.sort ?? 0,
+  remark: form.remark,
+  aliases: form.aliases ?? []
+});
+
 export function useDictList(boatId: Ref<string>) {
   const tableData = ref<DictItem[]>([]);
   const loading = ref(false);
   const searchQuery = ref("");
   const groupFilter = ref("");
   const moduleOptions = ref<ConfigModuleOption[]>([...fallbackModuleOptions]);
+  const activeTab = ref<"items" | "types">("items");
 
   const moduleLabel = (groupKey?: string) => {
     if (!groupKey) return "";
@@ -125,6 +156,25 @@ export function useDictList(boatId: Ref<string>) {
     }
   };
 
+  const typeTableData = ref<DictTypeItem[]>([]);
+  const typeLoading = ref(false);
+  const typeSearchQuery = ref("");
+
+  const fetchTypeList = async () => {
+    typeLoading.value = true;
+    try {
+      const res = await getDeviceDictionaryTypes();
+      const list = Array.isArray(res.data) ? res.data : [];
+      typeTableData.value = list.map(normalizeDictType);
+      typePagination.currentPage = 1;
+    } catch (err) {
+      console.error("[dict] 查询字典类型失败:", err);
+      typeTableData.value = [];
+    } finally {
+      typeLoading.value = false;
+    }
+  };
+
   let stopBoatWatch: (() => void) | null = null;
 
   function startBoatWatch() {
@@ -146,6 +196,7 @@ export function useDictList(boatId: Ref<string>) {
   onMounted(async () => {
     startBoatWatch();
     await fetchModuleOptions();
+    await fetchTypeList();
     if (boatId.value) fetchDictList(boatId.value);
   });
   onBeforeUnmount(() => {
@@ -155,6 +206,7 @@ export function useDictList(boatId: Ref<string>) {
   onActivated(async () => {
     startBoatWatch();
     await fetchModuleOptions();
+    await fetchTypeList();
     if (boatId.value) fetchDictList(boatId.value);
   });
   onDeactivated(() => {
@@ -198,6 +250,38 @@ export function useDictList(boatId: Ref<string>) {
     background: true
   });
 
+  const typeFilteredData = computed(() => {
+    let list = [...typeTableData.value];
+    if (typeSearchQuery.value) {
+      const q = typeSearchQuery.value.toLowerCase();
+      list = list.filter(
+        item =>
+          item.dictType.toLowerCase().includes(q) ||
+          item.dictName.toLowerCase().includes(q) ||
+          item.category.toLowerCase().includes(q) ||
+          item.scope.toLowerCase().includes(q) ||
+          item.remark.toLowerCase().includes(q) ||
+          item.aliases.some(alias => alias.toLowerCase().includes(q))
+      );
+    }
+    return list.sort(
+      (a, b) => a.sort - b.sort || a.dictType.localeCompare(b.dictType)
+    );
+  });
+
+  const typePagination = reactive({
+    currentPage: 1,
+    pageSize: 30,
+    total: 0,
+    background: true
+  });
+
+  const typeDataList = computed(() => {
+    typePagination.total = typeFilteredData.value.length;
+    const start = (typePagination.currentPage - 1) * typePagination.pageSize;
+    return typeFilteredData.value.slice(start, start + typePagination.pageSize);
+  });
+
   const dataList = computed(() => {
     pagination.total = filteredData.value.length;
     const start = (pagination.currentPage - 1) * pagination.pageSize;
@@ -223,8 +307,32 @@ export function useDictList(boatId: Ref<string>) {
     { label: "操作", fixed: "right", width: 160, slot: "operation" }
   ];
 
+  const typeColumns: TableColumnList = [
+    {
+      label: "类型标识",
+      prop: "dictType",
+      minWidth: 190,
+      showOverflowTooltip: true
+    },
+    {
+      label: "类型名称",
+      prop: "dictName",
+      minWidth: 140,
+      showOverflowTooltip: true
+    },
+    { label: "分类", prop: "category", width: 110 },
+    { label: "作用域", prop: "scope", width: 100 },
+    { label: "状态", prop: "status", width: 90, slot: "status" },
+    { label: "排序", prop: "sort", width: 90 },
+    { label: "兼容别名", prop: "aliases", minWidth: 180, slot: "aliases" },
+    { label: "备注", prop: "remark", minWidth: 180, showOverflowTooltip: true },
+    { label: "操作", fixed: "right", width: 160, slot: "operation" }
+  ];
+
   const addVisible = ref(false);
   const editVisible = ref(false);
+  const typeAddVisible = ref(false);
+  const typeEditVisible = ref(false);
 
   const addForm = reactive<DictForm>({
     keyname: "",
@@ -246,10 +354,39 @@ export function useDictList(boatId: Ref<string>) {
     create_time: ""
   });
 
+  const typeAddForm = reactive<DictTypeForm>({
+    dictType: "",
+    dictName: "",
+    category: "dictionary",
+    scope: "device",
+    status: 1,
+    sort: 0,
+    remark: "",
+    aliases: []
+  });
+
+  const typeEditForm = reactive<DictTypeForm>({
+    dictType: "",
+    dictName: "",
+    category: "dictionary",
+    scope: "device",
+    status: 1,
+    sort: 0,
+    remark: "",
+    aliases: []
+  });
+
   const formRules: FormRules = {
     keyname: [{ required: true, message: "请输入键名", trigger: "blur" }],
     keyvalue: [{ required: true, message: "请输入键值", trigger: "blur" }],
     descripton: [{ required: true, message: "请输入描述", trigger: "blur" }]
+  };
+
+  const typeFormRules: FormRules = {
+    dictType: [{ required: true, message: "请输入类型标识", trigger: "blur" }],
+    dictName: [{ required: true, message: "请输入类型名称", trigger: "blur" }],
+    category: [{ required: true, message: "请选择分类", trigger: "change" }],
+    scope: [{ required: true, message: "请选择作用域", trigger: "change" }]
   };
 
   const onKeyValueInput = (val: string, form: DictForm) => {
@@ -270,6 +407,20 @@ export function useDictList(boatId: Ref<string>) {
       user: localStorage.getItem("username") || ""
     });
     addVisible.value = true;
+  };
+
+  const handleTypeAdd = () => {
+    Object.assign(typeAddForm, {
+      dictType: "",
+      dictName: "",
+      category: "dictionary",
+      scope: "device",
+      status: 1,
+      sort: 0,
+      remark: "",
+      aliases: []
+    });
+    typeAddVisible.value = true;
   };
 
   const submitAdd = async () => {
@@ -302,6 +453,24 @@ export function useDictList(boatId: Ref<string>) {
     }
   };
 
+  const submitTypeAdd = async () => {
+    if (
+      typeTableData.value.some(item => item.dictType === typeAddForm.dictType)
+    ) {
+      ElMessage.error("该类型标识已存在");
+      return;
+    }
+    try {
+      const res = await addDeviceDictionaryType(toTypeSavePayload(typeAddForm));
+      ElMessage.success(res.msg || "新增成功");
+      typeAddVisible.value = false;
+      await fetchTypeList();
+      await fetchModuleOptions();
+    } catch (err) {
+      console.error("[dict] 新增字典类型失败:", err);
+    }
+  };
+
   const handleEdit = (row: DictItem) => {
     Object.assign(editForm, {
       _id: row._id,
@@ -314,6 +483,20 @@ export function useDictList(boatId: Ref<string>) {
       create_time: row.createdTime
     });
     editVisible.value = true;
+  };
+
+  const handleTypeEdit = (row: DictTypeItem) => {
+    Object.assign(typeEditForm, {
+      dictType: row.dictType,
+      dictName: row.dictName,
+      category: row.category,
+      scope: row.scope,
+      status: row.status,
+      sort: row.sort,
+      remark: row.remark,
+      aliases: [...row.aliases]
+    });
+    typeEditVisible.value = true;
   };
 
   const submitEdit = async () => {
@@ -336,6 +519,21 @@ export function useDictList(boatId: Ref<string>) {
     }
   };
 
+  const submitTypeEdit = async () => {
+    try {
+      const res = await updateDeviceDictionaryType(
+        typeEditForm.dictType,
+        toTypeSavePayload(typeEditForm)
+      );
+      ElMessage.success(res.msg || "编辑成功");
+      typeEditVisible.value = false;
+      await fetchTypeList();
+      await fetchModuleOptions();
+    } catch (err) {
+      console.error("[dict] 编辑字典类型失败:", err);
+    }
+  };
+
   const handleDelete = (row: DictItem) => {
     ElMessageBox.confirm(`确定要删除「${row.name}」吗？`, "提示", {
       confirmButtonText: "确定",
@@ -349,6 +547,25 @@ export function useDictList(boatId: Ref<string>) {
           if (boatId.value) await fetchDictList(boatId.value);
         } catch (err) {
           console.error("[dict] 删除数据字典失败:", err);
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleTypeDelete = (row: DictTypeItem) => {
+    ElMessageBox.confirm(`确定要删除字典类型「${row.dictName}」吗？`, "提示", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning"
+    })
+      .then(async () => {
+        try {
+          const res = await deleteDeviceDictionaryType(row.dictType);
+          ElMessage.success(res.msg || "删除成功");
+          await fetchTypeList();
+          await fetchModuleOptions();
+        } catch (err) {
+          console.error("[dict] 删除字典类型失败:", err);
         }
       })
       .catch(() => {});
@@ -397,6 +614,13 @@ export function useDictList(boatId: Ref<string>) {
     searchQuery.value = "";
     await fetchModuleOptions();
     await fetchDictList(boatId.value);
+    ElMessage.success("已刷新");
+  };
+
+  const handleTypeRefresh = async () => {
+    typeSearchQuery.value = "";
+    await fetchTypeList();
+    await fetchModuleOptions();
     ElMessage.success("已刷新");
   };
 
@@ -543,6 +767,7 @@ export function useDictList(boatId: Ref<string>) {
 
   return {
     loading,
+    activeTab,
     searchQuery,
     groupFilter,
     moduleOptions,
@@ -567,6 +792,22 @@ export function useDictList(boatId: Ref<string>) {
     handleBatchDelete,
     handleRefresh,
     handleExport,
-    handleImport
+    handleImport,
+    typeLoading,
+    typeSearchQuery,
+    typeDataList,
+    typePagination,
+    typeColumns,
+    typeAddVisible,
+    typeEditVisible,
+    typeAddForm,
+    typeEditForm,
+    typeFormRules,
+    handleTypeAdd,
+    submitTypeAdd,
+    handleTypeEdit,
+    submitTypeEdit,
+    handleTypeDelete,
+    handleTypeRefresh
   };
 }
