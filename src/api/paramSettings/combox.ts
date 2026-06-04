@@ -6,6 +6,8 @@ import type { PureHttpRequestConfig } from "@/utils/http/types.d";
 export type ComboxDictQuery = {
   /** 字典名称，如「所属水域」 */
   name: string;
+  /** 服务模块分组 */
+  groupKey?: string;
   /** 设备编号 */
   devid: string;
 };
@@ -26,6 +28,7 @@ export type ComboxDictItemDTO = {
   name?: string;
   keyname?: string;
   keyvalue?: string;
+  groupKey?: string;
   des?: string;
   id?: string | number;
 };
@@ -121,6 +124,7 @@ export const getComboxDictQuery = (params: ComboxDictQuery) => {
       params: {
         dictType: params.name,
         devid: params.devid,
+        groupKey: params.groupKey || undefined,
         status: 1,
         includeGlobal: true
       }

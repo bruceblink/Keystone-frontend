@@ -15,8 +15,10 @@ import type { DictItem, DictForm } from "./types";
 import {
   addDictList,
   deleteDictList,
+  getConfigModuleOptions,
   getDictListQuery,
   updateDictList,
+  type ConfigModuleOption,
   type DictListItemDTO,
   type DictSaveDTO
 } from "@/api/paramSettings/dict";
@@ -29,10 +31,22 @@ import {
   showImportResult
 } from "../../importExport";
 
-const normalizeDict = (item: DictListItemDTO): DictItem => ({
+const fallbackModuleOptions: ConfigModuleOption[] = [
+  { label: "通用", value: "common" }
+];
+
+const dictKey = (keyname: string, groupKey?: string) =>
+  `${groupKey ?? ""}\u0000${keyname}`;
+
+const normalizeDict = (
+  item: DictListItemDTO,
+  moduleLabel: (groupKey?: string) => string
+): DictItem => ({
   _id: String(item._id ?? genId()),
   name: item.keyname ?? "",
   value: item.keyvalue ?? "",
+  groupKey: item.groupKey ?? "",
+  groupName: moduleLabel(item.groupKey),
   dataType: item.type ?? "",
   description: item.descripton ?? "",
   user: item.user ?? "",
@@ -47,6 +61,7 @@ const toSavePayload = (
   _id: options?._id ?? form._id,
   keyname: form.keyname,
   keyvalue: form.keyvalue,
+  groupKey: form.groupKey ?? "",
   type: form.type || getValueType(form.keyvalue),
   descripton: form.descripton,
   user: form.user || localStorage.getItem("username") || "",
@@ -57,6 +72,35 @@ const toSavePayload = (
 export function useDictList(boatId: Ref<string>) {
   const tableData = ref<DictItem[]>([]);
   const loading = ref(false);
+  const searchQuery = ref("");
+  const groupFilter = ref("");
+  const moduleOptions = ref<ConfigModuleOption[]>([...fallbackModuleOptions]);
+
+  const moduleLabel = (groupKey?: string) => {
+    if (!groupKey) return "";
+    return (
+      moduleOptions.value.find(item => item.value === groupKey)?.label ??
+      groupKey
+    );
+  };
+
+  const moduleKey = (value?: string) => {
+    const key = String(value ?? "").trim();
+    return moduleOptions.value.find(item => item.label === key)?.value ?? key;
+  };
+
+  const fetchModuleOptions = async () => {
+    try {
+      const res = await getConfigModuleOptions();
+      const options = Array.isArray(res.data) ? res.data : [];
+      moduleOptions.value = options.length
+        ? options
+        : [...fallbackModuleOptions];
+    } catch (err) {
+      console.error("[dict] 查询配置模块字典失败:", err);
+      moduleOptions.value = [...fallbackModuleOptions];
+    }
+  };
 
   const fetchDictList = async (devid?: string) => {
     const id = devid ?? boatId.value;
@@ -66,9 +110,12 @@ export function useDictList(boatId: Ref<string>) {
     }
     loading.value = true;
     try {
-      const res = await getDictListQuery({ devid: id });
+      const res = await getDictListQuery({
+        devid: id,
+        groupKey: groupFilter.value || undefined
+      });
       const list = Array.isArray(res.data) ? res.data : [];
-      tableData.value = list.map(normalizeDict);
+      tableData.value = list.map(item => normalizeDict(item, moduleLabel));
       pagination.currentPage = 1;
     } catch (err) {
       console.error("[dict] 查询数据字典失败:", err);
@@ -96,24 +143,24 @@ export function useDictList(boatId: Ref<string>) {
     );
   }
 
-  onMounted(() => {
+  onMounted(async () => {
     startBoatWatch();
+    await fetchModuleOptions();
     if (boatId.value) fetchDictList(boatId.value);
   });
   onBeforeUnmount(() => {
     stopBoatWatch?.();
     stopBoatWatch = null;
   });
-  onActivated(() => {
+  onActivated(async () => {
     startBoatWatch();
+    await fetchModuleOptions();
     if (boatId.value) fetchDictList(boatId.value);
   });
   onDeactivated(() => {
     stopBoatWatch?.();
     stopBoatWatch = null;
   });
-
-  const searchQuery = ref("");
 
   const filteredData = computed(() => {
     let list = [...tableData.value];
@@ -123,6 +170,8 @@ export function useDictList(boatId: Ref<string>) {
         item =>
           item.name?.toLowerCase().includes(q) ||
           item.value?.toLowerCase().includes(q) ||
+          item.groupName?.toLowerCase().includes(q) ||
+          item.groupKey?.toLowerCase().includes(q) ||
           item.description?.toLowerCase().includes(q)
       );
     }
@@ -135,6 +184,11 @@ export function useDictList(boatId: Ref<string>) {
 
   const onSearch = () => {
     pagination.currentPage = 1;
+  };
+
+  const onGroupFilterChange = async () => {
+    pagination.currentPage = 1;
+    if (boatId.value) await fetchDictList(boatId.value);
   };
 
   const pagination = reactive({
@@ -156,6 +210,7 @@ export function useDictList(boatId: Ref<string>) {
     { type: "selection", width: 50, reserveSelection: true },
     { label: "键名", prop: "name", minWidth: 160, showOverflowTooltip: true },
     { label: "键值", prop: "value", minWidth: 160, showOverflowTooltip: true },
+    { label: "模块", prop: "groupName", width: 120, showOverflowTooltip: true },
     { label: "类型", prop: "dataType", width: 100 },
     {
       label: "描述",
@@ -174,6 +229,7 @@ export function useDictList(boatId: Ref<string>) {
   const addForm = reactive<DictForm>({
     keyname: "",
     keyvalue: "",
+    groupKey: "common",
     type: "",
     descripton: "",
     user: ""
@@ -183,6 +239,7 @@ export function useDictList(boatId: Ref<string>) {
     _id: "",
     keyname: "",
     keyvalue: "",
+    groupKey: "",
     type: "",
     descripton: "",
     user: "",
@@ -207,6 +264,7 @@ export function useDictList(boatId: Ref<string>) {
     Object.assign(addForm, {
       keyname: "",
       keyvalue: "",
+      groupKey: groupFilter.value || "common",
       type: "",
       descripton: "",
       user: localStorage.getItem("username") || ""
@@ -219,8 +277,14 @@ export function useDictList(boatId: Ref<string>) {
       ElMessage.warning("请先选择船只");
       return;
     }
-    if (tableData.value.find(item => item.name === addForm.keyname)) {
-      ElMessage.error("该键名已存在");
+    if (
+      tableData.value.find(
+        item =>
+          dictKey(item.name, item.groupKey) ===
+          dictKey(addForm.keyname, addForm.groupKey)
+      )
+    ) {
+      ElMessage.error("该模块下键名已存在");
       return;
     }
     try {
@@ -243,6 +307,7 @@ export function useDictList(boatId: Ref<string>) {
       _id: row._id,
       keyname: row.name,
       keyvalue: row.value,
+      groupKey: row.groupKey,
       type: row.dataType,
       descripton: row.description,
       user: row.user,
@@ -330,6 +395,7 @@ export function useDictList(boatId: Ref<string>) {
       return;
     }
     searchQuery.value = "";
+    await fetchModuleOptions();
     await fetchDictList(boatId.value);
     ElMessage.success("已刷新");
   };
@@ -340,6 +406,7 @@ export function useDictList(boatId: Ref<string>) {
     const exportData = rows.map(item => ({
       键名: item.name,
       键值: item.value,
+      模块: item.groupName || item.groupKey,
       类型: item.dataType,
       描述: item.description,
       用户: item.user,
@@ -350,6 +417,7 @@ export function useDictList(boatId: Ref<string>) {
     ws["!cols"] = [
       { wch: Math.max(10, ...exportData.map(r => String(r.键名).length)) },
       { wch: Math.max(15, ...exportData.map(r => String(r.键值).length)) },
+      { wch: 14 },
       { wch: 10 },
       { wch: Math.max(20, ...exportData.map(r => String(r.描述).length)) },
       { wch: 10 },
@@ -373,7 +441,9 @@ export function useDictList(boatId: Ref<string>) {
       return;
     }
 
-    const existingKeys = new Set(tableData.value.map(item => item.name));
+    const existingKeys = new Set(
+      tableData.value.map(item => dictKey(item.name, item.groupKey))
+    );
     const seenInFile = new Set<string>();
     const toImport: DictSaveDTO[] = [];
     const skipLogs: { row: number; reason: string }[] = [];
@@ -382,29 +452,41 @@ export function useDictList(boatId: Ref<string>) {
       const rowNum = index + 2;
       const keyname = String(row["键名"] || "").trim();
       const keyvalue = String(row["键值"] || "").trim();
+      const groupKey = moduleKey(
+        String(row["模块"] || groupFilter.value || "common")
+      );
+      const scopedKey = dictKey(keyname, groupKey);
 
       if (!keyname || !keyvalue) {
         skipLogs.push({ row: rowNum, reason: "缺少键名或键值" });
         return;
       }
-      if (seenInFile.has(keyname)) {
+      if (seenInFile.has(scopedKey)) {
         skipLogs.push({
           row: rowNum,
-          reason: `键名「${keyname}」在文件内重复`
+          reason: `模块「${
+            moduleLabel(groupKey) || groupKey
+          }」下键名「${keyname}」在文件内重复`
         });
         return;
       }
-      if (existingKeys.has(keyname)) {
-        skipLogs.push({ row: rowNum, reason: `键名「${keyname}」已存在` });
+      if (existingKeys.has(scopedKey)) {
+        skipLogs.push({
+          row: rowNum,
+          reason: `模块「${
+            moduleLabel(groupKey) || groupKey
+          }」下键名「${keyname}」已存在`
+        });
         return;
       }
 
-      seenInFile.add(keyname);
-      existingKeys.add(keyname);
+      seenInFile.add(scopedKey);
+      existingKeys.add(scopedKey);
       toImport.push({
         _id: genId(),
         keyname,
         keyvalue,
+        groupKey,
         type: getValueType(keyvalue),
         descripton: String(row["描述"] || ""),
         user: localStorage.getItem("username") || "",
@@ -462,10 +544,13 @@ export function useDictList(boatId: Ref<string>) {
   return {
     loading,
     searchQuery,
+    groupFilter,
+    moduleOptions,
     filteredData,
     dataList,
     pagination,
     onSearch,
+    onGroupFilterChange,
     multipleSelection,
     columns,
     addVisible,

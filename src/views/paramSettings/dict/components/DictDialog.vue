@@ -6,6 +6,7 @@ import type { DictForm } from "../utils/types";
 defineProps<{
   mode: "add" | "edit";
   formRules: FormRules;
+  moduleOptions: Array<{ label: string; value: string }>;
   onKeyValueInput: (v: string, form: DictForm) => void;
 }>();
 
@@ -44,6 +45,24 @@ function handleSubmit() {
           placeholder="请输入键值"
           @input="(v: string) => onKeyValueInput(v, form)"
         />
+      </el-form-item>
+      <el-form-item label="模块">
+        <el-select
+          v-model="form.groupKey"
+          placeholder="请选择模块"
+          clearable
+          filterable
+          allow-create
+          default-first-option
+          class="w-full"
+        >
+          <el-option
+            v-for="item in moduleOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item label="类型">
         <el-input v-model="form.type" disabled />

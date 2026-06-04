@@ -6,6 +6,8 @@ import type { PureHttpRequestConfig } from "@/utils/http/types.d";
 export type ReasonTypeListQuery = {
   /** 报警编号，-1 表示全部 */
   id?: string;
+  /** 服务模块分组 */
+  groupKey?: string;
   /** 设备编号，-1 表示全部 */
   devid?: string;
 };
@@ -20,6 +22,7 @@ export type ReasonTypeListItemDTO = {
   s2cloud?: string | number;
   s2ship?: string | number;
   visibility?: string | number;
+  groupKey?: string;
   devid?: string;
   create_time?: string;
   updated_at?: string;
@@ -45,6 +48,7 @@ export type ReasonTypeSaveDTO = {
   s2cloud: string;
   s2ship: string;
   visibility: string;
+  groupKey?: string;
   devid: string;
   create_time?: string;
 };
@@ -95,6 +99,7 @@ export const getReasonTypeListQuery = (params?: ReasonTypeListQuery) => {
         dictType: "device.reasonType",
         value: params?.id && params.id !== "-1" ? params.id : undefined,
         devid: params?.devid ?? "-1",
+        groupKey: params?.groupKey || undefined,
         status: 1,
         includeGlobal: true
       }
@@ -108,6 +113,7 @@ export const getReasonTypeListQuery = (params?: ReasonTypeListQuery) => {
         id: String(item.value ?? item.id ?? ""),
         alarmid: String(item.alarmid ?? item.extra?.alarmid ?? ""),
         des: String(item.des ?? item.label ?? ""),
+        groupKey: item.groupKey,
         type: String(item.type ?? item.extra?.type ?? ""),
         s2cloud: item.s2cloud ?? item.extra?.s2cloud,
         s2ship: item.s2ship ?? item.extra?.s2ship,
@@ -127,6 +133,7 @@ export const addReasonTypeList = (data: ReasonTypeSaveDTO) => {
       value: data.id,
       label: data.des,
       parentValue: data.alarmid,
+      groupKey: data.groupKey ?? "",
       status: 1,
       devid: data.devid,
       extra: {
@@ -148,6 +155,7 @@ export const updateReasonTypeList = (data: ReasonTypeSaveDTO) => {
       value: data.id,
       label: data.des,
       parentValue: data.alarmid,
+      groupKey: data.groupKey ?? "",
       status: 1,
       devid: data.devid,
       extra: {

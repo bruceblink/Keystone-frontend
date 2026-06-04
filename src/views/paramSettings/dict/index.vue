@@ -20,9 +20,12 @@ const boatStore = useBoatStoreHook();
 const {
   loading,
   searchQuery,
+  groupFilter,
+  moduleOptions,
   dataList,
   pagination,
   onSearch,
+  onGroupFilterChange,
   multipleSelection,
   columns,
   addVisible,
@@ -89,6 +92,24 @@ onMounted(() => {
 
     <!-- 搜索栏 -->
     <el-form inline class="search-form bg-bg_color w-[99/100] pl-8 pt-[12px]">
+      <el-form-item>
+        <el-select
+          v-model="groupFilter"
+          placeholder="模块"
+          clearable
+          filterable
+          class="!w-[180px]"
+          :disabled="!boatStore.selectedBoatId"
+          @change="onGroupFilterChange"
+        >
+          <el-option
+            v-for="item in moduleOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item>
         <el-input
           v-model="searchQuery"
@@ -201,6 +222,7 @@ onMounted(() => {
       v-model:form="addForm"
       mode="add"
       :formRules="formRules"
+      :moduleOptions="moduleOptions"
       :onKeyValueInput="onKeyValueInput"
       @submit="submitAdd"
     />
@@ -211,6 +233,7 @@ onMounted(() => {
       v-model:form="editForm"
       mode="edit"
       :formRules="formRules"
+      :moduleOptions="moduleOptions"
       :onKeyValueInput="onKeyValueInput"
       @submit="submitEdit"
     />
