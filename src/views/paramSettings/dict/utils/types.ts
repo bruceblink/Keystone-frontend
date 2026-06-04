@@ -1,5 +1,6 @@
 export interface DictItem {
   _id: string;
+  dictType: string;
   name: string;
   value: string;
   groupKey: string;
@@ -12,6 +13,7 @@ export interface DictItem {
 
 export interface DictForm {
   _id?: string;
+  dictType?: string;
   keyname: string;
   keyvalue: string;
   groupKey?: string;

@@ -17,12 +17,14 @@ import {
   addDeviceDictionaryType,
   deleteDictList,
   deleteDeviceDictionaryType,
+  getDeviceDictionaryOptions,
   getDeviceDictionaryTypes,
   getConfigModuleOptions,
   getDictListQuery,
   updateDeviceDictionaryType,
   updateDictList,
   type ConfigModuleOption,
+  type DeviceDictionaryOption,
   type DictListItemDTO,
   type DeviceDictionaryTypeDTO,
   type DeviceDictionaryTypeSaveDTO,
@@ -41,6 +43,16 @@ const fallbackModuleOptions: ConfigModuleOption[] = [
   { label: "通用", value: "common" }
 ];
 
+const fallbackCategoryOptions: DeviceDictionaryOption[] = [
+  { label: "字典", value: "dictionary" },
+  { label: "配置", value: "config" }
+];
+
+const fallbackScopeOptions: DeviceDictionaryOption[] = [
+  { label: "设备", value: "device" },
+  { label: "全局", value: "global" }
+];
+
 const dictKey = (keyname: string, groupKey?: string) =>
   `${groupKey ?? ""}\u0000${keyname}`;
 
@@ -49,6 +61,7 @@ const normalizeDict = (
   moduleLabel: (groupKey?: string) => string
 ): DictItem => ({
   _id: String(item._id ?? genId()),
+  dictType: item.dictType ?? "",
   name: item.keyname ?? "",
   value: item.keyvalue ?? "",
   groupKey: item.groupKey ?? "",
@@ -76,6 +89,7 @@ const toSavePayload = (
   options?: { _id?: string; create_time?: string }
 ): DictSaveDTO => ({
   _id: options?._id ?? form._id,
+  dictType: form.dictType,
   keyname: form.keyname,
   keyvalue: form.keyvalue,
   groupKey: form.groupKey ?? "",
@@ -104,8 +118,34 @@ export function useDictList(boatId: Ref<string>) {
   const loading = ref(false);
   const searchQuery = ref("");
   const groupFilter = ref("");
+  const selectedDictType = ref("device.config");
   const moduleOptions = ref<ConfigModuleOption[]>([...fallbackModuleOptions]);
+  const categoryOptions = ref<DeviceDictionaryOption[]>([
+    ...fallbackCategoryOptions
+  ]);
+  const scopeOptions = ref<DeviceDictionaryOption[]>([...fallbackScopeOptions]);
+  const dictTypeOptions = ref<DeviceDictionaryOption[]>([]);
   const activeTab = ref<"items" | "types">("items");
+
+  const currentDictType = computed(() =>
+    typeTableData.value.find(item => item.dictType === selectedDictType.value)
+  );
+
+  const isGlobalDictType = computed(
+    () => currentDictType.value?.scope === "global"
+  );
+
+  const needsBoat = computed(() => !isGlobalDictType.value);
+
+  const showModuleFilter = computed(
+    () => selectedDictType.value === "device.config"
+  );
+
+  const currentScopeDevid = () =>
+    isGlobalDictType.value ? "-1" : boatId.value;
+
+  const optionLabel = (options: DeviceDictionaryOption[], value?: string) =>
+    options.find(item => item.value === value)?.label ?? value ?? "";
 
   const moduleLabel = (groupKey?: string) => {
     if (!groupKey) return "";
@@ -133,23 +173,47 @@ export function useDictList(boatId: Ref<string>) {
     }
   };
 
+  const fetchTypeMetadataOptions = async () => {
+    try {
+      const [categoryRes, scopeRes] = await Promise.all([
+        getDeviceDictionaryOptions("device.dictionaryCategory"),
+        getDeviceDictionaryOptions("device.dictionaryScope")
+      ]);
+      const categories = Array.isArray(categoryRes.data)
+        ? categoryRes.data
+        : [];
+      const scopes = Array.isArray(scopeRes.data) ? scopeRes.data : [];
+      categoryOptions.value = categories.length
+        ? categories
+        : [...fallbackCategoryOptions];
+      scopeOptions.value = scopes.length ? scopes : [...fallbackScopeOptions];
+    } catch (err) {
+      console.error("[dict] 查询字典类型元数据失败:", err);
+      categoryOptions.value = [...fallbackCategoryOptions];
+      scopeOptions.value = [...fallbackScopeOptions];
+    }
+  };
+
   const fetchDictList = async (devid?: string) => {
-    const id = devid ?? boatId.value;
-    if (!id) {
+    const id = devid ?? currentScopeDevid();
+    if (!selectedDictType.value || (needsBoat.value && !id)) {
       tableData.value = [];
       return;
     }
     loading.value = true;
     try {
       const res = await getDictListQuery({
+        dictType: selectedDictType.value,
         devid: id,
-        groupKey: groupFilter.value || undefined
+        groupKey: showModuleFilter.value
+          ? groupFilter.value || undefined
+          : undefined
       });
       const list = Array.isArray(res.data) ? res.data : [];
       tableData.value = list.map(item => normalizeDict(item, moduleLabel));
       pagination.currentPage = 1;
     } catch (err) {
-      console.error("[dict] 查询数据字典失败:", err);
+      console.error("[dict] 查询字典值失败:", err);
       tableData.value = [];
     } finally {
       loading.value = false;
@@ -166,6 +230,22 @@ export function useDictList(boatId: Ref<string>) {
       const res = await getDeviceDictionaryTypes();
       const list = Array.isArray(res.data) ? res.data : [];
       typeTableData.value = list.map(normalizeDictType);
+      dictTypeOptions.value = typeTableData.value
+        .filter(item => item.status === 1)
+        .map(item => ({
+          label: item.dictName
+            ? `${item.dictName}（${item.dictType}）`
+            : item.dictType,
+          value: item.dictType
+        }));
+      if (
+        dictTypeOptions.value.length &&
+        !dictTypeOptions.value.some(
+          item => item.value === selectedDictType.value
+        )
+      ) {
+        selectedDictType.value = dictTypeOptions.value[0].value;
+      }
       typePagination.currentPage = 1;
     } catch (err) {
       console.error("[dict] 查询字典类型失败:", err);
@@ -182,7 +262,9 @@ export function useDictList(boatId: Ref<string>) {
     stopBoatWatch = watch(
       boatId,
       id => {
-        if (id) {
+        if (isGlobalDictType.value) {
+          fetchDictList("-1");
+        } else if (id) {
           fetchDictList(id);
         } else {
           tableData.value = [];
@@ -196,8 +278,9 @@ export function useDictList(boatId: Ref<string>) {
   onMounted(async () => {
     startBoatWatch();
     await fetchModuleOptions();
+    await fetchTypeMetadataOptions();
     await fetchTypeList();
-    if (boatId.value) fetchDictList(boatId.value);
+    if (currentScopeDevid()) fetchDictList(currentScopeDevid());
   });
   onBeforeUnmount(() => {
     stopBoatWatch?.();
@@ -206,8 +289,9 @@ export function useDictList(boatId: Ref<string>) {
   onActivated(async () => {
     startBoatWatch();
     await fetchModuleOptions();
+    await fetchTypeMetadataOptions();
     await fetchTypeList();
-    if (boatId.value) fetchDictList(boatId.value);
+    if (currentScopeDevid()) fetchDictList(currentScopeDevid());
   });
   onDeactivated(() => {
     stopBoatWatch?.();
@@ -240,7 +324,14 @@ export function useDictList(boatId: Ref<string>) {
 
   const onGroupFilterChange = async () => {
     pagination.currentPage = 1;
-    if (boatId.value) await fetchDictList(boatId.value);
+    if (currentScopeDevid()) await fetchDictList(currentScopeDevid());
+  };
+
+  const onDictTypeChange = async () => {
+    pagination.currentPage = 1;
+    groupFilter.value = "";
+    multipleSelection.value = [];
+    await fetchDictList(currentScopeDevid());
   };
 
   const pagination = reactive({
@@ -290,22 +381,42 @@ export function useDictList(boatId: Ref<string>) {
 
   const multipleSelection = ref<DictItem[]>([]);
 
-  const columns: TableColumnList = [
-    { type: "selection", width: 50, reserveSelection: true },
-    { label: "键名", prop: "name", minWidth: 160, showOverflowTooltip: true },
-    { label: "键值", prop: "value", minWidth: 160, showOverflowTooltip: true },
-    { label: "模块", prop: "groupName", width: 120, showOverflowTooltip: true },
-    { label: "类型", prop: "dataType", width: 100 },
-    {
-      label: "描述",
-      prop: "description",
-      minWidth: 180,
-      showOverflowTooltip: true
-    },
-    { label: "用户", prop: "user", width: 100 },
-    { label: "创建时间", prop: "createdTime", width: 170 },
-    { label: "操作", fixed: "right", width: 160, slot: "operation" }
-  ];
+  const columns = computed<TableColumnList>(() => {
+    const list: TableColumnList = [
+      { type: "selection", width: 50, reserveSelection: true },
+      {
+        label: "值标识",
+        prop: "name",
+        minWidth: 160,
+        showOverflowTooltip: true
+      },
+      {
+        label: "显示名称",
+        prop: "value",
+        minWidth: 160,
+        showOverflowTooltip: true
+      },
+      { label: "类型", prop: "dataType", width: 100 },
+      {
+        label: "描述",
+        prop: "description",
+        minWidth: 180,
+        showOverflowTooltip: true
+      },
+      { label: "用户", prop: "user", width: 100 },
+      { label: "创建时间", prop: "createdTime", width: 170 },
+      { label: "操作", fixed: "right", width: 160, slot: "operation" }
+    ];
+    if (showModuleFilter.value) {
+      list.splice(3, 0, {
+        label: "模块",
+        prop: "groupName",
+        width: 120,
+        showOverflowTooltip: true
+      });
+    }
+    return list;
+  });
 
   const typeColumns: TableColumnList = [
     {
@@ -320,8 +431,20 @@ export function useDictList(boatId: Ref<string>) {
       minWidth: 140,
       showOverflowTooltip: true
     },
-    { label: "分类", prop: "category", width: 110 },
-    { label: "作用域", prop: "scope", width: 100 },
+    {
+      label: "分类",
+      prop: "category",
+      width: 110,
+      formatter: ({ category }: DictTypeItem) =>
+        optionLabel(categoryOptions.value, category)
+    },
+    {
+      label: "作用域",
+      prop: "scope",
+      width: 100,
+      formatter: ({ scope }: DictTypeItem) =>
+        optionLabel(scopeOptions.value, scope)
+    },
     { label: "状态", prop: "status", width: 90, slot: "status" },
     { label: "排序", prop: "sort", width: 90 },
     { label: "兼容别名", prop: "aliases", minWidth: 180, slot: "aliases" },
@@ -377,8 +500,8 @@ export function useDictList(boatId: Ref<string>) {
   });
 
   const formRules: FormRules = {
-    keyname: [{ required: true, message: "请输入键名", trigger: "blur" }],
-    keyvalue: [{ required: true, message: "请输入键值", trigger: "blur" }],
+    keyname: [{ required: true, message: "请输入值标识", trigger: "blur" }],
+    keyvalue: [{ required: true, message: "请输入显示名称", trigger: "blur" }],
     descripton: [{ required: true, message: "请输入描述", trigger: "blur" }]
   };
 
@@ -394,14 +517,15 @@ export function useDictList(boatId: Ref<string>) {
   };
 
   const handleAdd = () => {
-    if (!boatId.value) {
+    if (needsBoat.value && !boatId.value) {
       ElMessage.warning("请先选择船只");
       return;
     }
     Object.assign(addForm, {
+      dictType: selectedDictType.value,
       keyname: "",
       keyvalue: "",
-      groupKey: groupFilter.value || "common",
+      groupKey: showModuleFilter.value ? groupFilter.value || "common" : "",
       type: "",
       descripton: "",
       user: localStorage.getItem("username") || ""
@@ -424,9 +548,13 @@ export function useDictList(boatId: Ref<string>) {
   };
 
   const submitAdd = async () => {
-    if (!boatId.value) {
+    if (needsBoat.value && !boatId.value) {
       ElMessage.warning("请先选择船只");
       return;
+    }
+    addForm.dictType = selectedDictType.value;
+    if (!showModuleFilter.value) {
+      addForm.groupKey = "";
     }
     if (
       tableData.value.find(
@@ -435,21 +563,21 @@ export function useDictList(boatId: Ref<string>) {
           dictKey(addForm.keyname, addForm.groupKey)
       )
     ) {
-      ElMessage.error("该模块下键名已存在");
+      ElMessage.error("该字典类型下值标识已存在");
       return;
     }
     try {
       const res = await addDictList(
-        toSavePayload(addForm, boatId.value, {
+        toSavePayload(addForm, currentScopeDevid(), {
           _id: genId(),
           create_time: formatDateTime(new Date())
         })
       );
       ElMessage.success(res.msg || "新增成功");
       addVisible.value = false;
-      await fetchDictList(boatId.value);
+      await fetchDictList(currentScopeDevid());
     } catch (err) {
-      console.error("[dict] 新增数据字典失败:", err);
+      console.error("[dict] 新增字典值失败:", err);
     }
   };
 
@@ -466,6 +594,8 @@ export function useDictList(boatId: Ref<string>) {
       typeAddVisible.value = false;
       await fetchTypeList();
       await fetchModuleOptions();
+      await fetchTypeMetadataOptions();
+      await fetchDictList(currentScopeDevid());
     } catch (err) {
       console.error("[dict] 新增字典类型失败:", err);
     }
@@ -474,6 +604,7 @@ export function useDictList(boatId: Ref<string>) {
   const handleEdit = (row: DictItem) => {
     Object.assign(editForm, {
       _id: row._id,
+      dictType: row.dictType || selectedDictType.value,
       keyname: row.name,
       keyvalue: row.value,
       groupKey: row.groupKey,
@@ -500,22 +631,26 @@ export function useDictList(boatId: Ref<string>) {
   };
 
   const submitEdit = async () => {
-    if (!boatId.value) {
+    if (needsBoat.value && !boatId.value) {
       ElMessage.warning("请先选择船只");
       return;
     }
+    editForm.dictType = editForm.dictType || selectedDictType.value;
+    if (!showModuleFilter.value) {
+      editForm.groupKey = "";
+    }
     try {
       const res = await updateDictList(
-        toSavePayload(editForm, boatId.value, {
+        toSavePayload(editForm, currentScopeDevid(), {
           _id: editForm._id,
           create_time: editForm.create_time
         })
       );
       ElMessage.success(res.msg || "编辑成功");
       editVisible.value = false;
-      await fetchDictList(boatId.value);
+      await fetchDictList(currentScopeDevid());
     } catch (err) {
-      console.error("[dict] 编辑数据字典失败:", err);
+      console.error("[dict] 编辑字典值失败:", err);
     }
   };
 
@@ -529,6 +664,8 @@ export function useDictList(boatId: Ref<string>) {
       typeEditVisible.value = false;
       await fetchTypeList();
       await fetchModuleOptions();
+      await fetchTypeMetadataOptions();
+      await fetchDictList(currentScopeDevid());
     } catch (err) {
       console.error("[dict] 编辑字典类型失败:", err);
     }
@@ -544,9 +681,9 @@ export function useDictList(boatId: Ref<string>) {
         try {
           const res = await deleteDictList(row._id);
           ElMessage.success(res.msg || "删除成功");
-          if (boatId.value) await fetchDictList(boatId.value);
+          if (currentScopeDevid()) await fetchDictList(currentScopeDevid());
         } catch (err) {
-          console.error("[dict] 删除数据字典失败:", err);
+          console.error("[dict] 删除字典值失败:", err);
         }
       })
       .catch(() => {});
@@ -564,6 +701,7 @@ export function useDictList(boatId: Ref<string>) {
           ElMessage.success(res.msg || "删除成功");
           await fetchTypeList();
           await fetchModuleOptions();
+          await fetchTypeMetadataOptions();
         } catch (err) {
           console.error("[dict] 删除字典类型失败:", err);
         }
@@ -594,7 +732,7 @@ export function useDictList(boatId: Ref<string>) {
           }
         }
         multipleSelection.value = [];
-        if (boatId.value) await fetchDictList(boatId.value);
+        if (currentScopeDevid()) await fetchDictList(currentScopeDevid());
         if (success > 0) {
           ElMessage.success(
             `批量删除成功 ${success} 条${failed ? `，失败 ${failed} 条` : ""}`
@@ -607,13 +745,14 @@ export function useDictList(boatId: Ref<string>) {
   };
 
   const handleRefresh = async () => {
-    if (!boatId.value) {
+    if (needsBoat.value && !boatId.value) {
       ElMessage.warning("请先选择船只");
       return;
     }
     searchQuery.value = "";
     await fetchModuleOptions();
-    await fetchDictList(boatId.value);
+    await fetchTypeList();
+    await fetchDictList(currentScopeDevid());
     ElMessage.success("已刷新");
   };
 
@@ -621,6 +760,7 @@ export function useDictList(boatId: Ref<string>) {
     typeSearchQuery.value = "";
     await fetchTypeList();
     await fetchModuleOptions();
+    await fetchTypeMetadataOptions();
     ElMessage.success("已刷新");
   };
 
@@ -628,8 +768,8 @@ export function useDictList(boatId: Ref<string>) {
     const rows = requireSelectionForExport(multipleSelection.value);
     if (!rows) return;
     const exportData = rows.map(item => ({
-      键名: item.name,
-      键值: item.value,
+      值标识: item.name,
+      显示名称: item.value,
       模块: item.groupName || item.groupKey,
       类型: item.dataType,
       描述: item.description,
@@ -639,16 +779,16 @@ export function useDictList(boatId: Ref<string>) {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportData);
     ws["!cols"] = [
-      { wch: Math.max(10, ...exportData.map(r => String(r.键名).length)) },
-      { wch: Math.max(15, ...exportData.map(r => String(r.键值).length)) },
+      { wch: Math.max(10, ...exportData.map(r => String(r.值标识).length)) },
+      { wch: Math.max(15, ...exportData.map(r => String(r.显示名称).length)) },
       { wch: 14 },
       { wch: 10 },
       { wch: Math.max(20, ...exportData.map(r => String(r.描述).length)) },
       { wch: 10 },
       { wch: 20 }
     ];
-    XLSX.utils.book_append_sheet(wb, ws, "数据字典");
-    XLSX.writeFile(wb, "数据字典.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "字典值");
+    XLSX.writeFile(wb, "字典值.xlsx");
     ElMessage.success("导出成功");
   };
 
@@ -658,7 +798,7 @@ export function useDictList(boatId: Ref<string>) {
       return;
     }
 
-    await fetchDictList(boatId.value);
+    await fetchDictList(currentScopeDevid());
     const jsonData = await readExcelJsonRows(file);
     if (!jsonData.length) {
       ElMessage.warning("文件中没有可导入的数据");
@@ -674,32 +814,37 @@ export function useDictList(boatId: Ref<string>) {
 
     jsonData.forEach((row, index) => {
       const rowNum = index + 2;
-      const keyname = String(row["键名"] || "").trim();
-      const keyvalue = String(row["键值"] || "").trim();
+      const keyname = String(row["值标识"] || row["键名"] || "").trim();
+      const keyvalue = String(row["显示名称"] || row["键值"] || "").trim();
       const groupKey = moduleKey(
         String(row["模块"] || groupFilter.value || "common")
       );
-      const scopedKey = dictKey(keyname, groupKey);
+      const scopedGroupKey = showModuleFilter.value ? groupKey : "";
+      const scopedKey = dictKey(keyname, scopedGroupKey);
 
       if (!keyname || !keyvalue) {
-        skipLogs.push({ row: rowNum, reason: "缺少键名或键值" });
+        skipLogs.push({ row: rowNum, reason: "缺少值标识或显示名称" });
         return;
       }
       if (seenInFile.has(scopedKey)) {
         skipLogs.push({
           row: rowNum,
-          reason: `模块「${
-            moduleLabel(groupKey) || groupKey
-          }」下键名「${keyname}」在文件内重复`
+          reason: showModuleFilter.value
+            ? `模块「${
+                moduleLabel(groupKey) || groupKey
+              }」下值标识「${keyname}」在文件内重复`
+            : `值标识「${keyname}」在文件内重复`
         });
         return;
       }
       if (existingKeys.has(scopedKey)) {
         skipLogs.push({
           row: rowNum,
-          reason: `模块「${
-            moduleLabel(groupKey) || groupKey
-          }」下键名「${keyname}」已存在`
+          reason: showModuleFilter.value
+            ? `模块「${
+                moduleLabel(groupKey) || groupKey
+              }」下值标识「${keyname}」已存在`
+            : `值标识「${keyname}」已存在`
         });
         return;
       }
@@ -708,13 +853,14 @@ export function useDictList(boatId: Ref<string>) {
       existingKeys.add(scopedKey);
       toImport.push({
         _id: genId(),
+        dictType: selectedDictType.value,
         keyname,
         keyvalue,
-        groupKey,
+        groupKey: scopedGroupKey,
         type: getValueType(keyvalue),
         descripton: String(row["描述"] || ""),
         user: localStorage.getItem("username") || "",
-        devid: boatId.value,
+        devid: currentScopeDevid(),
         create_time: formatDateTime(new Date())
       });
     });
@@ -738,7 +884,7 @@ export function useDictList(boatId: Ref<string>) {
           apiFailed++;
         }
       }
-      await fetchDictList(boatId.value);
+      await fetchDictList(currentScopeDevid());
       logImportFailures("dict", skipLogs);
       showImportResult(added, skipped, apiFailed);
     } finally {
@@ -747,7 +893,7 @@ export function useDictList(boatId: Ref<string>) {
   };
 
   const handleImport = () => {
-    if (!boatId.value) {
+    if (needsBoat.value && !boatId.value) {
       ElMessage.warning("请先选择船只");
       return;
     }
@@ -770,12 +916,19 @@ export function useDictList(boatId: Ref<string>) {
     activeTab,
     searchQuery,
     groupFilter,
+    selectedDictType,
+    dictTypeOptions,
     moduleOptions,
+    categoryOptions,
+    scopeOptions,
+    needsBoat,
+    showModuleFilter,
     filteredData,
     dataList,
     pagination,
     onSearch,
     onGroupFilterChange,
+    onDictTypeChange,
     multipleSelection,
     columns,
     addVisible,

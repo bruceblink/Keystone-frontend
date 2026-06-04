@@ -6,6 +6,8 @@ import type { DictTypeForm } from "../utils/types";
 defineProps<{
   mode: "add" | "edit";
   formRules: FormRules;
+  categoryOptions: Array<{ label: string; value: string }>;
+  scopeOptions: Array<{ label: string; value: string }>;
 }>();
 
 const form = defineModel<DictTypeForm>("form", { required: true });
@@ -45,12 +47,14 @@ function handleSubmit() {
           v-model="form.category"
           placeholder="请选择分类"
           filterable
-          allow-create
-          default-first-option
           class="w-full"
         >
-          <el-option label="配置" value="config" />
-          <el-option label="字典" value="dictionary" />
+          <el-option
+            v-for="item in categoryOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="作用域" prop="scope">
@@ -59,8 +63,12 @@ function handleSubmit() {
           placeholder="请选择作用域"
           class="w-full"
         >
-          <el-option label="设备" value="device" />
-          <el-option label="全局" value="global" />
+          <el-option
+            v-for="item in scopeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">

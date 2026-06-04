@@ -7,6 +7,7 @@ defineProps<{
   mode: "add" | "edit";
   formRules: FormRules;
   moduleOptions: Array<{ label: string; value: string }>;
+  showModuleField: boolean;
   onKeyValueInput: (v: string, form: DictForm) => void;
 }>();
 
@@ -26,27 +27,30 @@ function handleSubmit() {
 <template>
   <el-dialog
     v-model="visible"
-    :title="mode === 'add' ? '新增数据字典' : '编辑数据字典'"
+    :title="mode === 'add' ? '新增字典值' : '编辑字典值'"
     width="480px"
     :close-on-click-modal="false"
     destroy-on-close
   >
     <el-form ref="formRef" :model="form" :rules="formRules" label-width="70px">
-      <el-form-item label="键名" :prop="mode === 'add' ? 'keyname' : undefined">
+      <el-form-item
+        label="值标识"
+        :prop="mode === 'add' ? 'keyname' : undefined"
+      >
         <el-input
           v-model="form.keyname"
-          placeholder="请输入键名"
+          placeholder="请输入值标识"
           :disabled="mode === 'edit'"
         />
       </el-form-item>
-      <el-form-item label="键值" prop="keyvalue">
+      <el-form-item label="显示名称" prop="keyvalue">
         <el-input
           v-model="form.keyvalue"
-          placeholder="请输入键值"
+          placeholder="请输入显示名称"
           @input="(v: string) => onKeyValueInput(v, form)"
         />
       </el-form-item>
-      <el-form-item label="模块">
+      <el-form-item v-if="showModuleField" label="模块">
         <el-select
           v-model="form.groupKey"
           placeholder="请选择模块"

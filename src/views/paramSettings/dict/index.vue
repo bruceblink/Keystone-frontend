@@ -23,11 +23,18 @@ const {
   activeTab,
   searchQuery,
   groupFilter,
+  selectedDictType,
+  dictTypeOptions,
   moduleOptions,
+  categoryOptions,
+  scopeOptions,
+  needsBoat,
+  showModuleFilter,
   dataList,
   pagination,
   onSearch,
   onGroupFilterChange,
+  onDictTypeChange,
   multipleSelection,
   columns,
   addVisible,
@@ -100,7 +107,7 @@ onMounted(() => {
         }}）
       </el-tag>
       <el-alert
-        v-else
+        v-else-if="needsBoat"
         title="请先选择船只，再查看或编辑该船的数据字典"
         type="warning"
         :closable="false"
@@ -109,7 +116,7 @@ onMounted(() => {
     </div>
 
     <el-tabs v-model="activeTab" class="dict-tabs bg-bg_color w-[99/100] px-6">
-      <el-tab-pane label="字段值" name="items" />
+      <el-tab-pane label="字典值" name="items" />
       <el-tab-pane label="字典类型" name="types" />
     </el-tabs>
 
@@ -120,6 +127,22 @@ onMounted(() => {
       class="search-form bg-bg_color w-[99/100] pl-8 pt-[12px]"
     >
       <el-form-item>
+        <el-select
+          v-model="selectedDictType"
+          placeholder="字典类型"
+          filterable
+          class="!w-[260px]"
+          @change="onDictTypeChange"
+        >
+          <el-option
+            v-for="item in dictTypeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="showModuleFilter">
         <el-select
           v-model="groupFilter"
           placeholder="模块"
@@ -140,10 +163,10 @@ onMounted(() => {
       <el-form-item>
         <el-input
           v-model="searchQuery"
-          placeholder="搜索键名 / 键值 / 描述"
+          placeholder="搜索值标识 / 显示名称 / 描述"
           clearable
           class="!w-[280px]"
-          :disabled="!boatStore.selectedBoatId"
+          :disabled="needsBoat && !boatStore.selectedBoatId"
           @input="onSearch"
         >
           <template #prefix>
@@ -177,7 +200,7 @@ onMounted(() => {
 
     <PureTableBar
       v-if="activeTab === 'items'"
-      title="数据字典"
+      title="字典值"
       :columns="columns"
       @refresh="handleRefresh"
     >
@@ -358,6 +381,7 @@ onMounted(() => {
       mode="add"
       :formRules="formRules"
       :moduleOptions="moduleOptions"
+      :showModuleField="showModuleFilter"
       :onKeyValueInput="onKeyValueInput"
       @submit="submitAdd"
     />
@@ -369,6 +393,7 @@ onMounted(() => {
       mode="edit"
       :formRules="formRules"
       :moduleOptions="moduleOptions"
+      :showModuleField="showModuleFilter"
       :onKeyValueInput="onKeyValueInput"
       @submit="submitEdit"
     />
@@ -378,6 +403,8 @@ onMounted(() => {
       v-model:form="typeAddForm"
       mode="add"
       :formRules="typeFormRules"
+      :categoryOptions="categoryOptions"
+      :scopeOptions="scopeOptions"
       @submit="submitTypeAdd"
     />
 
@@ -386,6 +413,8 @@ onMounted(() => {
       v-model:form="typeEditForm"
       mode="edit"
       :formRules="typeFormRules"
+      :categoryOptions="categoryOptions"
+      :scopeOptions="scopeOptions"
       @submit="submitTypeEdit"
     />
   </div>
