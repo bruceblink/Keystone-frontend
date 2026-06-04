@@ -30,6 +30,7 @@ export const useBoatStore = defineStore("boat", () => {
   const selectedBoatId = ref("");
   const deploymentSide = ref<"ship" | "shore" | string>("shore");
   const localDevice = ref<DeviceRecord | null>(null);
+  const isShipSide = computed(() => deploymentSide.value === "ship");
   const selectedBoat = computed(
     () => allBoats.value.find(b => b.devid === selectedBoatId.value) ?? null
   );
@@ -57,6 +58,11 @@ export const useBoatStore = defineStore("boat", () => {
 
   function applyDeviceList(list: DeviceListItemDTO[]) {
     allBoats.value = list.map(normalizeDevice);
+    if (isShipSide.value) {
+      selectedBoatId.value =
+        localDevice.value?.devid ?? allBoats.value[0]?.devid ?? "";
+      return;
+    }
     if (
       selectedBoatId.value &&
       allBoats.value.some(b => b.devid === selectedBoatId.value)
@@ -68,6 +74,11 @@ export const useBoatStore = defineStore("boat", () => {
   }
 
   function setSelectedBoatId(id: string | undefined) {
+    if (isShipSide.value) {
+      selectedBoatId.value =
+        localDevice.value?.devid ?? allBoats.value[0]?.devid ?? "";
+      return;
+    }
     selectedBoatId.value = id ?? "";
   }
 
@@ -77,6 +88,7 @@ export const useBoatStore = defineStore("boat", () => {
     selectedBoatId,
     deploymentSide,
     localDevice,
+    isShipSide,
     selectedBoat,
     fetchBoatList,
     applyDeviceList,

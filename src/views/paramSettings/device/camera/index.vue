@@ -74,6 +74,7 @@ onMounted(() => {
         clearable
         filterable
         :loading="boatStore.boatsLoading"
+        :disabled="boatStore.isShipSide"
         class="!w-[320px]"
         @update:model-value="boatStore.setSelectedBoatId"
       >

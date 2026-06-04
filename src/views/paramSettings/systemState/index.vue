@@ -16,6 +16,9 @@ const boatStore = useBoatStoreHook();
 const boatId = toRef(boatStore, "selectedBoatId");
 
 const applyDevidFromRoute = () => {
+  if (boatStore.isShipSide) {
+    return;
+  }
   const devid = route.query.devid;
   if (typeof devid === "string" && devid.trim()) {
     boatStore.setSelectedBoatId(devid.trim());
@@ -66,6 +69,7 @@ onActivated(() => {
         clearable
         filterable
         :loading="boatStore.boatsLoading"
+        :disabled="boatStore.isShipSide"
         class="!w-[320px]"
         @update:model-value="boatStore.setSelectedBoatId"
       >

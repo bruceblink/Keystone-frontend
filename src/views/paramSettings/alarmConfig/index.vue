@@ -52,6 +52,7 @@ onMounted(() => {
           placeholder="请选择船只"
           clearable
           filterable
+          :disabled="boatStore.isShipSide"
           class="!w-[320px]"
           @update:model-value="boatStore.setSelectedBoatId"
         >
