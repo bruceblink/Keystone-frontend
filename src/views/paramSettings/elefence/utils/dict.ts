@@ -3,7 +3,7 @@
  */
 import type { FenceItem } from "./types";
 
-/** 所属水域字典名称（/combox/dict/query 的 name 参数） */
+/** 所属水域字典类型（/device/dictionaries/items 的 dictType 参数） */
 export const AREA_TYPE_COMBOX_NAME = "所属水域";
 
 export const DATA_TYPE_MAP: Record<string, string> = {

@@ -11,7 +11,7 @@ import {
   type ReasonTypeListItemDTO
 } from "./alarmType";
 
-/** 水域类型字典名（GET /combox/dict/query 的 name） */
+/** 水域类型字典名（GET /device/dictionaries/items 的 dictType） */
 export const WATER_REGION_DICT_NAME = "所属水域";
 
 /** 报警记录查询参数 POST /bp/alarm/data/list */
@@ -102,7 +102,7 @@ const toAlarmtypePayload = (list?: (string | number)[]) => {
   });
 };
 
-/** 1. 水域类型 — GET /combox/dict/query */
+/** 1. 水域类型 — GET /device/dictionaries/items */
 export const getWaterRegionDictQuery = (devid: string) => {
   return getComboxDictQuery({
     name: WATER_REGION_DICT_NAME,
@@ -113,7 +113,7 @@ export const getWaterRegionDictQuery = (devid: string) => {
 export { normalizeComboxRegionMap };
 export type { ComboxRegionItemDTO };
 
-/** 2. 报警原因 — GET /reasontype/dict/query */
+/** 2. 报警原因 — GET /device/dictionaries/items */
 export const getAlarmReasonDictQuery = (devid: string) => {
   return getReasonTypeListQuery({ id: "-1", devid });
 };

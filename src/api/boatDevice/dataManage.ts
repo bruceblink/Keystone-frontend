@@ -11,7 +11,7 @@ import {
   type ReasonTypeListItemDTO
 } from "@/api/paramSettings/alarmType";
 
-/** 所属水域字典名 — GET /combox/dict/query */
+/** 所属水域字典名 — GET /device/dictionaries/items */
 export const WATER_REGION_DICT_NAME = "所属水域";
 
 /** 设备报警列表查询 — POST /get/device/alarm/list */
@@ -115,7 +115,7 @@ const defaultEndTime = () => {
   )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
-/** 报警类型 — GET /reasontype/dict/query */
+/** 报警类型 — GET /device/dictionaries/items */
 export const getDataManageAlarmTypeDict = () =>
   getReasonTypeListQuery({ id: "-1", devid: "-1" });
 
@@ -141,7 +141,7 @@ export function dedupeAlarmTypeOptions(
     .filter(item => !Number.isNaN(item.id));
 }
 
-/** 所属水域 — GET /combox/dict/query */
+/** 所属水域 — GET /device/dictionaries/items */
 export const getDataManageWaterRegionDict = () =>
   getComboxDictQuery({ name: WATER_REGION_DICT_NAME, devid: "default" });
 

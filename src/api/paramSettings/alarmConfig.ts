@@ -2,7 +2,10 @@ import { http } from "@/utils/http";
 import type { RequestMethods } from "@/utils/http/types.d";
 import type { PureHttpRequestConfig } from "@/utils/http/types.d";
 import type { AreaItem } from "@/views/paramSettings/alarmConfig/utils/types";
-import type { ReasonTypeListItemDTO } from "@/api/paramSettings/alarmType";
+import {
+  getReasonTypeListQuery,
+  type ReasonTypeListItemDTO
+} from "@/api/paramSettings/alarmType";
 
 export type { ReasonTypeListItemDTO };
 
@@ -101,20 +104,10 @@ export type AlarmReasonTypeQuery = {
 
 /**
  * 查询原因类型字典（报警原因列表）
- * GET /reasontype/dict/query
+ * GET /device/dictionaries/items?dictType=device.reasonType
  */
-export const getAlarmReasonTypeListQuery = (params?: AlarmReasonTypeQuery) => {
-  return deviceRequest<ReasonTypeListItemDTO[]>(
-    "get",
-    "/reasontype/dict/query",
-    {
-      params: {
-        id: params?.id ?? "-1",
-        devid: params?.devid ?? "-1"
-      }
-    }
-  );
-};
+export const getAlarmReasonTypeListQuery = (params?: AlarmReasonTypeQuery) =>
+  getReasonTypeListQuery(params);
 
 /** 报警原因查询（全部编号 + 指定船只，默认 id=-1） */
 export const getAlarmReasonTypeListAll = (devid: string) =>

@@ -28,12 +28,12 @@ import {
  */
 export function useAlarmConfigList(boatId: Ref<string>) {
   const loading = ref(false);
-  /** 报警原因列表（来自 reasontype/dict/query） */
+  /** 报警原因列表（来自 device.reasonType） */
   const alarmTypes = ref<AlarmConfigTypeItem[]>([]);
   const alarmConfigs = ref<AlarmConfigRecord[]>([]);
 
   /**
-   * 拉取报警原因列表：GET /reasontype/dict/query?id=-1
+   * 拉取报警原因列表：GET /device/dictionaries/items?dictType=device.reasonType
    */
   const fetchAlarmTypes = async (devid?: string) => {
     const queryDevid = devid ?? boatId.value;

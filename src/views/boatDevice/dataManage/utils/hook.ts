@@ -113,7 +113,7 @@ export function useDataManage() {
       const res = await getDataManageAlarmTypeDict();
       alarmTypeOptions.value = dedupeAlarmTypeOptions(res.data);
     } catch (err) {
-      console.error("[dataManage] /reasontype/dict/query 失败:", err);
+      console.error("[dataManage] device.reasonType 查询失败:", err);
       alarmTypeOptions.value = [];
     }
   };
@@ -126,7 +126,7 @@ export function useDataManage() {
         Object.entries(map).map(([k, v]) => [Number(k), v])
       );
     } catch (err) {
-      console.error("[dataManage] /combox/dict/query 失败:", err);
+      console.error("[dataManage] device.waterRegion 查询失败:", err);
       regionMap.value = {};
     }
   };

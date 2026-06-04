@@ -63,10 +63,10 @@ export function useAlarmRecord(boatId: Ref<string>) {
     status: -1
   });
 
-  /** 报警原因（/reasontype/dict/query） */
+  /** 报警原因（device.reasonType） */
   const alarmTypeOptions = ref<{ value: string; label: string }[]>([]);
   const alarmTypeMap = ref<Record<string, string>>({});
-  /** 水域类型（/combox/dict/query?name=所属水域） */
+  /** 水域类型（device.waterRegion） */
   const waterRegionMap = ref<Record<string, string>>({});
 
   const tableData = ref<AlarmRecordItem[]>([]);
@@ -140,7 +140,7 @@ export function useAlarmRecord(boatId: Ref<string>) {
     return waterRegionMap.value[String(sort)] ?? String(sort);
   };
 
-  /** GET /reasontype/dict/query — 报警原因 */
+  /** GET /device/dictionaries/items — 报警原因 */
   const fetchAlarmReasonDict = async (devid: string) => {
     try {
       const res = await getAlarmReasonDictQuery(devid);
@@ -148,13 +148,13 @@ export function useAlarmRecord(boatId: Ref<string>) {
       alarmTypeOptions.value = normalizeAlarmReasonOptions(list);
       alarmTypeMap.value = buildAlarmReasonMap(list);
     } catch (err) {
-      console.error("[alarmRecord] /reasontype/dict/query 失败:", err);
+      console.error("[alarmRecord] device.reasonType 查询失败:", err);
       alarmTypeOptions.value = [];
       alarmTypeMap.value = {};
     }
   };
 
-  /** GET /combox/dict/query — 水域类型 */
+  /** GET /device/dictionaries/items — 水域类型 */
   const fetchWaterRegionDict = async (devid: string) => {
     try {
       const res = await getWaterRegionDictQuery(devid);
@@ -162,7 +162,7 @@ export function useAlarmRecord(boatId: Ref<string>) {
         res.data as ComboxRegionItemDTO[]
       );
     } catch (err) {
-      console.error("[alarmRecord] /combox/dict/query 失败:", err);
+      console.error("[alarmRecord] device.waterRegion 查询失败:", err);
       waterRegionMap.value = {};
     }
   };
