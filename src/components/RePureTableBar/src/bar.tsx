@@ -1,5 +1,12 @@
 import { useEpThemeStoreHook } from "@/store/modules/epTheme";
-import { defineComponent, ref, computed, type PropType, nextTick } from "vue";
+import {
+  defineComponent,
+  ref,
+  computed,
+  type PropType,
+  nextTick,
+  watch
+} from "vue";
 import {
   delay,
   cloneDeep,
@@ -43,13 +50,15 @@ export default defineComponent({
     const loading = ref(false);
     const checkAll = ref(true);
     const isIndeterminate = ref(false);
-    const filterColumns = cloneDeep(props?.columns).filter(column =>
-      isBoolean(column?.hide)
-        ? !column.hide
-        : !(isFunction(column?.hide) && column?.hide())
-    );
+    const getVisibleColumns = () =>
+      cloneDeep(props?.columns).filter(column =>
+        isBoolean(column?.hide)
+          ? !column.hide
+          : !(isFunction(column?.hide) && column?.hide())
+      );
+
     let checkColumnList = getKeyList(cloneDeep(props?.columns), "label");
-    const checkedColumns = ref(getKeyList(cloneDeep(filterColumns), "label"));
+    const checkedColumns = ref(getKeyList(getVisibleColumns(), "label"));
     const dynamicColumns = ref(cloneDeep(props?.columns));
 
     const getDropdownItemStyle = computed(() => {
@@ -131,8 +140,20 @@ export default defineComponent({
       dynamicColumns.value = cloneDeep(props?.columns);
       checkColumnList = [];
       checkColumnList = await getKeyList(cloneDeep(props?.columns), "label");
-      checkedColumns.value = getKeyList(cloneDeep(filterColumns), "label");
+      checkedColumns.value = getKeyList(getVisibleColumns(), "label");
     }
+
+    watch(
+      () => props.columns,
+      async () => {
+        checkAll.value = true;
+        isIndeterminate.value = false;
+        dynamicColumns.value = cloneDeep(props?.columns);
+        checkColumnList = await getKeyList(cloneDeep(props?.columns), "label");
+        checkedColumns.value = getKeyList(getVisibleColumns(), "label");
+      },
+      { deep: true }
+    );
 
     const dropdown = {
       dropdown: () => (

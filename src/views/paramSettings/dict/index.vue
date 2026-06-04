@@ -204,6 +204,7 @@ onMounted(() => {
 
     <PureTableBar
       v-if="activeTab !== 'types'"
+      :key="activeTab"
       :title="itemTabTitle"
       :columns="columns"
       @refresh="handleRefresh"
@@ -297,6 +298,7 @@ onMounted(() => {
 
     <PureTableBar
       v-else
+      key="types"
       title="字典类型"
       :columns="typeColumns"
       @refresh="handleTypeRefresh"
