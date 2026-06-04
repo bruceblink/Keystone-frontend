@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { store } from "@/store";
 import {
+  getLocalDeviceInfo,
   getDeviceListQuery,
   type DeviceListItemDTO
 } from "@/api/boatDevice/shipForm";
@@ -27,6 +28,8 @@ export const useBoatStore = defineStore("boat", () => {
   const allBoats = ref<DeviceRecord[]>([]);
   const boatsLoading = ref(false);
   const selectedBoatId = ref("");
+  const deploymentSide = ref<"ship" | "shore" | string>("shore");
+  const localDevice = ref<DeviceRecord | null>(null);
   const selectedBoat = computed(
     () => allBoats.value.find(b => b.devid === selectedBoatId.value) ?? null
   );
@@ -34,7 +37,15 @@ export const useBoatStore = defineStore("boat", () => {
   async function fetchBoatList() {
     boatsLoading.value = true;
     try {
-      const res = await getDeviceListQuery();
+      const [localRes, listRes] = await Promise.all([
+        getLocalDeviceInfo().catch(() => null),
+        getDeviceListQuery()
+      ]);
+      deploymentSide.value = localRes?.data?.side ?? "shore";
+      localDevice.value = localRes?.data?.device
+        ? normalizeDevice(localRes.data.device)
+        : null;
+      const res = listRes;
       applyDeviceList(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("[boatStore] 获取船舶列表失败:", err);
@@ -46,6 +57,14 @@ export const useBoatStore = defineStore("boat", () => {
 
   function applyDeviceList(list: DeviceListItemDTO[]) {
     allBoats.value = list.map(normalizeDevice);
+    if (
+      selectedBoatId.value &&
+      allBoats.value.some(b => b.devid === selectedBoatId.value)
+    ) {
+      return;
+    }
+    selectedBoatId.value =
+      localDevice.value?.devid ?? allBoats.value[0]?.devid ?? "";
   }
 
   function setSelectedBoatId(id: string | undefined) {
@@ -56,6 +75,8 @@ export const useBoatStore = defineStore("boat", () => {
     allBoats,
     boatsLoading,
     selectedBoatId,
+    deploymentSide,
+    localDevice,
     selectedBoat,
     fetchBoatList,
     applyDeviceList,

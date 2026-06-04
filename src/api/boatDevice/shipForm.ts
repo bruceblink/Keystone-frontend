@@ -40,6 +40,12 @@ export type DeviceListItemDTO = {
   create_time?: string;
 };
 
+export type LocalDeviceInfoDTO = {
+  side?: "ship" | "shore" | string;
+  devid?: string;
+  device?: DeviceListItemDTO | null;
+};
+
 /** 新增/更新设备请求体 */
 export type DeviceSaveDTO = {
   /** 设备编号 */
@@ -111,6 +117,11 @@ export const getDeviceListQuery = (params?: DeviceListQuery) => {
   return deviceRequest<DeviceListItemDTO[]>("get", "/device/list/query", {
     params
   });
+};
+
+/** 查询当前部署本船信息 */
+export const getLocalDeviceInfo = () => {
+  return deviceRequest<LocalDeviceInfoDTO>("get", "/device/local/info");
 };
 
 /** 新增设备 */
