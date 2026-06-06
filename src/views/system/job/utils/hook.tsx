@@ -3,10 +3,10 @@ import editForm from "../form.vue";
 import { addDialog } from "@/components/ReDialog";
 import { message } from "@/utils/message";
 import { CommonUtils } from "@/utils/common";
+import { useUserStoreHook } from "@/store/modules/user";
 import { type PaginationProps } from "@pureadmin/table";
 import { ElMessageBox, Sort, type FormInstance } from "element-plus";
-import { h, onMounted, reactive, ref, toRaw } from "vue";
-import { useSystemDict } from "@/views/system/utils/dict";
+import { computed, h, onMounted, reactive, ref, toRaw } from "vue";
 import {
   addJobApi,
   deleteJobApi,
@@ -37,8 +37,12 @@ type EditFormRef = {
   };
 };
 
-const statusMap = useSystemDict("sysJob.status").map;
-const yesOrNoMap = useSystemDict("common.yesOrNo").map;
+const statusMap = computed(
+  () => useUserStoreHook().dictionaryMap["sysJob.status"] ?? {}
+);
+const yesOrNoMap = computed(
+  () => useUserStoreHook().dictionaryMap["common.yesOrNo"] ?? {}
+);
 
 export function useJobHook() {
   const defaultSort: Sort = {

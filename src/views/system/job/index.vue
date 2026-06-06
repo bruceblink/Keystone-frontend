@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { useJobHook } from "./utils/hook";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import { useSystemDict } from "@/views/system/utils/dict";
+import { useUserStoreHook } from "@/store/modules/user";
 
 import Delete from "@iconify-icons/ep/delete";
 import EditPen from "@iconify-icons/ep/edit-pen";
@@ -16,7 +16,7 @@ defineOptions({
   name: "SystemJob"
 });
 
-const jobStatusOptions = useSystemDict("sysJob.status").options;
+const jobStatusList = useUserStoreHook().dictionaryList["sysJob.status"];
 const tableRef = ref();
 const searchFormRef = ref();
 
@@ -71,7 +71,7 @@ const {
           class="!w-[160px]"
         >
           <el-option
-            v-for="dict in jobStatusOptions"
+            v-for="dict in jobStatusList"
             :key="dict.value"
             :label="dict.label"
             :value="dict.value"
