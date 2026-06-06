@@ -1,10 +1,17 @@
 import dayjs from "dayjs";
 import { resolve } from "path";
+import type { ServerResponse } from "http";
 import pkg from "./package.json";
 import { wrapperEnv } from "./build";
 import { getPluginsList } from "./build/plugins";
 import { include, exclude } from "./build/optimize";
-import { UserConfigExport, ConfigEnv, loadEnv, PluginOption } from "vite";
+import {
+  UserConfigExport,
+  ConfigEnv,
+  loadEnv,
+  Plugin,
+  PluginOption
+} from "vite";
 
 /** 当前执行node命令时文件夹的地址（工作目录） */
 const root: string = process.cwd();
@@ -25,6 +32,49 @@ const __APP_INFO__ = {
   pkg: { dependencies, devDependencies, name, version },
   lastBuildTime: dayjs(new Date()).format("YYYY-MM-DD HH:mm:ss")
 };
+
+function sendDevConfigFallback(res: ServerResponse) {
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/json");
+  res.end(
+    JSON.stringify({
+      code: 0,
+      msg: "success",
+      data: {
+        isCaptchaOn: false,
+        dictionary: {}
+      }
+    })
+  );
+}
+
+function devConfigFallbackPlugin(): Plugin {
+  return {
+    name: "agileboot:dev-config-fallback",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/api/getConfig", async (_req, res) => {
+        try {
+          const response = await fetch("http://localhost:18080/getConfig", {
+            headers: {
+              Accept: "application/json"
+            }
+          });
+          const contentType = response.headers.get("content-type");
+          const body = await response.text();
+
+          res.statusCode = response.status;
+          if (contentType) {
+            res.setHeader("Content-Type", contentType);
+          }
+          res.end(body);
+        } catch {
+          sendDevConfigFallback(res);
+        }
+      });
+    }
+  };
+}
 
 export default ({ command, mode }: ConfigEnv): UserConfigExport => {
   const { VITE_CDN, VITE_PORT, VITE_COMPRESSION, VITE_PUBLIC_PATH } =
@@ -61,15 +111,21 @@ export default ({ command, mode }: ConfigEnv): UserConfigExport => {
         }
       }
     },
-    plugins: getPluginsList(
-      command,
-      VITE_CDN,
-      VITE_COMPRESSION
-    ) as PluginOption[],
+    plugins: [
+      devConfigFallbackPlugin(),
+      ...(getPluginsList(command, VITE_CDN, VITE_COMPRESSION) as PluginOption[])
+    ],
     // https://cn.vitejs.dev/config/dep-optimization-options.html#dep-optimization-options
     optimizeDeps: {
       include,
       exclude
+    },
+    css: {
+      preprocessorOptions: {
+        scss: {
+          silenceDeprecations: ["import"]
+        }
+      }
     },
     build: {
       sourcemap: false,
