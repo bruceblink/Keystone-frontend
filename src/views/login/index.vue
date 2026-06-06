@@ -178,12 +178,14 @@ watch(isRememberMe, newVal => {
 });
 
 onBeforeMount(async () => {
-  await CommonAPI.getConfig().then(res => {
-    isCaptchaOn.value = res.data.isCaptchaOn;
-    useUserStoreHook().SET_DICTIONARY(
-      res.data.dictionary as Map<string, CommonAPI.DictionaryData[]>
-    );
-  });
+  try {
+    const { data } = await CommonAPI.getConfig();
+    isCaptchaOn.value = data.isCaptchaOn;
+    useUserStoreHook().SET_DICTIONARY(data.dictionary);
+  } catch {
+    isCaptchaOn.value = false;
+    useUserStoreHook().SET_DICTIONARY(new Map());
+  }
 
   await getCaptchaCode();
 

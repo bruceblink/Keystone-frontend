@@ -49,27 +49,38 @@ export const useUserStore = defineStore({
       this.roles = roles;
     },
     /** 存储系统内的字典值 并拆分为Map形式和List形式 */
-    SET_DICTIONARY(dictionary: Map<string, DictionaryData[]>) {
+    SET_DICTIONARY(
+      dictionary:
+        | Map<string, DictionaryData[]>
+        | Record<string, DictionaryData[]>
+        | undefined
+    ) {
+      const dictionaryEntries =
+        dictionary instanceof Map
+          ? dictionary.entries()
+          : Object.entries(dictionary ?? {});
       /** 由于localStorage不能存储Map对象,所以用Obj来装载数据 */
       const dictionaryMapTmp: Record<
         string,
         Record<string, DictionaryData>
       > = {};
+      const dictionaryListTmp = new Map<string, DictionaryData[]>();
 
-      dictionary.forEach((list, key) => {
+      for (const [key, list] of dictionaryEntries) {
+        dictionaryListTmp.set(String(key), list || []);
         dictionaryMapTmp[String(key)] = (list || []).reduce((map, dict) => {
           map[String(dict.value)] = dict;
           return map;
         }, {} as Record<string, DictionaryData>);
-      });
+      }
 
       /** 将字典分成List形式和Map形式 List便于下拉框展示 Map便于匹配值 */
-      this.dictionaryList = dictionary;
+      this.dictionaryList = dictionaryListTmp;
       this.dictionaryMap = dictionaryMapTmp;
 
       storageLocal().setItem<Map<string, DictionaryData[]>>(
         dictionaryListKey,
-        dictionary
+        dictionaryListTmp
       );
 
       storageLocal().setItem<Record<string, Record<string, DictionaryData>>>(
