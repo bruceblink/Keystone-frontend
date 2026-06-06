@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useUserStoreHook } from "@/store/modules/user";
 import type { DictDataRequest } from "@/api/system/dict";
 import { dictDataRules } from "./utils/rule";
-import { useSystemDict } from "@/views/system/utils/dict";
 
 interface FormProps {
   formInline: DictDataRequest;
-  dictTypeDisabled?: boolean;
 }
 
 const props = withDefaults(defineProps<FormProps>(), {
@@ -20,14 +19,11 @@ const props = withDefaults(defineProps<FormProps>(), {
     listClass: "",
     status: 1,
     remark: ""
-  }),
-  dictTypeDisabled: false
+  })
 });
 
 const formData = ref(props.formInline);
 const formRuleRef = ref();
-const statusOptions = useSystemDict("common.status").options;
-const yesOrNoOptions = useSystemDict("common.yesOrNo").options;
 
 function getFormRuleRef() {
   return formRuleRef.value;
@@ -46,8 +42,7 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="字典类型" prop="dictType">
       <el-input
         v-model="formData.dictType"
-        :clearable="!dictTypeDisabled"
-        :disabled="dictTypeDisabled"
+        clearable
         placeholder="请输入字典类型"
       />
     </el-form-item>
@@ -71,7 +66,7 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="默认值" prop="isDefault">
       <el-radio-group v-model="formData.isDefault">
         <el-radio
-          v-for="dict in yesOrNoOptions"
+          v-for="dict in useUserStoreHook().dictionaryList['common.yesOrNo']"
           :key="dict.value"
           :label="dict.value"
         >
@@ -96,7 +91,7 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="状态" prop="status">
       <el-radio-group v-model="formData.status">
         <el-radio
-          v-for="dict in statusOptions"
+          v-for="dict in useUserStoreHook().dictionaryList['common.status']"
           :key="dict.value"
           :label="dict.value"
         >

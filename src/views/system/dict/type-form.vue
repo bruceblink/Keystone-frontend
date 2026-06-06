@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useUserStoreHook } from "@/store/modules/user";
 import type { DictTypeRequest } from "@/api/system/dict";
 import { dictTypeRules } from "./utils/rule";
-import { useSystemDict } from "@/views/system/utils/dict";
 
 interface FormProps {
   formInline: DictTypeRequest;
@@ -19,7 +19,6 @@ const props = withDefaults(defineProps<FormProps>(), {
 
 const formData = ref(props.formInline);
 const formRuleRef = ref();
-const statusOptions = useSystemDict("common.status").options;
 
 function getFormRuleRef() {
   return formRuleRef.value;
@@ -52,7 +51,7 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="状态" prop="status">
       <el-radio-group v-model="formData.status">
         <el-radio
-          v-for="dict in statusOptions"
+          v-for="dict in useUserStoreHook().dictionaryList['common.status']"
           :key="dict.value"
           :label="dict.value"
         >

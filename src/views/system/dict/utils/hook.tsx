@@ -4,10 +4,10 @@ import dataForm from "../data-form.vue";
 import { addDialog } from "@/components/ReDialog";
 import { message } from "@/utils/message";
 import { CommonUtils } from "@/utils/common";
+import { useUserStoreHook } from "@/store/modules/user";
 import { type PaginationProps } from "@pureadmin/table";
 import { ElMessageBox, type FormInstance } from "element-plus";
-import { h, onMounted, reactive, ref, toRaw } from "vue";
-import { useSystemDict } from "@/views/system/utils/dict";
+import { computed, h, onMounted, reactive, ref, toRaw } from "vue";
 import {
   addDictDataApi,
   addDictTypeApi,
@@ -41,12 +41,12 @@ type EditFormRef = {
   };
 };
 
-type OpenDataDialogOptions = {
-  lockDictType?: boolean;
-};
-
-const statusMap = useSystemDict("common.status").map;
-const yesOrNoMap = useSystemDict("common.yesOrNo").map;
+const statusMap = computed(
+  () => useUserStoreHook().dictionaryMap["common.status"] ?? {}
+);
+const yesOrNoMap = computed(
+  () => useUserStoreHook().dictionaryMap["common.yesOrNo"] ?? {}
+);
 
 export function useDictHook() {
   const typePagination: PaginationProps = {
@@ -77,8 +77,6 @@ export function useDictHook() {
   const dataFormRef = ref<EditFormRef>();
   const typeDataList = ref<DictTypeDTO[]>([]);
   const dictDataList = ref<DictDataDTO[]>([]);
-  const selectedDictType = ref<DictTypeDTO>();
-  const dataDialogVisible = ref(false);
   const typeLoading = ref(true);
   const dataLoading = ref(true);
 
@@ -110,7 +108,7 @@ export function useDictHook() {
         createTime ? dayjs(createTime).format("YYYY-MM-DD HH:mm:ss") : "-"
     },
     { label: "备注", prop: "remark", minWidth: 120 },
-    { label: "操作", fixed: "right", width: 240, slot: "typeOperation" }
+    { label: "操作", fixed: "right", width: 220, slot: "typeOperation" }
   ];
 
   const dataColumns: TableColumnList = [
@@ -179,14 +177,6 @@ export function useDictHook() {
     searchData();
   }
 
-  function clearDataSearch() {
-    dataSearchFormParams.dictType = undefined;
-    dataSearchFormParams.dictLabel = undefined;
-    dataSearchFormParams.status = undefined;
-    selectedDictType.value = undefined;
-    searchData();
-  }
-
   async function getTypeList() {
     CommonUtils.fillPaginationParams(typeSearchFormParams, typePagination);
     typeLoading.value = true;
@@ -213,15 +203,6 @@ export function useDictHook() {
 
   function selectDictType(row: DictTypeDTO) {
     dataSearchFormParams.dictType = row.dictType;
-    searchData();
-  }
-
-  function openDictDataDrawer(row: DictTypeDTO) {
-    selectedDictType.value = row;
-    dataSearchFormParams.dictType = row.dictType;
-    dataSearchFormParams.dictLabel = undefined;
-    dataSearchFormParams.status = undefined;
-    dataDialogVisible.value = true;
     searchData();
   }
 
@@ -255,21 +236,12 @@ export function useDictHook() {
     });
   }
 
-  function openDataDialog(
-    title = "新增",
-    row?: DictDataDTO,
-    options: OpenDataDialogOptions = {}
-  ) {
-    const dictTypeDisabled = options.lockDictType ?? Boolean(row);
+  function openDataDialog(title = "新增", row?: DictDataDTO) {
     addDialog({
       title: `${title}字典数据`,
       props: {
         formInline: {
-          dictType:
-            row?.dictType ??
-            selectedDictType.value?.dictType ??
-            dataSearchFormParams.dictType ??
-            "",
+          dictType: row?.dictType ?? dataSearchFormParams.dictType ?? "",
           dictLabel: row?.dictLabel ?? "",
           dictValue: row?.dictValue ?? "",
           dictSort: row?.dictSort ?? 1,
@@ -278,8 +250,7 @@ export function useDictHook() {
           listClass: row?.listClass ?? "",
           status: row?.status ?? 1,
           remark: row?.remark ?? ""
-        },
-        dictTypeDisabled
+        }
       },
       width: "42%",
       draggable: true,
@@ -329,10 +300,6 @@ export function useDictHook() {
     );
     await deleteDictTypeApi(row.dictId).then(() => {
       message(`您删除了字典类型：${row.dictName}`, { type: "success" });
-      if (selectedDictType.value?.dictId === row.dictId) {
-        dataDialogVisible.value = false;
-        selectedDictType.value = undefined;
-      }
       getTypeList();
     });
   }
@@ -377,8 +344,6 @@ export function useDictHook() {
   return {
     typeSearchFormParams,
     dataSearchFormParams,
-    selectedDictType,
-    dataDialogVisible,
     typePagination,
     dataPagination,
     typeColumns,
@@ -393,9 +358,7 @@ export function useDictHook() {
     searchData,
     resetTypeForm,
     resetDataForm,
-    clearDataSearch,
     selectDictType,
-    openDictDataDrawer,
     openTypeDialog,
     openDataDialog,
     handleDeleteType,
