@@ -1,11 +1,11 @@
 import { defineStore } from "pinia";
 import { store } from "@/store";
-import type { DictionaryList, userType } from "./types";
+import { userType } from "./types";
 import { storageLocal, storageSession } from "@pureadmin/utils";
 import { sessionKey } from "@/utils/auth";
 import {
-  type DictionaryData,
-  type TokenDTO,
+  DictionaryData,
+  TokenDTO,
   logout as logoutApi,
   logoutRefreshToken
 } from "@/api/common/login";
@@ -15,73 +15,29 @@ import { getRefreshToken } from "@/utils/auth";
 const dictionaryListKey = "ag-dictionary-list";
 const dictionaryMapKey = "ag-dictionary-map";
 
-type DictionarySource =
-  | Map<string, DictionaryData[]>
-  | Record<string, DictionaryData[]>
-  | undefined
-  | null;
-
-function normalizeDictionaryList(dictionary: DictionarySource): DictionaryList {
-  const entries =
-    dictionary instanceof Map
-      ? dictionary.entries()
-      : Object.entries(dictionary ?? {});
-
-  return Array.from(entries).reduce((listMap, [key, list]) => {
-    listMap[String(key)] = Array.isArray(list) ? list : [];
-    return listMap;
-  }, {} as DictionaryList);
-}
-
-function buildDictionaryMap(dictionaryList: DictionaryList) {
-  return Object.entries(dictionaryList).reduce((mapMap, [key, list]) => {
-    mapMap[key] = list.reduce((map, dict) => {
-      map[String(dict.value)] = dict;
-      return map;
-    }, {} as Record<string, DictionaryData>);
-    return mapMap;
-  }, {} as Record<string, Record<string, DictionaryData>>);
-}
-
-function buildDictionaryList(
-  dictionaryMap: Record<string, Record<string, DictionaryData>>
-): DictionaryList {
-  return Object.entries(dictionaryMap).reduce((listMap, [key, map]) => {
-    listMap[key] = Object.values(map);
-    return listMap;
-  }, {} as DictionaryList);
-}
-
 export const useUserStore = defineStore({
   id: "ag-user",
-  state: (): userType => {
-    const tokenData = storageSession().getItem<TokenDTO>(sessionKey);
-    const storedDictionaryMap =
+  state: (): userType => ({
+    // 用户名
+    username:
+      storageSession().getItem<TokenDTO>(sessionKey)?.currentUser.userInfo
+        .username ?? "",
+    // 页面级别权限
+    roles: storageSession().getItem<TokenDTO>(sessionKey)?.currentUser.roleKey
+      ? [storageSession().getItem<TokenDTO>(sessionKey)?.currentUser.roleKey]
+      : [],
+    dictionaryList:
+      storageLocal().getItem<Map<string, DictionaryData[]>>(
+        dictionaryListKey
+      ) ?? new Map(),
+    dictionaryMap:
       storageLocal().getItem<Record<string, Record<string, DictionaryData>>>(
         dictionaryMapKey
-      ) ?? {};
-    const storedDictionaryList = normalizeDictionaryList(
-      storageLocal().getItem<DictionarySource>(dictionaryListKey)
-    );
-    const dictionaryList = Object.keys(storedDictionaryList).length
-      ? storedDictionaryList
-      : buildDictionaryList(storedDictionaryMap);
-
-    return {
-      // 用户名
-      username: tokenData?.currentUser.userInfo.username ?? "",
-      // 页面级别权限
-      roles: tokenData?.currentUser.roleKey
-        ? [tokenData.currentUser.roleKey]
-        : [],
-      dictionaryList,
-      dictionaryMap: Object.keys(storedDictionaryMap).length
-        ? storedDictionaryMap
-        : buildDictionaryMap(dictionaryList),
-      verifyCode: "",
-      currentUserInfo: tokenData?.currentUser.userInfo ?? {}
-    };
-  },
+      ) ?? {},
+    verifyCode: "",
+    currentUserInfo:
+      storageSession().getItem<TokenDTO>(sessionKey)?.currentUser.userInfo ?? {}
+  }),
   actions: {
     /** 存储用户名 */
     SET_USERNAME(username: string) {
@@ -92,15 +48,37 @@ export const useUserStore = defineStore({
     SET_ROLES(roles: Array<string>) {
       this.roles = roles;
     },
-    /** 存储系统内的字典值，并拆分为列表和按值索引的对象 */
-    SET_DICTIONARY(dictionary: DictionarySource) {
-      const dictionaryListTmp = normalizeDictionaryList(dictionary);
-      const dictionaryMapTmp = buildDictionaryMap(dictionaryListTmp);
+    /** 存储系统内的字典值 并拆分为Map形式和List形式 */
+    SET_DICTIONARY(
+      dictionary:
+        | Map<string, DictionaryData[]>
+        | Record<string, DictionaryData[]>
+        | undefined
+    ) {
+      const dictionaryEntries =
+        dictionary instanceof Map
+          ? dictionary.entries()
+          : Object.entries(dictionary ?? {});
+      /** 由于localStorage不能存储Map对象,所以用Obj来装载数据 */
+      const dictionaryMapTmp: Record<
+        string,
+        Record<string, DictionaryData>
+      > = {};
+      const dictionaryListTmp = new Map<string, DictionaryData[]>();
 
+      for (const [key, list] of dictionaryEntries) {
+        dictionaryListTmp.set(String(key), list || []);
+        dictionaryMapTmp[String(key)] = (list || []).reduce((map, dict) => {
+          map[String(dict.value)] = dict;
+          return map;
+        }, {} as Record<string, DictionaryData>);
+      }
+
+      /** 将字典分成List形式和Map形式 List便于下拉框展示 Map便于匹配值 */
       this.dictionaryList = dictionaryListTmp;
       this.dictionaryMap = dictionaryMapTmp;
 
-      storageLocal().setItem<DictionaryList>(
+      storageLocal().setItem<Map<string, DictionaryData[]>>(
         dictionaryListKey,
         dictionaryListTmp
       );
