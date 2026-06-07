@@ -27,7 +27,6 @@ const dataTableRef = ref();
 const typeSearchFormRef = ref();
 const dataSearchFormRef = ref();
 const activeTab = ref("type");
-const tableAdaptiveConfig = { offsetBottom: 132 };
 const statusList = computed(() => getDictionaryList("common.status"));
 
 function getDictionaryList(dictType: string) {
@@ -70,7 +69,6 @@ const {
   <div class="main">
     <el-tabs
       v-model="activeTab"
-      class="dict-tabs"
       @tab-change="activeName => activeName === 'data' && clearDataSearch()"
     >
       <el-tab-pane label="字典类型" name="type">
@@ -153,7 +151,6 @@ const {
               :loading="typeLoading"
               :size="size"
               adaptive
-              :adaptiveConfig="tableAdaptiveConfig"
               :data="typeDataList"
               :columns="dynamicColumns"
               :pagination="typePagination"
@@ -283,7 +280,6 @@ const {
               :loading="dataLoading"
               :size="size"
               adaptive
-              :adaptiveConfig="tableAdaptiveConfig"
               :data="dictDataList"
               :columns="dynamicColumns"
               :pagination="dataPagination"
@@ -407,21 +403,6 @@ const {
 .search-form {
   :deep(.el-form-item) {
     margin-bottom: 12px;
-  }
-}
-
-.dict-tabs {
-  height: 100%;
-  overflow: hidden;
-
-  :deep(.el-tabs__content) {
-    height: calc(100% - 41px);
-    overflow: hidden;
-  }
-
-  :deep(.el-tab-pane) {
-    height: 100%;
-    overflow: hidden;
   }
 }
 
