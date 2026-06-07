@@ -42,7 +42,7 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="字典类型" prop="dictType">
       <el-input
         v-model="formData.dictType"
-        clearable
+        disabled
         placeholder="请输入字典类型"
       />
     </el-form-item>

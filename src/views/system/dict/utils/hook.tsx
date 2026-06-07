@@ -77,6 +77,8 @@ export function useDictHook() {
   const dataFormRef = ref<EditFormRef>();
   const typeDataList = ref<DictTypeDTO[]>([]);
   const dictDataList = ref<DictDataDTO[]>([]);
+  const selectedDictType = ref<DictTypeDTO>();
+  const dataDialogVisible = ref(false);
   const typeLoading = ref(true);
   const dataLoading = ref(true);
 
@@ -108,7 +110,7 @@ export function useDictHook() {
         createTime ? dayjs(createTime).format("YYYY-MM-DD HH:mm:ss") : "-"
     },
     { label: "备注", prop: "remark", minWidth: 120 },
-    { label: "操作", fixed: "right", width: 220, slot: "typeOperation" }
+    { label: "操作", fixed: "right", width: 240, slot: "typeOperation" }
   ];
 
   const dataColumns: TableColumnList = [
@@ -206,6 +208,15 @@ export function useDictHook() {
     searchData();
   }
 
+  function openDictDataDrawer(row: DictTypeDTO) {
+    selectedDictType.value = row;
+    dataSearchFormParams.dictType = row.dictType;
+    dataSearchFormParams.dictLabel = undefined;
+    dataSearchFormParams.status = undefined;
+    dataDialogVisible.value = true;
+    searchData();
+  }
+
   function openTypeDialog(title = "新增", row?: DictTypeDTO) {
     addDialog({
       title: `${title}字典类型`,
@@ -300,6 +311,10 @@ export function useDictHook() {
     );
     await deleteDictTypeApi(row.dictId).then(() => {
       message(`您删除了字典类型：${row.dictName}`, { type: "success" });
+      if (selectedDictType.value?.dictId === row.dictId) {
+        dataDialogVisible.value = false;
+        selectedDictType.value = undefined;
+      }
       getTypeList();
     });
   }
@@ -344,6 +359,8 @@ export function useDictHook() {
   return {
     typeSearchFormParams,
     dataSearchFormParams,
+    selectedDictType,
+    dataDialogVisible,
     typePagination,
     dataPagination,
     typeColumns,
@@ -359,6 +376,7 @@ export function useDictHook() {
     resetTypeForm,
     resetDataForm,
     selectDictType,
+    openDictDataDrawer,
     openTypeDialog,
     openDataDialog,
     handleDeleteType,
