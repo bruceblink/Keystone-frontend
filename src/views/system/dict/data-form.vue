@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useUserStoreHook } from "@/store/modules/user";
+import type { DictionaryData } from "@/api/common/login";
 import type { DictDataRequest } from "@/api/system/dict";
 import { dictDataRules } from "./utils/rule";
+
+type DictionaryList =
+  | Map<string, DictionaryData[]>
+  | Record<string, DictionaryData[]>;
 
 interface FormProps {
   formInline: DictDataRequest;
@@ -26,6 +31,16 @@ const props = withDefaults(defineProps<FormProps>(), {
 
 const formData = ref(props.formInline);
 const formRuleRef = ref();
+const userStore = useUserStoreHook();
+const statusList = computed(() => getDictionaryList("common.status"));
+const yesOrNoList = computed(() => getDictionaryList("common.yesOrNo"));
+
+function getDictionaryList(dictType: string) {
+  const dictionaryList = userStore.dictionaryList as DictionaryList;
+  return dictionaryList instanceof Map
+    ? dictionaryList.get(dictType) ?? []
+    : dictionaryList[dictType] ?? [];
+}
 
 function getFormRuleRef() {
   return formRuleRef.value;
@@ -69,7 +84,7 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="默认值" prop="isDefault">
       <el-radio-group v-model="formData.isDefault">
         <el-radio
-          v-for="dict in useUserStoreHook().dictionaryList['common.yesOrNo']"
+          v-for="dict in yesOrNoList"
           :key="dict.value"
           :label="dict.value"
         >
@@ -94,7 +109,7 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="状态" prop="status">
       <el-radio-group v-model="formData.status">
         <el-radio
-          v-for="dict in useUserStoreHook().dictionaryList['common.status']"
+          v-for="dict in statusList"
           :key="dict.value"
           :label="dict.value"
         >
