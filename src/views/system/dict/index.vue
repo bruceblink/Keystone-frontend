@@ -9,6 +9,7 @@ import Delete from "@iconify-icons/ep/delete";
 import EditPen from "@iconify-icons/ep/edit-pen";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
+import Tickets from "@iconify-icons/ep/tickets";
 import AddFill from "@iconify-icons/ri/add-circle-line";
 
 defineOptions({
@@ -24,6 +25,8 @@ const dataSearchFormRef = ref();
 const {
   typeSearchFormParams,
   dataSearchFormParams,
+  selectedDictType,
+  dataDialogVisible,
   typePagination,
   dataPagination,
   typeColumns,
@@ -39,6 +42,7 @@ const {
   resetTypeForm,
   resetDataForm,
   selectDictType,
+  openDictDataDrawer,
   openTypeDialog,
   openDataDialog,
   handleDeleteType,
@@ -157,7 +161,8 @@ const {
                   link
                   type="primary"
                   :size="size"
-                  @click.stop="selectDictType(row)"
+                  :icon="useRenderIcon(Tickets)"
+                  @click.stop="openDictDataDrawer(row)"
                 >
                   数据
                 </el-button>
@@ -295,6 +300,84 @@ const {
         </PureTableBar>
       </el-tab-pane>
     </el-tabs>
+
+    <el-dialog
+      v-model="dataDialogVisible"
+      class="dict-data-dialog-modal"
+      :title="`字典数据 - ${selectedDictType?.dictName ?? ''}`"
+      width="62.4%"
+      top="6vh"
+      draggable
+      destroy-on-close
+    >
+      <div class="dict-data-dialog">
+        <div class="dict-data-dialog__toolbar">
+          <div class="dict-data-dialog__meta">
+            <span class="dict-data-dialog__name">{{
+              selectedDictType?.dictType
+            }}</span>
+            <span class="dict-data-dialog__remark">{{
+              selectedDictType?.remark
+            }}</span>
+          </div>
+          <div class="dict-data-dialog__actions">
+            <el-button
+              :icon="useRenderIcon(Refresh)"
+              :loading="dataLoading"
+              @click="searchData"
+            >
+              刷新
+            </el-button>
+            <el-button
+              type="primary"
+              :icon="useRenderIcon(AddFill)"
+              @click="openDataDialog()"
+            >
+              添加数据
+            </el-button>
+          </div>
+        </div>
+
+        <pure-table
+          border
+          align-whole="center"
+          showOverflowTooltip
+          table-layout="auto"
+          :loading="dataLoading"
+          height="calc(72vh - 170px)"
+          :data="dictDataList"
+          :columns="dataColumns"
+          :pagination="dataPagination"
+          :header-cell-style="{
+            background: 'var(--el-table-row-hover-bg-color)',
+            color: 'var(--el-text-color-primary)'
+          }"
+          @page-size-change="getDataList"
+          @page-current-change="getDataList"
+        >
+          <template #dataOperation="{ row }">
+            <el-button
+              class="reset-margin"
+              link
+              type="primary"
+              :icon="useRenderIcon(EditPen)"
+              @click="openDataDialog('编辑', row)"
+            >
+              修改
+            </el-button>
+            <el-button
+              class="reset-margin"
+              link
+              type="danger"
+              :icon="useRenderIcon(Delete)"
+              @click="handleDeleteData(row)"
+            >
+              删除
+            </el-button>
+          </template>
+        </pure-table>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -303,5 +386,57 @@ const {
   :deep(.el-form-item) {
     margin-bottom: 12px;
   }
+}
+
+.dict-data-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+:deep(.dict-data-dialog-modal) {
+  display: flex;
+  flex-direction: column;
+  height: 72vh;
+}
+
+:deep(.dict-data-dialog-modal .el-dialog__body) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dict-data-dialog__toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dict-data-dialog__meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.dict-data-dialog__name {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.dict-data-dialog__remark {
+  overflow: hidden;
+  color: var(--el-text-color-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dict-data-dialog__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
 }
 </style>
