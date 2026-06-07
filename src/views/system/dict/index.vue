@@ -41,6 +41,7 @@ const {
   searchData,
   resetTypeForm,
   resetDataForm,
+  clearDataSearch,
   selectDictType,
   openDictDataDrawer,
   openTypeDialog,
@@ -52,8 +53,10 @@ const {
 
 <template>
   <div class="main">
-    <el-tabs>
-      <el-tab-pane label="字典类型">
+    <el-tabs
+      @tab-change="activeName => activeName === 'data' && clearDataSearch()"
+    >
+      <el-tab-pane label="字典类型" name="type">
         <el-form
           ref="typeSearchFormRef"
           :inline="true"
@@ -182,7 +185,7 @@ const {
         </PureTableBar>
       </el-tab-pane>
 
-      <el-tab-pane label="字典数据">
+      <el-tab-pane label="字典数据" name="data">
         <el-form
           ref="dataSearchFormRef"
           :inline="true"
@@ -247,7 +250,7 @@ const {
             <el-button
               type="primary"
               :icon="useRenderIcon(AddFill)"
-              @click="openDataDialog()"
+              @click="openDataDialog('新增')"
             >
               添加数据
             </el-button>
@@ -331,7 +334,7 @@ const {
             <el-button
               type="primary"
               :icon="useRenderIcon(AddFill)"
-              @click="openDataDialog()"
+              @click="openDataDialog('新增', undefined, { lockDictType: true })"
             >
               添加数据
             </el-button>
@@ -344,7 +347,7 @@ const {
           showOverflowTooltip
           table-layout="auto"
           :loading="dataLoading"
-          height="calc(72vh - 170px)"
+          height="calc(80vh - 192px)"
           :data="dictDataList"
           :columns="dataColumns"
           :pagination="dataPagination"
@@ -399,7 +402,7 @@ const {
 :deep(.dict-data-dialog-modal) {
   display: flex;
   flex-direction: column;
-  height: 72vh;
+  height: 80vh;
 }
 
 :deep(.dict-data-dialog-modal .el-dialog__body) {
