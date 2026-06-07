@@ -71,7 +71,7 @@ const {
       v-model="activeTab"
       @tab-change="activeName => activeName === 'data' && clearDataSearch()"
     >
-      <el-tab-pane label="字典类型" name="type">
+      <el-tab-pane label="字典类型" name="type" lazy>
         <el-form
           ref="typeSearchFormRef"
           :inline="true"
@@ -200,7 +200,7 @@ const {
         </PureTableBar>
       </el-tab-pane>
 
-      <el-tab-pane label="字典数据" name="data">
+      <el-tab-pane label="字典数据" name="data" lazy>
         <el-form
           ref="dataSearchFormRef"
           :inline="true"
