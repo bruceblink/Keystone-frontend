@@ -41,6 +41,10 @@ type EditFormRef = {
   };
 };
 
+type OpenDataDialogOptions = {
+  lockDictType?: boolean;
+};
+
 const statusMap = computed(
   () => useUserStoreHook().dictionaryMap["common.status"] ?? {}
 );
@@ -179,6 +183,14 @@ export function useDictHook() {
     searchData();
   }
 
+  function clearDataSearch() {
+    dataSearchFormParams.dictType = undefined;
+    dataSearchFormParams.dictLabel = undefined;
+    dataSearchFormParams.status = undefined;
+    selectedDictType.value = undefined;
+    searchData();
+  }
+
   async function getTypeList() {
     CommonUtils.fillPaginationParams(typeSearchFormParams, typePagination);
     typeLoading.value = true;
@@ -247,12 +259,21 @@ export function useDictHook() {
     });
   }
 
-  function openDataDialog(title = "新增", row?: DictDataDTO) {
+  function openDataDialog(
+    title = "新增",
+    row?: DictDataDTO,
+    options: OpenDataDialogOptions = {}
+  ) {
+    const dictTypeDisabled = options.lockDictType ?? Boolean(row);
     addDialog({
       title: `${title}字典数据`,
       props: {
         formInline: {
-          dictType: row?.dictType ?? dataSearchFormParams.dictType ?? "",
+          dictType:
+            row?.dictType ??
+            selectedDictType.value?.dictType ??
+            dataSearchFormParams.dictType ??
+            "",
           dictLabel: row?.dictLabel ?? "",
           dictValue: row?.dictValue ?? "",
           dictSort: row?.dictSort ?? 1,
@@ -261,7 +282,8 @@ export function useDictHook() {
           listClass: row?.listClass ?? "",
           status: row?.status ?? 1,
           remark: row?.remark ?? ""
-        }
+        },
+        dictTypeDisabled
       },
       width: "42%",
       draggable: true,
@@ -375,6 +397,7 @@ export function useDictHook() {
     searchData,
     resetTypeForm,
     resetDataForm,
+    clearDataSearch,
     selectDictType,
     openDictDataDrawer,
     openTypeDialog,

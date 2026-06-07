@@ -6,6 +6,7 @@ import { dictDataRules } from "./utils/rule";
 
 interface FormProps {
   formInline: DictDataRequest;
+  dictTypeDisabled?: boolean;
 }
 
 const props = withDefaults(defineProps<FormProps>(), {
@@ -19,7 +20,8 @@ const props = withDefaults(defineProps<FormProps>(), {
     listClass: "",
     status: 1,
     remark: ""
-  })
+  }),
+  dictTypeDisabled: false
 });
 
 const formData = ref(props.formInline);
@@ -42,7 +44,8 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="字典类型" prop="dictType">
       <el-input
         v-model="formData.dictType"
-        disabled
+        :clearable="!dictTypeDisabled"
+        :disabled="dictTypeDisabled"
         placeholder="请输入字典类型"
       />
     </el-form-item>
