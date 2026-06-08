@@ -10,6 +10,7 @@ import LogoutCircleRLine from "@iconify-icons/ri/logout-circle-r-line";
 import Setting from "@iconify-icons/ri/settings-3-line";
 
 const menuRef = ref();
+const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
 
 const {
   route,
@@ -37,7 +38,7 @@ nextTick(() => {
     class="horizontal-header"
   >
     <div class="horizontal-header-left" @click="backTopMenu">
-      <img src="/logo.svg" alt="logo" />
+      <img :src="logoUrl" alt="logo" />
       <span>{{ title }}</span>
     </div>
     <el-menu

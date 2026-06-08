@@ -342,7 +342,12 @@ export function useBoatDeviceHook() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "设备列表");
-    const ts = new Date().toISOString().replace(/[-:T]/g, "").substring(0, 14);
+    const ts = new Date()
+      .toISOString()
+      .replaceAll("-", "")
+      .replaceAll(":", "")
+      .replace("T", "")
+      .substring(0, 14);
     XLSX.writeFile(wb, `设备列表_${ts}.xlsx`);
     ElMessage.success("导出成功");
   };
