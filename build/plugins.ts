@@ -35,7 +35,16 @@ export function getPluginsList(
       }
     }),
     // svg组件化支持
-    svgLoader(),
+    svgLoader({
+      defaultImport: "component",
+      svgoConfig: {
+        plugins: [
+          {
+            name: "preset-default"
+          }
+        ]
+      }
+    }),
     // ElementPlus({}),
     // mock支持
     // viteMockServe({
