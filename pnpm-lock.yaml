@@ -16,6 +16,9 @@ importers:
       "@pureadmin/utils":
         specifier: ^1.9.6
         version: 1.18.0(echarts@5.6.0)(vue@3.5.35(typescript@5.0.4))
+      "@vue/shared":
+        specifier: 3.5.35
+        version: 3.5.35
       "@vueuse/core":
         specifier: ^14.3.0
         version: 14.3.0(vue@3.5.35(typescript@5.0.4))

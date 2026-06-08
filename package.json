@@ -32,6 +32,7 @@
     "@pureadmin/descriptions": "^1.1.1",
     "@pureadmin/table": "^2.3.2",
     "@pureadmin/utils": "^1.9.6",
+    "@vue/shared": "3.5.35",
     "@vueuse/core": "^14.3.0",
     "@vueuse/motion": "^3.0.3",
     "animate.css": "^4.1.1",
