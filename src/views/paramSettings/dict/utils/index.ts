@@ -13,14 +13,18 @@ import { ElMessage, ElMessageBox, type FormRules } from "element-plus";
 import * as XLSX from "xlsx";
 import type { DictItem, DictForm, DictTypeForm, DictTypeItem } from "./types";
 import {
+  addConfigModule,
   addDictList,
   addDeviceDictionaryType,
+  deleteConfigModule,
   deleteDictList,
   deleteDeviceDictionaryType,
+  getConfigModuleList,
   getDeviceDictionaryOptions,
   getDeviceDictionaryTypes,
   getConfigModuleOptions,
   getDictListQuery,
+  updateConfigModule,
   updateDeviceDictionaryType,
   updateDictList,
   type ConfigModuleOption,
@@ -54,6 +58,7 @@ const fallbackScopeOptions: DeviceDictionaryOption[] = [
 ];
 
 const configDictType = "device.config";
+const configModuleDictType = "device.configModule";
 
 const dictKey = (keyname: string, groupKey?: string) =>
   `${groupKey ?? ""}\u0000${keyname}`;
@@ -71,6 +76,11 @@ const normalizeDict = (
   dataType: item.type ?? "",
   description: item.descripton ?? "",
   user: item.user ?? "",
+  devid: item.devid ?? "",
+  scope: item.scope ?? (item.devid === "-1" ? "global" : "device"),
+  scopeName:
+    item.scopeName ??
+    (item.scope === "global" || item.devid === "-1" ? "全局" : "设备"),
   createdTime: item.create_time ?? ""
 });
 
@@ -127,13 +137,16 @@ export function useDictList(boatId: Ref<string>) {
   ]);
   const scopeOptions = ref<DeviceDictionaryOption[]>([...fallbackScopeOptions]);
   const dictTypeOptions = ref<DeviceDictionaryOption[]>([]);
-  const activeTab = ref<"config" | "types" | "items">("config");
+  const activeTab = ref<"config" | "modules" | "types" | "items">("config");
 
   const isConfigTab = computed(() => activeTab.value === "config");
+  const isModuleTab = computed(() => activeTab.value === "modules");
 
   const activeDictType = computed(() =>
     isConfigTab.value
       ? configDictType
+      : isModuleTab.value
+      ? configModuleDictType
       : selectedDictType.value === configDictType
       ? ""
       : selectedDictType.value
@@ -148,23 +161,28 @@ export function useDictList(boatId: Ref<string>) {
   );
 
   const needsBoat = computed(
-    () => activeTab.value !== "types" && !isGlobalDictType.value
+    () =>
+      activeTab.value !== "types" &&
+      activeTab.value !== "modules" &&
+      !isGlobalDictType.value
   );
 
   const showModuleFilter = computed(() => isConfigTab.value);
 
   const itemTabTitle = computed(() =>
-    isConfigTab.value ? "设备配置" : "字典值"
+    isConfigTab.value ? "设备配置" : isModuleTab.value ? "模块" : "字典值"
   );
 
   const searchPlaceholder = computed(() =>
     isConfigTab.value
       ? "搜索配置项 / 配置值 / 描述"
+      : isModuleTab.value
+      ? "搜索模块标识 / 模块名称 / 描述"
       : "搜索值标识 / 显示名称 / 描述"
   );
 
   const currentScopeDevid = () =>
-    isGlobalDictType.value ? "-1" : boatId.value;
+    isModuleTab.value || isGlobalDictType.value ? "-1" : boatId.value;
 
   const optionLabel = (options: DeviceDictionaryOption[], value?: string) =>
     options.find(item => item.value === value)?.label ?? value ?? "";
@@ -224,13 +242,15 @@ export function useDictList(boatId: Ref<string>) {
     }
     loading.value = true;
     try {
-      const res = await getDictListQuery({
-        dictType: activeDictType.value,
-        devid: id,
-        groupKey: showModuleFilter.value
-          ? groupFilter.value || undefined
-          : undefined
-      });
+      const res = isModuleTab.value
+        ? await getConfigModuleList()
+        : await getDictListQuery({
+            dictType: activeDictType.value,
+            devid: id,
+            groupKey: showModuleFilter.value
+              ? groupFilter.value || undefined
+              : undefined
+          });
       const list = Array.isArray(res.data) ? res.data : [];
       tableData.value = list.map(item => normalizeDict(item, moduleLabel));
       pagination.currentPage = 1;
@@ -253,7 +273,12 @@ export function useDictList(boatId: Ref<string>) {
       const list = Array.isArray(res.data) ? res.data : [];
       typeTableData.value = list.map(normalizeDictType);
       dictTypeOptions.value = typeTableData.value
-        .filter(item => item.status === 1 && item.dictType !== configDictType)
+        .filter(
+          item =>
+            item.status === 1 &&
+            item.dictType !== configDictType &&
+            item.dictType !== configModuleDictType
+        )
         .map(item => ({
           label: item.dictName
             ? `${item.dictName}（${item.dictType}）`
@@ -284,6 +309,9 @@ export function useDictList(boatId: Ref<string>) {
     stopBoatWatch = watch(
       boatId,
       id => {
+        if (isModuleTab.value) {
+          return;
+        }
         if (isGlobalDictType.value) {
           fetchDictList("-1");
         } else if (id) {
@@ -361,7 +389,7 @@ export function useDictList(boatId: Ref<string>) {
     groupFilter.value = "";
     multipleSelection.value = [];
     pagination.currentPage = 1;
-    if (tab === "config") {
+    if (tab === "config" || tab === "modules") {
       await fetchDictList(currentScopeDevid());
     } else if (tab === "items") {
       if (
@@ -429,13 +457,21 @@ export function useDictList(boatId: Ref<string>) {
     const list: TableColumnList = [
       { type: "selection", width: 50, reserveSelection: true },
       {
-        label: isConfigTab.value ? "配置项" : "值标识",
+        label: isConfigTab.value
+          ? "配置项"
+          : isModuleTab.value
+          ? "模块标识"
+          : "值标识",
         prop: "name",
         minWidth: 160,
         showOverflowTooltip: true
       },
       {
-        label: isConfigTab.value ? "配置值" : "显示名称",
+        label: isConfigTab.value
+          ? "配置值"
+          : isModuleTab.value
+          ? "模块名称"
+          : "显示名称",
         prop: "value",
         minWidth: 160,
         showOverflowTooltip: true
@@ -457,6 +493,11 @@ export function useDictList(boatId: Ref<string>) {
         prop: "groupName",
         width: 120,
         showOverflowTooltip: true
+      });
+      list.splice(4, 0, {
+        label: "作用域",
+        prop: "scopeName",
+        width: 100
       });
     }
     return list;
@@ -507,7 +548,8 @@ export function useDictList(boatId: Ref<string>) {
     groupKey: "common",
     type: "",
     descripton: "",
-    user: ""
+    user: "",
+    devid: ""
   });
 
   const editForm = reactive<DictForm>({
@@ -518,6 +560,7 @@ export function useDictList(boatId: Ref<string>) {
     type: "",
     descripton: "",
     user: "",
+    devid: "",
     create_time: ""
   });
 
@@ -547,14 +590,22 @@ export function useDictList(boatId: Ref<string>) {
     keyname: [
       {
         required: true,
-        message: isConfigTab.value ? "请输入配置项" : "请输入值标识",
+        message: isConfigTab.value
+          ? "请输入配置项"
+          : isModuleTab.value
+          ? "请输入模块标识"
+          : "请输入值标识",
         trigger: "blur"
       }
     ],
     keyvalue: [
       {
         required: true,
-        message: isConfigTab.value ? "请输入配置值" : "请输入显示名称",
+        message: isConfigTab.value
+          ? "请输入配置值"
+          : isModuleTab.value
+          ? "请输入模块名称"
+          : "请输入显示名称",
         trigger: "blur"
       }
     ],
@@ -572,6 +623,15 @@ export function useDictList(boatId: Ref<string>) {
     form.type = getValueType(val);
   };
 
+  const addCurrentItem = (payload: DictSaveDTO) =>
+    isModuleTab.value ? addConfigModule(payload) : addDictList(payload);
+
+  const updateCurrentItem = (payload: DictSaveDTO) =>
+    isModuleTab.value ? updateConfigModule(payload) : updateDictList(payload);
+
+  const deleteCurrentItem = (_id: string) =>
+    isModuleTab.value ? deleteConfigModule(_id) : deleteDictList(_id);
+
   const handleAdd = () => {
     if (needsBoat.value && !boatId.value) {
       ElMessage.warning("请先选择船只");
@@ -588,7 +648,8 @@ export function useDictList(boatId: Ref<string>) {
       groupKey: showModuleFilter.value ? groupFilter.value || "common" : "",
       type: "",
       descripton: "",
-      user: localStorage.getItem("username") || ""
+      user: localStorage.getItem("username") || "",
+      devid: currentScopeDevid()
     });
     addVisible.value = true;
   };
@@ -628,12 +689,16 @@ export function useDictList(boatId: Ref<string>) {
       )
     ) {
       ElMessage.error(
-        isConfigTab.value ? "该模块下配置项已存在" : "该字典类型下值标识已存在"
+        isConfigTab.value
+          ? "该模块下配置项已存在"
+          : isModuleTab.value
+          ? "该模块标识已存在"
+          : "该字典类型下值标识已存在"
       );
       return;
     }
     try {
-      const res = await addDictList(
+      const res = await addCurrentItem(
         toSavePayload(addForm, currentScopeDevid(), {
           _id: genId(),
           create_time: formatDateTime(new Date())
@@ -642,6 +707,7 @@ export function useDictList(boatId: Ref<string>) {
       ElMessage.success(res.msg || "新增成功");
       addVisible.value = false;
       await fetchDictList(currentScopeDevid());
+      if (isModuleTab.value) await fetchModuleOptions();
     } catch (err) {
       console.error("[dict] 新增字典值失败:", err);
     }
@@ -677,6 +743,7 @@ export function useDictList(boatId: Ref<string>) {
       type: row.dataType,
       descripton: row.description,
       user: row.user,
+      devid: row.devid,
       create_time: row.createdTime
     });
     editVisible.value = true;
@@ -706,8 +773,8 @@ export function useDictList(boatId: Ref<string>) {
       editForm.groupKey = "";
     }
     try {
-      const res = await updateDictList(
-        toSavePayload(editForm, currentScopeDevid(), {
+      const res = await updateCurrentItem(
+        toSavePayload(editForm, editForm.devid || currentScopeDevid(), {
           _id: editForm._id,
           create_time: editForm.create_time
         })
@@ -715,6 +782,7 @@ export function useDictList(boatId: Ref<string>) {
       ElMessage.success(res.msg || "编辑成功");
       editVisible.value = false;
       await fetchDictList(currentScopeDevid());
+      if (isModuleTab.value) await fetchModuleOptions();
     } catch (err) {
       console.error("[dict] 编辑字典值失败:", err);
     }
@@ -745,9 +813,10 @@ export function useDictList(boatId: Ref<string>) {
     })
       .then(async () => {
         try {
-          const res = await deleteDictList(row._id);
+          const res = await deleteCurrentItem(row._id);
           ElMessage.success(res.msg || "删除成功");
-          if (currentScopeDevid()) await fetchDictList(currentScopeDevid());
+          await fetchDictList(currentScopeDevid());
+          if (isModuleTab.value) await fetchModuleOptions();
         } catch (err) {
           console.error("[dict] 删除字典值失败:", err);
         }
@@ -791,14 +860,15 @@ export function useDictList(boatId: Ref<string>) {
         let failed = 0;
         for (const row of rows) {
           try {
-            await deleteDictList(row._id);
+            await deleteCurrentItem(row._id);
             success++;
           } catch {
             failed++;
           }
         }
         multipleSelection.value = [];
-        if (currentScopeDevid()) await fetchDictList(currentScopeDevid());
+        await fetchDictList(currentScopeDevid());
+        if (isModuleTab.value) await fetchModuleOptions();
         if (success > 0) {
           ElMessage.success(
             `批量删除成功 ${success} 条${failed ? `，失败 ${failed} 条` : ""}`
@@ -833,32 +903,36 @@ export function useDictList(boatId: Ref<string>) {
   const handleExport = () => {
     const rows = requireSelectionForExport(multipleSelection.value);
     if (!rows) return;
-    const nameHeader = isConfigTab.value ? "配置项" : "值标识";
-    const valueHeader = isConfigTab.value ? "配置值" : "显示名称";
-    const exportData = rows.map(item => ({
-      [nameHeader]: item.name,
-      [valueHeader]: item.value,
-      模块: item.groupName || item.groupKey,
-      类型: item.dataType,
-      描述: item.description,
-      用户: item.user,
-      创建时间: item.createdTime
-    }));
+    const nameHeader = isConfigTab.value
+      ? "配置项"
+      : isModuleTab.value
+      ? "模块标识"
+      : "值标识";
+    const valueHeader = isConfigTab.value
+      ? "配置值"
+      : isModuleTab.value
+      ? "模块名称"
+      : "显示名称";
+    const exportData = rows.map(item => {
+      const row: Record<string, string> = {
+        [nameHeader]: item.name,
+        [valueHeader]: item.value,
+        类型: item.dataType,
+        描述: item.description,
+        用户: item.user,
+        创建时间: item.createdTime
+      };
+      if (isConfigTab.value) {
+        row.模块 = item.groupName || item.groupKey;
+        row.作用域 = item.scopeName;
+      }
+      return row;
+    });
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportData);
-    ws["!cols"] = [
-      {
-        wch: Math.max(10, ...exportData.map(r => String(r[nameHeader]).length))
-      },
-      {
-        wch: Math.max(15, ...exportData.map(r => String(r[valueHeader]).length))
-      },
-      { wch: 14 },
-      { wch: 10 },
-      { wch: Math.max(20, ...exportData.map(r => String(r.描述).length)) },
-      { wch: 10 },
-      { wch: 20 }
-    ];
+    ws["!cols"] = Object.keys(exportData[0] ?? {}).map(key => ({
+      wch: Math.max(10, ...exportData.map(row => String(row[key] ?? "").length))
+    }));
     XLSX.utils.book_append_sheet(wb, ws, itemTabTitle.value);
     XLSX.writeFile(wb, `${itemTabTitle.value}.xlsx`);
     ElMessage.success("导出成功");
@@ -887,10 +961,10 @@ export function useDictList(boatId: Ref<string>) {
     jsonData.forEach((row, index) => {
       const rowNum = index + 2;
       const keyname = String(
-        row["配置项"] || row["值标识"] || row["键名"] || ""
+        row["配置项"] || row["模块标识"] || row["值标识"] || row["键名"] || ""
       ).trim();
       const keyvalue = String(
-        row["配置值"] || row["显示名称"] || row["键值"] || ""
+        row["配置值"] || row["模块名称"] || row["显示名称"] || row["键值"] || ""
       ).trim();
       const groupKey = moduleKey(
         String(row["模块"] || groupFilter.value || "common")
@@ -903,6 +977,8 @@ export function useDictList(boatId: Ref<string>) {
           row: rowNum,
           reason: isConfigTab.value
             ? "缺少配置项或配置值"
+            : isModuleTab.value
+            ? "缺少模块标识或模块名称"
             : "缺少值标识或显示名称"
         });
         return;
@@ -914,6 +990,8 @@ export function useDictList(boatId: Ref<string>) {
             ? `模块「${moduleLabel(groupKey) || groupKey}」下${
                 isConfigTab.value ? "配置项" : "值标识"
               }「${keyname}」在文件内重复`
+            : isModuleTab.value
+            ? `模块标识「${keyname}」在文件内重复`
             : `值标识「${keyname}」在文件内重复`
         });
         return;
@@ -925,6 +1003,8 @@ export function useDictList(boatId: Ref<string>) {
             ? `模块「${moduleLabel(groupKey) || groupKey}」下${
                 isConfigTab.value ? "配置项" : "值标识"
               }「${keyname}」已存在`
+            : isModuleTab.value
+            ? `模块标识「${keyname}」已存在`
             : `值标识「${keyname}」已存在`
         });
         return;
@@ -959,7 +1039,7 @@ export function useDictList(boatId: Ref<string>) {
     try {
       for (const payload of toImport) {
         try {
-          await addDictList(payload);
+          await addCurrentItem(payload);
           added++;
         } catch {
           apiFailed++;
@@ -1004,6 +1084,7 @@ export function useDictList(boatId: Ref<string>) {
     scopeOptions,
     needsBoat,
     isConfigTab,
+    isModuleTab,
     showModuleFilter,
     itemTabTitle,
     searchPlaceholder,

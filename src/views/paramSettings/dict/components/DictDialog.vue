@@ -9,6 +9,7 @@ defineProps<{
   moduleOptions: Array<{ label: string; value: string }>;
   showModuleField: boolean;
   isConfigMode: boolean;
+  isModuleMode: boolean;
   onKeyValueInput: (v: string, form: DictForm) => void;
 }>();
 
@@ -29,7 +30,7 @@ function handleSubmit() {
   <el-dialog
     v-model="visible"
     :title="`${mode === 'add' ? '新增' : '编辑'}${
-      isConfigMode ? '设备配置' : '字典值'
+      isConfigMode ? '设备配置' : isModuleMode ? '模块' : '字典值'
     }`"
     width="480px"
     :close-on-click-modal="false"
@@ -37,22 +38,36 @@ function handleSubmit() {
   >
     <el-form ref="formRef" :model="form" :rules="formRules" label-width="82px">
       <el-form-item
-        :label="isConfigMode ? '配置项' : '值标识'"
+        :label="isConfigMode ? '配置项' : isModuleMode ? '模块标识' : '值标识'"
         :prop="mode === 'add' ? 'keyname' : undefined"
       >
         <el-input
           v-model="form.keyname"
-          :placeholder="isConfigMode ? '请输入配置项' : '请输入值标识'"
+          :placeholder="
+            isConfigMode
+              ? '请输入配置项'
+              : isModuleMode
+              ? '请输入模块标识'
+              : '请输入值标识'
+          "
           :disabled="mode === 'edit'"
         />
       </el-form-item>
       <el-form-item
-        :label="isConfigMode ? '配置值' : '显示名称'"
+        :label="
+          isConfigMode ? '配置值' : isModuleMode ? '模块名称' : '显示名称'
+        "
         prop="keyvalue"
       >
         <el-input
           v-model="form.keyvalue"
-          :placeholder="isConfigMode ? '请输入配置值' : '请输入显示名称'"
+          :placeholder="
+            isConfigMode
+              ? '请输入配置值'
+              : isModuleMode
+              ? '请输入模块名称'
+              : '请输入显示名称'
+          "
           @input="(v: string) => onKeyValueInput(v, form)"
         />
       </el-form-item>

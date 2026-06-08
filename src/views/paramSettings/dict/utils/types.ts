@@ -8,6 +8,9 @@ export interface DictItem {
   dataType: string;
   description: string;
   user: string;
+  devid: string;
+  scope: string;
+  scopeName: string;
   createdTime: string;
 }
 
@@ -20,6 +23,7 @@ export interface DictForm {
   type: string;
   descripton: string;
   user: string;
+  devid?: string;
   create_time?: string;
 }
 

@@ -30,6 +30,7 @@ const {
   scopeOptions,
   needsBoat,
   isConfigTab,
+  isModuleTab,
   showModuleFilter,
   itemTabTitle,
   searchPlaceholder,
@@ -120,6 +121,7 @@ onMounted(() => {
 
     <el-tabs v-model="activeTab" class="dict-tabs bg-bg_color w-[99/100] px-6">
       <el-tab-pane label="设备配置" name="config" />
+      <el-tab-pane label="模块" name="modules" />
       <el-tab-pane label="字典类型" name="types" />
       <el-tab-pane label="字典值" name="items" />
     </el-tabs>
@@ -389,6 +391,7 @@ onMounted(() => {
       :moduleOptions="moduleOptions"
       :showModuleField="showModuleFilter"
       :isConfigMode="isConfigTab"
+      :isModuleMode="isModuleTab"
       :onKeyValueInput="onKeyValueInput"
       @submit="submitAdd"
     />
@@ -402,6 +405,7 @@ onMounted(() => {
       :moduleOptions="moduleOptions"
       :showModuleField="showModuleFilter"
       :isConfigMode="isConfigTab"
+      :isModuleMode="isModuleTab"
       :onKeyValueInput="onKeyValueInput"
       @submit="submitEdit"
     />
