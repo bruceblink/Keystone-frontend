@@ -1,9 +1,42 @@
 import type { Plugin } from "vite";
 import dayjs, { Dayjs } from "dayjs";
-import utils from "@pureadmin/utils";
+import { join } from "path";
+import { readdir, stat } from "fs/promises";
 import duration from "dayjs/plugin/duration";
-import { green, blue, bold } from "picocolors";
+import picocolors from "picocolors";
 dayjs.extend(duration);
+
+const { green, blue, bold } = picocolors;
+
+async function getDirectorySize(folder: string): Promise<number> {
+  let total = 0;
+  const entries = await readdir(folder);
+
+  for (const entry of entries) {
+    const entryPath = join(folder, entry);
+    const entryStat = await stat(entryPath);
+
+    if (entryStat.isDirectory()) {
+      total += await getDirectorySize(entryPath);
+    } else if (entryStat.isFile()) {
+      total += entryStat.size;
+    }
+  }
+
+  return total;
+}
+
+function formatBytes(bytes: number, decimals = 2): string {
+  if (bytes === 0) return "0 Bytes";
+
+  const unit = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const index = Math.floor(Math.log(bytes) / Math.log(unit));
+
+  return `${parseFloat((bytes / Math.pow(unit, index)).toFixed(decimals))} ${
+    sizes[index]
+  }`;
+}
 
 export function viteBuildInfo(): Plugin {
   let config: { command: string };
@@ -30,23 +63,20 @@ export function viteBuildInfo(): Plugin {
         startTime = dayjs(new Date());
       }
     },
-    closeBundle() {
+    async closeBundle() {
       if (config.command === "build") {
         endTime = dayjs(new Date());
-        utils.getPackageSize({
-          folder: outDir,
-          callback: (size: string) => {
-            console.log(
-              bold(
-                green(
-                  `🎉恭喜打包完成（总用时${dayjs
-                    .duration(endTime.diff(startTime))
-                    .format("mm分ss秒")}，打包后的大小为${size}）`
-                )
-              )
-            );
-          }
-        });
+        const size = formatBytes(await getDirectorySize(outDir));
+
+        console.log(
+          bold(
+            green(
+              `🎉恭喜打包完成（总用时${dayjs
+                .duration(endTime.diff(startTime))
+                .format("mm分ss秒")}，打包后的大小为${size}）`
+            )
+          )
+        );
       }
     }
   };

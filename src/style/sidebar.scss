@@ -1,3 +1,13 @@
+/* 主题变量默认值，构建主题 CSS 时会被 @pureadmin/theme 注入的同名变量覆盖 */
+$subMenuActiveText: #fff !default;
+$menuBg: #001529 !default;
+$menuHover: #4091f7 !default;
+$subMenuBg: #0f0303 !default;
+$menuText: rgb(254 254 254 / 65%) !default;
+$sidebarLogo: #002140 !default;
+$menuTitleHover: #fff !default;
+$menuActiveBefore: #4091f7 !default;
+
 /* $sideBarWidth: vertical 模式下主体内容距离网页文档左侧的距离 */
 @mixin merge-style($sideBarWidth) {
   $menuActiveText: #7a80b4;
