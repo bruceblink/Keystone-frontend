@@ -5,6 +5,7 @@ import { useEpThemeStoreHook } from "@/store/modules/epTheme";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { removeToken } from "@/utils/auth";
 import { storageLocal, storageSession } from "@pureadmin/utils";
+import { router, resetRouter } from "@/router";
 
 export function clearLoginSession(options: { clearStorage?: boolean } = {}) {
   removeToken();
@@ -25,8 +26,6 @@ export function clearLoginSession(options: { clearStorage?: boolean } = {}) {
   }
 
   useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
-  import("@/router").then(({ router, resetRouter }) => {
-    resetRouter();
-    router.push("/login");
-  });
+  resetRouter();
+  router.push("/login");
 }
