@@ -102,6 +102,24 @@ const submitLogin = async (forceLogin = false) => {
   finishLogin(response.data);
 };
 
+const shouldRefreshCaptchaAfterLoginError = (error: any) => {
+  return (
+    isCaptchaOn.value &&
+    !error?.response &&
+    !error?.request &&
+    error?.code !== LOGIN_ACCOUNT_ALREADY_LOGGED_IN
+  );
+};
+
+const refreshCaptchaAfterLoginError = async (error: any) => {
+  if (!shouldRefreshCaptchaAfterLoginError(error)) {
+    return;
+  }
+
+  ruleForm.captchaCode = "";
+  await getCaptchaCode().catch(() => undefined);
+};
+
 const onLogin = async (formEl: FormInstance | undefined) => {
   loading.value = true;
   if (!formEl) {
@@ -150,7 +168,7 @@ const onLogin = async (formEl: FormInstance | undefined) => {
     }
     loading.value = false;
     //如果登陆失败则重新获取验证码
-    getCaptchaCode();
+    await refreshCaptchaAfterLoginError(error);
   }
 };
 
@@ -187,7 +205,7 @@ onBeforeMount(async () => {
     useUserStoreHook().SET_DICTIONARY(new Map());
   }
 
-  await getCaptchaCode();
+  await getCaptchaCode().catch(() => undefined);
 
   isRememberMe.value = getIsRememberMe();
   if (isRememberMe.value) {

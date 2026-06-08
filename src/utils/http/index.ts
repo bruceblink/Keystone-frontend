@@ -133,6 +133,36 @@ class PureHttp {
     );
   }
 
+  private static getRequestErrorMessage(error: PureHttpError) {
+    if (Axios.isCancel(error)) {
+      return "";
+    }
+
+    const status = error.response?.status;
+    if (typeof status === "number") {
+      if (status >= 500) {
+        return "服务器异常，请稍后重试";
+      }
+
+      if (status >= 400) {
+        return "请求接口不存在或无访问权限";
+      }
+    }
+
+    if (
+      error.code === "ECONNABORTED" ||
+      error.message?.toLowerCase().includes("timeout")
+    ) {
+      return "请求超时，请检查后端服务或网络连接";
+    }
+
+    if (!error.response) {
+      return "后端服务不可用，请检查服务是否启动或网络连接";
+    }
+
+    return error.message || "网络异常";
+  }
+
   private static async refreshAccessToken(): Promise<string> {
     if (PureHttp.refreshTask) {
       return PureHttp.refreshTask;
@@ -289,6 +319,11 @@ class PureHttp {
           resolve(response);
         })
         .catch(error => {
+          if (!Axios.isAxiosError(error)) {
+            reject(error);
+            return;
+          }
+
           if (
             error.response &&
             AUTH_HTTP_STATUSES.includes(error.response.status)
@@ -297,17 +332,9 @@ class PureHttp {
             return;
           }
 
-          // 某些情况网络失效，此时直接进入error流程，所以在这边也进行拦截
-          if (error.response && error.response.status >= 500) {
-            message("网络异常", { type: "error" });
-          }
-
-          if (
-            error.response &&
-            error.response.status >= 400 &&
-            error.response.status < 500
-          ) {
-            message("请求接口不存在", { type: "error" });
+          const errorMessage = PureHttp.getRequestErrorMessage(error);
+          if (errorMessage) {
+            message(errorMessage, { type: "error", grouping: true });
           }
 
           reject(error);
