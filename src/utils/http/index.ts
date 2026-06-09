@@ -34,6 +34,18 @@ const AUTH_WHITE_LIST = [
   "/captchaImage",
   "/getConfig"
 ];
+const SENSITIVE_ERROR_MESSAGE_PATTERNS = [
+  /###\s*(Error|Cause|SQL):/i,
+  /\b(Field|Column|Table)\s+['"`][^'"`]+['"`]/i,
+  /\b(java|javax|org\.springframework|org\.mybatis)\./i,
+  /\b(SQL|SQLException|SQLSyntaxErrorException|DataIntegrityViolationException|DuplicateKeyException)\b/i,
+  /\b(Mapper|Statement|ResultMap|PreparedStatement)\b/i,
+  /\b(Duplicate entry|foreign key|constraint|doesn't have a default value)\b/i,
+  /\b(INSERT|UPDATE|DELETE|SELECT)\s+.+\b(FROM|INTO|SET|VALUES)\b/i,
+  /\b[A-Za-z0-9_]+Mapper\.[A-Za-z0-9_]+\b/,
+  /\b[a-z][a-z0-9]*_[a-z0-9_]+\b/i,
+  /\b(The error may exist|The error may involve|The error occurred while)\b/i
+];
 // 相关配置请参考：www.axios-js.com/zh-cn/docs/#axios-request-config-1
 const defaultConfig: AxiosRequestConfig = {
   // 请求超时时间
@@ -163,6 +175,32 @@ class PureHttp {
     return error.message || "网络异常";
   }
 
+  private static includesSensitiveErrorDetail(msg?: unknown) {
+    if (typeof msg !== "string") {
+      return false;
+    }
+
+    const normalizedMsg = msg.trim();
+    return (
+      normalizedMsg.length > 300 ||
+      SENSITIVE_ERROR_MESSAGE_PATTERNS.some(pattern =>
+        pattern.test(normalizedMsg)
+      )
+    );
+  }
+
+  private static getSafeBusinessMessage(msg?: unknown) {
+    if (typeof msg !== "string" || !msg.trim()) {
+      return "请求处理失败，请稍后重试";
+    }
+
+    if (PureHttp.includesSensitiveErrorDetail(msg)) {
+      return "服务器处理失败，请联系管理员";
+    }
+
+    return msg;
+  }
+
   private static async refreshAccessToken(): Promise<string> {
     if (PureHttp.refreshTask) {
       return PureHttp.refreshTask;
@@ -249,27 +287,28 @@ class PureHttp {
         }
 
         // 如果不存在code说明后端格式有问题
-        if (!code) {
+        if (code === undefined || code === null) {
           msg = "服务器返回数据结构有误";
         }
 
         // 请求返回失败时，有业务错误时，弹出错误提示
         if (code !== 0) {
+          const safeMsg = PureHttp.getSafeBusinessMessage(msg);
           if (AUTH_ERROR_CODES.includes(code)) {
             if (PureHttp.shouldRefresh(response.config)) {
               try {
                 return await PureHttp.retryWithRefreshedToken(response.config);
               } catch {
-                PureHttp.redirectToLoginOnAuthError(msg);
+                PureHttp.redirectToLoginOnAuthError(safeMsg);
               }
             } else {
-              PureHttp.redirectToLoginOnAuthError(msg);
+              PureHttp.redirectToLoginOnAuthError(safeMsg);
             }
           } else {
-            message(msg, { type: "error" });
+            message(safeMsg, { type: "error" });
           }
           NProgress.done();
-          return Promise.reject({ code, msg });
+          return Promise.reject({ code, msg: safeMsg });
         }
 
         /** 修改 */

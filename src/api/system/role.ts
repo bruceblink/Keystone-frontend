@@ -41,7 +41,7 @@ export interface AddRoleCommand {
   roleKey: string;
   roleName: string;
   roleSort: number;
-  status?: string;
+  status: number;
 }
 
 export function addRoleApi(data: AddRoleCommand) {
