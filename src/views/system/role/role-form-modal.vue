@@ -3,6 +3,7 @@ import VDialog from "@/components/VDialog/VDialog.vue";
 import { computed, reactive, ref } from "vue";
 import { useUserStoreHook } from "@/store/modules/user";
 import { ElMessage, FormInstance, FormRules } from "element-plus";
+import type { DictionaryData } from "@/api/common/login";
 import {
   AddRoleCommand,
   RoleDTO,
@@ -32,7 +33,26 @@ const visible = computed({
   }
 });
 
-const formData = reactive<AddRoleCommand | UpdateRoleCommand>({
+const DEFAULT_STATUS = 1;
+const fallbackStatusList: DictionaryData[] = [
+  { label: "已启用", value: 1, cssTag: "success" },
+  { label: "已停用", value: 0, cssTag: "info" }
+];
+
+function createDefaultFormData(): UpdateRoleCommand {
+  return {
+    roleId: 0,
+    dataScope: "",
+    menuIds: [],
+    remark: "",
+    roleKey: "",
+    roleName: "",
+    roleSort: 1,
+    status: DEFAULT_STATUS
+  };
+}
+
+const formData = reactive<UpdateRoleCommand>({
   roleId: 0,
   dataScope: "",
   menuIds: [],
@@ -40,12 +60,23 @@ const formData = reactive<AddRoleCommand | UpdateRoleCommand>({
   roleKey: "",
   roleName: "",
   roleSort: 1,
-  status: ""
+  status: DEFAULT_STATUS
 });
 
-const statusList = computed(
-  () => useUserStoreHook().dictionaryMap["common.status"] ?? {}
-);
+const statusList = computed<DictionaryData[]>(() => {
+  const userStore = useUserStoreHook();
+  const list = userStore.dictionaryList["common.status"];
+  if (Array.isArray(list) && list.length) {
+    return list;
+  }
+
+  const map = userStore.dictionaryMap["common.status"];
+  if (map && Object.keys(map).length) {
+    return Object.values(map);
+  }
+
+  return fallbackStatusList;
+});
 
 const rules: FormRules = {
   roleName: [
@@ -65,17 +96,27 @@ const rules: FormRules = {
       required: true,
       message: "角色序号不能为空"
     }
+  ],
+  status: [
+    {
+      required: true,
+      message: "角色状态不能为空",
+      trigger: "change"
+    }
   ]
 };
 const formRef = ref<FormInstance>();
 function handleOpened() {
-  console.log("opened", props.row);
   if (props.row) {
-    Object.assign(formData, props.row);
-    formData.menuIds = props.row.selectedMenuList;
+    Object.assign(formData, createDefaultFormData(), props.row, {
+      menuIds: props.row.selectedMenuList ?? [],
+      status: normalizeStatus(props.row.status)
+    });
   } else {
-    formRef.value?.resetFields();
+    Object.assign(formData, createDefaultFormData());
   }
+  formRef.value?.clearValidate();
+  treeRef.value?.setCheckedKeys(formData.menuIds, false);
 }
 
 const treeRef = ref<any>();
@@ -83,21 +124,60 @@ function handleCheckChange() {
   formData.menuIds = treeRef.value.getCheckedKeys(false) as number[];
 }
 
+function normalizeStatus(status: unknown) {
+  if (status === "" || status === undefined || status === null) {
+    return DEFAULT_STATUS;
+  }
+
+  const statusValue = Number(status);
+  return Number.isNaN(statusValue) ? DEFAULT_STATUS : statusValue;
+}
+
+function buildRolePayload(): AddRoleCommand {
+  return {
+    dataScope: formData.dataScope,
+    menuIds: formData.menuIds,
+    remark: formData.remark,
+    roleKey: formData.roleKey,
+    roleName: formData.roleName,
+    roleSort: formData.roleSort,
+    status: normalizeStatus(formData.status)
+  };
+}
+
+function isHttpHandledError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    ("msg" in error || "isAxiosError" in error)
+  );
+}
+
 const loading = ref(false);
 async function handleConfirm() {
+  const valid = await formRef.value?.validate().catch(() => false);
+  if (valid === false) {
+    return;
+  }
+
   try {
     loading.value = true;
+    const payload = buildRolePayload();
     if (props.type === "add") {
-      await addRoleApi(formData);
+      await addRoleApi(payload);
     } else if (props.type === "update") {
-      await updateRoleApi(formData as UpdateRoleCommand);
+      await updateRoleApi({
+        ...payload,
+        roleId: formData.roleId
+      });
     }
     ElMessage.info("提交成功");
     visible.value = false;
     emits("success");
   } catch (e) {
-    console.error(e);
-    ElMessage.error((e as Error)?.message || "提交失败");
+    if (!isHttpHandledError(e)) {
+      ElMessage.error("提交失败，请稍后重试");
+    }
   } finally {
     loading.value = false;
   }
@@ -129,11 +209,12 @@ async function handleConfirm() {
       <el-form-item prop="status" label="角色状态">
         <el-radio-group v-model="formData.status">
           <el-radio
-            v-for="item in Object.keys(statusList)"
-            :key="item"
-            :label="statusList[item].value"
-            >{{ statusList[item].label }}</el-radio
+            v-for="item in statusList"
+            :key="item.value"
+            :value="item.value"
           >
+            {{ item.label }}
+          </el-radio>
         </el-radio-group>
       </el-form-item>
       <el-form-item label="菜单权限" prop="menuIds">
