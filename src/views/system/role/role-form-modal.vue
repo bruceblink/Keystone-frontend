@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import VDialog from "@/components/VDialog/VDialog.vue";
 import { computed, reactive, ref } from "vue";
+import { useUserStoreHook } from "@/store/modules/user";
 import { ElMessage, FormInstance, FormRules } from "element-plus";
+import type { DictionaryData } from "@/api/common/login";
 import {
   AddRoleCommand,
   RoleDTO,
@@ -10,7 +12,6 @@ import {
   updateRoleApi
 } from "@/api/system/role";
 import { MenuDTO } from "@/api/system/menu";
-import { useSystemDict } from "@/views/system/utils/dict";
 
 interface Props {
   type: "add" | "update";
@@ -33,6 +34,10 @@ const visible = computed({
 });
 
 const DEFAULT_STATUS = 1;
+const fallbackStatusList: DictionaryData[] = [
+  { label: "已启用", value: 1, cssTag: "success" },
+  { label: "已停用", value: 0, cssTag: "info" }
+];
 
 function createDefaultFormData(): UpdateRoleCommand {
   return {
@@ -58,7 +63,20 @@ const formData = reactive<UpdateRoleCommand>({
   status: DEFAULT_STATUS
 });
 
-const statusOptions = useSystemDict("common.status").options;
+const statusList = computed<DictionaryData[]>(() => {
+  const userStore = useUserStoreHook();
+  const list = userStore.dictionaryList["common.status"];
+  if (Array.isArray(list) && list.length) {
+    return list;
+  }
+
+  const map = userStore.dictionaryMap["common.status"];
+  if (map && Object.keys(map).length) {
+    return Object.values(map);
+  }
+
+  return fallbackStatusList;
+});
 
 const rules: FormRules = {
   roleName: [
@@ -153,7 +171,7 @@ async function handleConfirm() {
         roleId: formData.roleId
       });
     }
-    ElMessage.success("提交成功");
+    ElMessage.info("提交成功");
     visible.value = false;
     emits("success");
   } catch (e) {
@@ -191,7 +209,7 @@ async function handleConfirm() {
       <el-form-item prop="status" label="角色状态">
         <el-radio-group v-model="formData.status">
           <el-radio
-            v-for="item in statusOptions"
+            v-for="item in statusList"
             :key="item.value"
             :value="item.value"
           >
