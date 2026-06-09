@@ -171,7 +171,7 @@ async function handleConfirm() {
         roleId: formData.roleId
       });
     }
-    ElMessage.info("提交成功");
+    ElMessage.success("提交成功");
     visible.value = false;
     emits("success");
   } catch (e) {
