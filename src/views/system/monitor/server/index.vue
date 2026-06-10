@@ -2,6 +2,62 @@
   <div class="main" v-loading="loading">
     <!-- 注意template和div之间 不要加注释  会导致后续的页面渲染空白 -->
     <!-- v-loading指令  可以直接调用Loading动画  -->
+    <el-row>
+      <el-col :span="24" class="card-box">
+        <el-card>
+          <template #header>
+            <div class="network-card-header">
+              <span>外网连接状态</span>
+              <el-tag :type="networkStatusTagType" effect="dark">
+                {{ networkStatusText }}
+              </el-tag>
+            </div>
+          </template>
+          <div class="network-overview">
+            <span class="network-indicator" :class="networkIndicatorClass" />
+            <span class="network-status-text">{{ networkStatusText }}</span>
+            <span class="network-check-time">
+              检测时间：{{ networkCheckedAtText }}
+            </span>
+            <span v-if="networkStreamError" class="network-error">
+              {{ networkStreamError }}
+            </span>
+          </div>
+          <el-table
+            :data="networkTargetTable"
+            :show-header="true"
+            empty-text="等待检测结果"
+            style="width: 100%"
+          >
+            <el-table-column prop="name" label="检测点" width="120" />
+            <el-table-column
+              prop="url"
+              label="地址"
+              min-width="220"
+              show-overflow-tooltip
+            />
+            <el-table-column label="状态" width="120">
+              <template #default="{ row }">
+                <el-tag :type="row.connected ? 'success' : 'danger'">
+                  {{ row.connected ? "可访问" : "不可访问" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="延迟(ms)" width="110">
+              <template #default="{ row }">
+                {{ row.latencyMillis ?? "-" }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="message"
+              label="结果"
+              min-width="140"
+              show-overflow-tooltip
+            />
+          </el-table>
+        </el-card>
+      </el-col>
+    </el-row>
     <el-row :gutter="30">
       <el-col :span="12" class="card-box">
         <el-card>
@@ -94,8 +150,13 @@
 </template>
 
 <script setup lang="ts">
-import { getServerInfoApi, ServerInfo } from "@/api/system/monitor";
-import { onBeforeMount, ref } from "vue";
+import {
+  connectNetworkStatusStream,
+  getServerInfoApi,
+  NetworkStatus,
+  ServerInfo
+} from "@/api/system/monitor";
+import { computed, onBeforeMount, onBeforeUnmount, ref } from "vue";
 
 /** 组件name最好和菜单表中的router_name一致 */
 defineOptions({
@@ -109,6 +170,39 @@ const memoryInfoTable = ref([]);
 const serverInfoTable = ref([]);
 const jvmInfoTable = ref([]);
 const diskInfoTable = ref([]);
+const networkStatus = ref<NetworkStatus>();
+const networkStreamError = ref("");
+let closeNetworkStatusStream: (() => void) | undefined;
+
+const networkStatusText = computed(() => {
+  if (!networkStatus.value) {
+    return "连接中";
+  }
+  return networkStatus.value.online ? "外网正常" : "外网断开";
+});
+
+const networkStatusTagType = computed(() => {
+  if (!networkStatus.value) {
+    return "info";
+  }
+  return networkStatus.value.online ? "success" : "danger";
+});
+
+const networkIndicatorClass = computed(() => {
+  if (!networkStatus.value) {
+    return "is-checking";
+  }
+  return networkStatus.value.online ? "is-online" : "is-offline";
+});
+
+const networkCheckedAtText = computed(() => {
+  if (!networkStatus.value?.checkedAt) {
+    return "-";
+  }
+  return new Date(networkStatus.value.checkedAt).toLocaleString();
+});
+
+const networkTargetTable = computed(() => networkStatus.value?.targets ?? []);
 
 async function getList() {
   loading.value = true;
@@ -227,8 +321,27 @@ function cellClassName({ row }) {
   }
 }
 
+function startNetworkStatusStream() {
+  const stream = connectNetworkStatusStream({
+    onMessage(data) {
+      networkStatus.value = data;
+      networkStreamError.value = "";
+    },
+    onError(error) {
+      networkStreamError.value =
+        error instanceof Error ? error.message : "SSE连接异常";
+    }
+  });
+  closeNetworkStatusStream = stream.close;
+}
+
 onBeforeMount(() => {
   getList();
+  startNetworkStatusStream();
+});
+
+onBeforeUnmount(() => {
+  closeNetworkStatusStream?.();
 });
 </script>
 
@@ -239,5 +352,50 @@ onBeforeMount(() => {
 
 .el-row:last-child {
   margin-bottom: 0;
+}
+
+.network-card-header,
+.network-overview {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.network-card-header {
+  justify-content: space-between;
+}
+
+.network-overview {
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.network-indicator {
+  width: 14px;
+  height: 14px;
+  background: #909399;
+  border-radius: 50%;
+}
+
+.network-indicator.is-online {
+  background: #67c23a;
+}
+
+.network-indicator.is-offline {
+  background: #f56c6c;
+}
+
+.network-status-text {
+  font-weight: 600;
+}
+
+.network-check-time {
+  font-size: 13px;
+  color: #909399;
+}
+
+.network-error {
+  font-size: 13px;
+  color: #f56c6c;
 }
 </style>
