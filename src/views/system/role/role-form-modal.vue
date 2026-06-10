@@ -67,12 +67,12 @@ const statusList = computed<DictionaryData[]>(() => {
   const userStore = useUserStoreHook();
   const list = userStore.dictionaryList["common.status"];
   if (Array.isArray(list) && list.length) {
-    return list;
+    return normalizeStatusList(list);
   }
 
   const map = userStore.dictionaryMap["common.status"];
   if (map && Object.keys(map).length) {
-    return Object.values(map);
+    return normalizeStatusList(Object.values(map));
   }
 
   return fallbackStatusList;
@@ -131,6 +131,13 @@ function normalizeStatus(status: unknown) {
 
   const statusValue = Number(status);
   return Number.isNaN(statusValue) ? DEFAULT_STATUS : statusValue;
+}
+
+function normalizeStatusList(list: DictionaryData[]) {
+  return list.map(item => ({
+    ...item,
+    value: normalizeStatus(item.value)
+  }));
 }
 
 function buildRolePayload(): AddRoleCommand {

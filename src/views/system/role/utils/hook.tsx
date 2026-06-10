@@ -4,7 +4,8 @@ import {
   deleteRoleApi,
   getRoleListApi,
   RoleDTO,
-  RoleQuery
+  RoleQuery,
+  updateRoleStatusApi
 } from "@/api/system/role";
 import { getMenuListApi, MenuDTO } from "@/api/system/menu";
 import { ElMessage, ElMessageBox, type FormInstance } from "element-plus";
@@ -12,6 +13,7 @@ import { usePublicHooks } from "../../hooks";
 import { type PaginationProps } from "@pureadmin/table";
 import { onMounted, reactive, ref, toRaw } from "vue";
 import { toTree } from "@/utils/tree";
+import { CommonUtils } from "@/utils/common";
 
 type SwitchState = {
   loading?: boolean;
@@ -89,46 +91,49 @@ export function useRole() {
     }
   ];
 
-  function onChange(row: RoleDTO, index: number) {
-    ElMessageBox.confirm(
-      `确认要<strong>${
-        row.status === 0 ? "停用" : "启用"
-      }</strong><strong style='color:var(--el-color-primary)'>${
-        row.roleName
-      }</strong>吗?`,
-      "系统提示",
-      {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        type: "warning",
-        dangerouslyUseHTMLString: true,
-        draggable: true
-      }
-    )
-      .then(() => {
-        switchLoadMap.value[index] = Object.assign(
-          {},
-          switchLoadMap.value[index],
-          {
-            loading: true
-          }
-        );
-        setTimeout(() => {
-          switchLoadMap.value[index] = Object.assign(
-            {},
-            switchLoadMap.value[index],
-            {
-              loading: false
-            }
-          );
-          message(`已${row.status === 0 ? "停用" : "启用"}${row.roleName}`, {
-            type: "success"
-          });
-        }, 300);
-      })
-      .catch(() => {
-        row.status === 0 ? (row.status = 1) : (row.status = 0);
+  async function onChange(row: RoleDTO, index: number) {
+    const nextStatus = Number(row.status);
+    const previousStatus = nextStatus === 0 ? 1 : 0;
+
+    try {
+      await ElMessageBox.confirm(
+        `确认要<strong>${
+          nextStatus === 0 ? "停用" : "启用"
+        }</strong><strong style='color:var(--el-color-primary)'>${
+          row.roleName
+        }</strong>吗?`,
+        "系统提示",
+        {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          type: "warning",
+          dangerouslyUseHTMLString: true,
+          draggable: true
+        }
+      );
+
+      switchLoading(index, true);
+      await updateRoleStatusApi(row.roleId, nextStatus);
+      message(`已${nextStatus === 0 ? "停用" : "启用"}${row.roleName}`, {
+        type: "success"
       });
+      await getList();
+    } catch (e) {
+      row.status = previousStatus;
+      if (e === "cancel" || e === "close") {
+        message("取消操作", {
+          type: "info"
+        });
+      }
+    } finally {
+      switchLoading(index, false);
+    }
+  }
+
+  function switchLoading(index: number, loading: boolean) {
+    switchLoadMap.value[index] = Object.assign({}, switchLoadMap.value[index], {
+      loading
+    });
   }
 
   async function handleDelete(row: RoleDTO) {
@@ -138,7 +143,7 @@ export function useRole() {
       message(`您删除了角色名称为${row.roleName}的这条数据`, {
         type: "success"
       });
-      onSearch();
+      await getList();
     } catch (e) {
       console.error(e);
       message((e as Error)?.message || "删除失败", { type: "error" });
@@ -148,10 +153,15 @@ export function useRole() {
   }
 
   async function onSearch() {
+    pagination.currentPage = 1;
+    await getList();
+  }
+
+  async function getList() {
     try {
+      CommonUtils.fillPaginationParams(form, pagination);
       loading.value = true;
       const { data } = await getRoleListApi(toRaw(form));
-      console.log("role list", data);
       dataList.value = data.rows;
       pagination.total = data.total;
     } catch (e) {
@@ -176,7 +186,6 @@ export function useRole() {
       return menuTree.value;
     }
     const { data } = await getMenuListApi({ isButton: false });
-    console.log("menu data", data);
     menuTree.value = toTree(data, "id", "parentId");
     return menuTree.value;
   }
@@ -193,6 +202,7 @@ export function useRole() {
     dataList,
     pagination,
     onSearch,
+    getList,
     resetForm,
     menuTree,
     getMenuTree,
