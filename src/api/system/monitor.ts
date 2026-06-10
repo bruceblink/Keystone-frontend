@@ -1,4 +1,12 @@
 import { http } from "@/utils/http";
+import { getToken, formatToken } from "@/utils/auth";
+
+const { VITE_APP_BASE_API } = import.meta.env;
+
+const NETWORK_STATUS_STREAM_URL = `${(VITE_APP_BASE_API || "").replace(
+  /\/$/,
+  ""
+)}/monitor/networkStatus/stream`;
 
 export interface OnlineUserQuery {
   ipAddress: string;
@@ -107,6 +115,131 @@ export interface SystemInfo {
   osArch?: string;
   osName?: string;
   userDir?: string;
+}
+
+export interface NetworkTargetStatus {
+  name?: string;
+  url?: string;
+  connected?: boolean;
+  statusCode?: number;
+  latencyMillis?: number;
+  message?: string;
+}
+
+export interface NetworkStatus {
+  online?: boolean;
+  status?: "ONLINE" | "OFFLINE";
+  checkedAt?: string;
+  targets?: NetworkTargetStatus[];
+}
+
+export interface NetworkStatusStreamOptions {
+  onMessage: (data: NetworkStatus) => void;
+  onError?: (error: unknown) => void;
+}
+
+function parseSseEvent(rawEvent: string) {
+  const event = {
+    name: "",
+    data: ""
+  };
+  const dataLines: string[] = [];
+
+  rawEvent.split(/\r?\n/).forEach(line => {
+    if (line.startsWith("event:")) {
+      event.name = line.slice("event:".length).trim();
+    }
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice("data:".length).trimStart());
+    }
+  });
+
+  event.data = dataLines.join("\n");
+  return event;
+}
+
+function wait(ms: number) {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function openNetworkStatusStream(
+  controller: AbortController,
+  options: NetworkStatusStreamOptions
+) {
+  const token = getToken()?.token;
+  if (!token) {
+    throw new Error("登录状态已过期，请重新登录");
+  }
+
+  const response = await fetch(NETWORK_STATUS_STREAM_URL, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      Accept: "text/event-stream",
+      Authorization: formatToken(token)
+    },
+    signal: controller.signal
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`SSE连接失败：${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  while (!controller.signal.aborted) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split(/\r?\n\r?\n/);
+    buffer = events.pop() || "";
+
+    events.forEach(rawEvent => {
+      const event = parseSseEvent(rawEvent);
+      if (event.name === "network-status" && event.data) {
+        options.onMessage(JSON.parse(event.data) as NetworkStatus);
+      }
+    });
+  }
+}
+
+export function connectNetworkStatusStream(
+  options: NetworkStatusStreamOptions
+) {
+  const controller = new AbortController();
+  let closed = false;
+
+  async function connectLoop() {
+    while (!closed) {
+      try {
+        await openNetworkStatusStream(controller, options);
+      } catch (error) {
+        if (!closed && !controller.signal.aborted) {
+          options.onError?.(error);
+        }
+      }
+
+      if (!closed && !controller.signal.aborted) {
+        await wait(3000);
+      }
+    }
+  }
+
+  void connectLoop();
+
+  return {
+    close() {
+      closed = true;
+      controller.abort();
+    }
+  };
 }
 
 /** 获取服务器信息 */
