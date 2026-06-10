@@ -60,6 +60,18 @@ export function updateRoleApi(data: UpdateRoleCommand) {
   });
 }
 
+export function updateRoleStatusApi(roleId: number, status: number) {
+  return http.request<ResponseData<void>>(
+    "put",
+    `/system/role/${roleId}/status`,
+    {
+      data: {
+        status
+      }
+    }
+  );
+}
+
 export function deleteRoleApi(roleId: number) {
   return http.request<void>("delete", "/system/role/" + roleId);
 }

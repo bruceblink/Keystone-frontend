@@ -25,6 +25,7 @@ const {
   dataList,
   pagination,
   onSearch,
+  getList,
   resetForm,
   menuTree,
   getMenuTree,
@@ -35,20 +36,31 @@ const opType = ref<"add" | "update">("add");
 const modalVisible = ref(false);
 const opRow = ref<RoleDTO>();
 async function openDialog(type: "add" | "update", row?: RoleDTO) {
+  let dialogRow = row;
   try {
     await getMenuTree();
     if (row) {
       const { data } = await getRoleInfoApi(row.roleId);
-      row.selectedMenuList = data.selectedMenuList;
-      row.selectedDeptList = data.selectedDeptList;
+      dialogRow = {
+        ...row,
+        ...data
+      };
     }
   } catch (e) {
     console.error(e);
     ElMessage.error((e as Error)?.message || "加载菜单失败");
   }
   opType.value = type;
-  opRow.value = row;
+  opRow.value = dialogRow;
   modalVisible.value = true;
+}
+
+function handleFormSuccess() {
+  if (opType.value === "add") {
+    onSearch();
+    return;
+  }
+  getList();
 }
 </script>
 <template>
@@ -101,11 +113,7 @@ async function openDialog(type: "add" | "update", row?: RoleDTO) {
       </el-form-item>
     </el-form>
 
-    <PureTableBar
-      title="角色列表（仅演示，操作后不生效）"
-      :columns="columns"
-      @refresh="onSearch"
-    >
+    <PureTableBar title="角色列表" :columns="columns" @refresh="onSearch">
       <template #buttons>
         <el-button
           type="primary"
@@ -132,8 +140,8 @@ async function openDialog(type: "add" | "update", row?: RoleDTO) {
             background: 'var(--el-table-row-hover-bg-color)',
             color: 'var(--el-text-color-primary)'
           }"
-          @page-size-change="onSearch"
-          @page-current-change="onSearch"
+          @page-size-change="getList"
+          @page-current-change="getList"
         >
           <template #operation="{ row }">
             <el-button
@@ -209,6 +217,7 @@ async function openDialog(type: "add" | "update", row?: RoleDTO) {
       :type="opType"
       :row="opRow"
       :menu-options="menuTree"
+      @success="handleFormSuccess"
     />
   </div>
 </template>
