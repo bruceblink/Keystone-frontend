@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useUserStoreHook } from "@/store/modules/user";
 import type { JobRequest } from "@/api/system/job";
 import { formRules } from "./utils/rule";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 interface FormProps {
   formInline: JobRequest;
@@ -22,6 +22,8 @@ const props = withDefaults(defineProps<FormProps>(), {
 
 const formData = ref(props.formInline);
 const formRuleRef = ref();
+const yesOrNoOptions = useSystemDict("common.yesOrNo").options;
+const statusOptions = useSystemDict("sysJob.status").options;
 
 function getFormRuleRef() {
   return formRuleRef.value;
@@ -68,7 +70,7 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="允许并发" prop="concurrent">
       <el-radio-group v-model="formData.concurrent">
         <el-radio
-          v-for="dict in useUserStoreHook().dictionaryList['common.yesOrNo']"
+          v-for="dict in yesOrNoOptions"
           :key="dict.value"
           :label="dict.value"
         >
@@ -79,7 +81,7 @@ defineExpose({ getFormRuleRef });
     <el-form-item label="状态" prop="status">
       <el-radio-group v-model="formData.status">
         <el-radio
-          v-for="dict in useUserStoreHook().dictionaryList['sysJob.status']"
+          v-for="dict in statusOptions"
           :key="dict.value"
           :label="dict.value"
         >
