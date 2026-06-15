@@ -20,7 +20,7 @@ defineOptions({
 });
 
 const formRef = ref();
-const statusOptions = useSystemDict("sysUser.status").options;
+const statusOptions = useSystemDict("common.status").options;
 const {
   searchFormParams,
   pageLoading,

@@ -30,7 +30,7 @@ const props = withDefaults(defineProps<FormProps>(), {
 const newFormInline = ref(props.formInline);
 const roleOptions = ref(props.roleOptions);
 const sexOptions = useSystemDict("sysUser.sex").options;
-const statusOptions = useSystemDict("sysUser.status").options;
+const statusOptions = useSystemDict("common.status").options;
 
 const formRuleRef = ref();
 

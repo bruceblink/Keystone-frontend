@@ -25,6 +25,7 @@ import { handleTree, setDisabledForTreeOptions } from "@/utils/tree";
 import { DeptDTO, getDeptListApi } from "@/api/system/dept";
 import { PostPageResponse, getPostListApi } from "@/api/system/post";
 import { RoleDTO, getRoleListApi } from "@/api/system/role";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 type SwitchState = {
   loading?: boolean;
@@ -51,6 +52,12 @@ type UploadFormRef = {
     submit: () => void;
   };
 };
+
+const userStatusMap = useSystemDict("common.status").map;
+
+function getUserStatusLabel(status: unknown, fallback = "") {
+  return userStatusMap.value[String(status)]?.label || fallback;
+}
 
 export function useHook() {
   const searchFormParams = reactive<UserQuery>({
@@ -147,8 +154,8 @@ export function useHook() {
           v-model={scope.row.status}
           active-value={1}
           inactive-value={0}
-          active-text="正常"
-          inactive-text="停用"
+          active-text={getUserStatusLabel(1, "1")}
+          inactive-text={getUserStatusLabel(0, "0")}
           inline-prompt
           onChange={() => onChange(scope.row as UserDTO, scope.index)}
         />
@@ -179,12 +186,9 @@ export function useHook() {
   });
 
   function onChange(row: UserDTO, index: number) {
+    const nextStatusLabel = getUserStatusLabel(row.status, String(row.status));
     ElMessageBox.confirm(
-      `确认要<strong>${
-        row.status === 0 ? "停用" : "启用"
-      }</strong><strong style='color:var(--el-color-primary)'>${
-        row.username
-      }</strong>用户吗?`,
+      `确认要将<strong style='color:var(--el-color-primary)'>${row.username}</strong>用户状态修改为<strong>${nextStatusLabel}</strong>吗?`,
       "系统提示",
       {
         confirmButtonText: "确定",
@@ -199,7 +203,7 @@ export function useHook() {
         await updateUserStatusApi(row.userId, row.status).finally(() => {
           switchLoading(index, false);
         });
-        message("已成功修改用户状态", {
+        message(`已成功修改用户状态为${nextStatusLabel}`, {
           type: "success"
         });
       })
