@@ -12,12 +12,16 @@ import AddFill from "@iconify-icons/ri/add-circle-line";
 import { getRoleInfoApi, RoleDTO } from "@/api/system/role";
 import RoleFormModal from "@/views/system/role/role-form-modal.vue";
 import { ElMessage } from "element-plus";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 defineOptions({
   name: "SystemRole"
 });
 
 const formRef = ref();
+const statusOptions = useSystemDict("common.status", {
+  valueType: "string"
+}).options;
 const {
   form,
   loading,
@@ -94,8 +98,12 @@ function handleFormSuccess() {
           clearable
           class="!w-[180px]"
         >
-          <el-option label="已启用" value="1" />
-          <el-option label="已停用" value="0" />
+          <el-option
+            v-for="dict in statusOptions"
+            :key="dict.value"
+            :label="dict.label"
+            :value="dict.value"
+          />
         </el-select>
       </el-form-item>
       <el-form-item>
