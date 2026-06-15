@@ -100,6 +100,13 @@ export const getDictDataListApi = (params?: DictDataQuery) => {
   );
 };
 
+export const getDictDataByTypeApi = (dictType: string) => {
+  return http.request<ResponseData<DictDataDTO[]>>(
+    "get",
+    `/system/dict/data/type/${dictType}`
+  );
+};
+
 export const getDictDataInfoApi = (dictCode: number) => {
   return http.request<ResponseData<DictDataDTO>>(
     "get",
