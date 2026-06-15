@@ -18,6 +18,9 @@ import { addDialog } from "@/components/ReDialog";
 import { reactive, ref, onMounted, h, computed } from "vue";
 import { isAllEmpty } from "@pureadmin/utils";
 import { IconifyIconOnline } from "@/components/ReIcon";
+import { useSystemDict } from "@/views/system/utils/dict";
+
+const statusMap = useSystemDict("common.status").map;
 
 export function useHook() {
   const searchFormParams = reactive({
@@ -80,11 +83,16 @@ export function useHook() {
       label: "状态",
       prop: "status",
       minWidth: 100,
-      cellRenderer: ({ row, props }) => (
-        <el-tag size={props.size} style={tagStyle.value(row.status)}>
-          {row.status === 1 ? "启用" : "停用"}
-        </el-tag>
-      )
+      cellRenderer: ({ row, props }) => {
+        const status = statusMap.value[row.status] ?? {
+          label: String(row.status ?? "-")
+        };
+        return (
+          <el-tag size={props.size} style={tagStyle.value(row.status)}>
+            {status.label}
+          </el-tag>
+        );
+      }
     },
     {
       label: "类型",

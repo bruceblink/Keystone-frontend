@@ -9,6 +9,7 @@ import EditPen from "@iconify-icons/ep/edit-pen";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
 import AddFill from "@iconify-icons/ri/add-circle-line";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 defineOptions({
   name: "SystemMenu"
@@ -16,6 +17,7 @@ defineOptions({
 
 const formRef = ref();
 const tableRef = ref();
+const statusOptions = useSystemDict("common.status").options;
 const {
   searchFormParams,
   loading,
@@ -51,8 +53,12 @@ const {
           clearable
           class="!w-[180px]"
         >
-          <el-option label="启用" :value="1" />
-          <el-option label="停用" :value="0" />
+          <el-option
+            v-for="dict in statusOptions"
+            :key="dict.value"
+            :label="dict.label"
+            :value="dict.value"
+          />
         </el-select>
       </el-form-item>
       <el-form-item>
