@@ -14,12 +14,19 @@ import { type PaginationProps } from "@pureadmin/table";
 import { onMounted, reactive, ref, toRaw } from "vue";
 import { toTree } from "@/utils/tree";
 import { CommonUtils } from "@/utils/common";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 type SwitchState = {
   loading?: boolean;
 };
 
 type SwitchLoadMap = Record<number, SwitchState>;
+
+const statusMap = useSystemDict("common.status").map;
+
+function getStatusLabel(status: unknown, fallback = "") {
+  return statusMap.value[String(status)]?.label || fallback;
+}
 
 export function useRole() {
   const form = reactive<RoleQuery>({
@@ -63,8 +70,8 @@ export function useRole() {
           v-model={scope.row.status}
           active-value={1}
           inactive-value={0}
-          active-text="已启用"
-          inactive-text="已停用"
+          active-text={getStatusLabel(1, "1")}
+          inactive-text={getStatusLabel(0, "0")}
           inline-prompt
           style={switchStyle.value}
           onChange={() => onChange(scope.row as RoleDTO, scope.index)}
@@ -94,14 +101,11 @@ export function useRole() {
   async function onChange(row: RoleDTO, index: number) {
     const nextStatus = Number(row.status);
     const previousStatus = nextStatus === 0 ? 1 : 0;
+    const nextStatusLabel = getStatusLabel(nextStatus, String(nextStatus));
 
     try {
       await ElMessageBox.confirm(
-        `确认要<strong>${
-          nextStatus === 0 ? "停用" : "启用"
-        }</strong><strong style='color:var(--el-color-primary)'>${
-          row.roleName
-        }</strong>吗?`,
+        `确认要将<strong style='color:var(--el-color-primary)'>${row.roleName}</strong>角色状态修改为<strong>${nextStatusLabel}</strong>吗?`,
         "系统提示",
         {
           confirmButtonText: "确定",
@@ -114,7 +118,7 @@ export function useRole() {
 
       switchLoading(index, true);
       await updateRoleStatusApi(row.roleId, nextStatus);
-      message(`已${nextStatus === 0 ? "停用" : "启用"}${row.roleName}`, {
+      message(`已将${row.roleName}状态修改为${nextStatusLabel}`, {
         type: "success"
       });
       await getList();
