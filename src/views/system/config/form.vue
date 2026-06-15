@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useUserStoreHook } from "@/store/modules/user";
 import { formRules } from "./utils/rule";
 import { ConfigDTO } from "@/api/system/config";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 interface FormProps<T> {
   formInline: T;
@@ -14,6 +14,9 @@ const props = withDefaults(defineProps<FormProps<ConfigDTO>>(), {
 });
 
 const formData = ref(props.formInline);
+const yesOrNoOptions = useSystemDict("common.yesOrNo", {
+  valueType: "string"
+}).options;
 
 // TODO 这段有优化的空间吗？
 const formRuleRef = ref();
@@ -79,7 +82,7 @@ defineExpose({ getFormRuleRef });
         :disabled="true"
       >
         <el-option
-          v-for="dict in useUserStoreHook().dictionaryList['common.yesOrNo']"
+          v-for="dict in yesOrNoOptions"
           :key="dict.value"
           :label="dict.label"
           :value="dict.value"
