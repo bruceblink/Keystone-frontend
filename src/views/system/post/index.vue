@@ -7,7 +7,7 @@ import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import Delete from "@iconify-icons/ep/delete";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
-import { useUserStoreHook } from "@/store/modules/user";
+import { useSystemDict } from "@/views/system/utils/dict";
 // TODO 这个导入声明好长  看看如何优化
 import { CommonUtils } from "@/utils/common";
 import PostFormModal from "@/views/system/post/post-form-modal.vue";
@@ -20,7 +20,7 @@ defineOptions({
   name: "Post"
 });
 
-const loginLogStatusList = useUserStoreHook().dictionaryList["common.status"];
+const statusOptions = useSystemDict("common.status").options;
 
 const tableRef = ref();
 
@@ -87,7 +87,7 @@ function openDialog(type: "add" | "update", row?: PostPageResponse) {
           class="!w-[180px]"
         >
           <el-option
-            v-for="dict in loginLogStatusList"
+            v-for="dict in statusOptions"
             :key="dict.value"
             :label="dict.label"
             :value="dict.value"

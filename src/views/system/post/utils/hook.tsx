@@ -2,9 +2,9 @@ import dayjs from "dayjs";
 import { message } from "@/utils/message";
 import { ElMessageBox, Sort, type FormInstance } from "element-plus";
 import { reactive, ref, onMounted, toRaw, computed } from "vue";
-import { useUserStoreHook } from "@/store/modules/user";
 import { CommonUtils } from "@/utils/common";
 import { PaginationProps } from "@pureadmin/table";
+import { useSystemDict } from "@/views/system/utils/dict";
 import {
   PostListCommand,
   PostPageResponse,
@@ -13,9 +13,7 @@ import {
   deletePostApi
 } from "@/api/system/post";
 
-const statusMap = computed(
-  () => useUserStoreHook().dictionaryMap["common.status"] ?? {}
-);
+const statusMap = useSystemDict("common.status").map;
 
 type TableRef = {
   getTableRef: () => {

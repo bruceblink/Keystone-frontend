@@ -8,8 +8,8 @@ import {
   addPostApi,
   updatePostApi
 } from "@/api/system/post";
-import { useUserStoreHook } from "@/store/modules/user";
 import { ElMessage, FormInstance, FormRules } from "element-plus";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 interface Props {
   type: "add" | "update";
@@ -39,9 +39,9 @@ const formData = reactive<AddPostCommand | UpdatePostCommand>({
   status: ""
 });
 
-const statusList = computed(
-  () => useUserStoreHook().dictionaryMap["common.status"] ?? {}
-);
+const statusOptions = useSystemDict("common.status", {
+  valueType: "string"
+}).options;
 
 const rules: FormRules = {
   postName: [
@@ -118,11 +118,12 @@ async function handleConfirm() {
       <el-form-item prop="status" label="岗位状态">
         <el-radio-group v-model="formData.status">
           <el-radio
-            v-for="item in Object.keys(statusList)"
-            :key="item"
-            :label="statusList[item].value"
-            >{{ statusList[item].label }}</el-radio
+            v-for="item in statusOptions"
+            :key="item.value"
+            :label="item.value"
           >
+            {{ item.label }}
+          </el-radio>
         </el-radio-group>
       </el-form-item>
       <el-form-item prop="remark" label="备注" style="margin-bottom: 0">
