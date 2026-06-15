@@ -8,7 +8,7 @@ import Delete from "@iconify-icons/ep/delete";
 import View from "@iconify-icons/ep/view";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
-import { useUserStoreHook } from "@/store/modules/user";
+import { useSystemDict } from "@/views/system/utils/dict";
 // TODO 这个导入声明好长  看看如何优化
 import { CommonUtils } from "../../../../utils/common";
 
@@ -17,10 +17,12 @@ defineOptions({
   name: "SystemOperationLog"
 });
 
-const businessTypeList =
-  useUserStoreHook().dictionaryList["sysOperationLog.businessType"];
-const operationStatusList =
-  useUserStoreHook().dictionaryList["sysOperationLog.status"];
+const businessTypeOptions = useSystemDict("sysOperationLog.businessType", {
+  valueType: "string"
+}).options;
+const operationStatusOptions = useSystemDict("sysOperationLog.status", {
+  valueType: "string"
+}).options;
 const tableRef = ref();
 
 const searchFormRef = ref();
@@ -69,7 +71,7 @@ const {
           class="!w-[180px]"
         >
           <el-option
-            v-for="dict in businessTypeList"
+            v-for="dict in businessTypeOptions"
             :key="dict.value"
             :label="dict.label"
             :value="dict.value"
@@ -92,7 +94,7 @@ const {
           class="!w-[180px]"
         >
           <el-option
-            v-for="dict in operationStatusList"
+            v-for="dict in operationStatusOptions"
             :key="dict.value"
             :label="dict.label"
             :value="dict.value"

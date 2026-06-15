@@ -9,19 +9,15 @@ import {
   deleteOperationLogApi,
   exportOperationLogExcelApi
 } from "@/api/system/log";
-import { reactive, ref, onMounted, h, toRaw, computed } from "vue";
-import { useUserStoreHook } from "@/store/modules/user";
+import { reactive, ref, onMounted, h, toRaw } from "vue";
 import { CommonUtils } from "@/utils/common";
 import { PaginationProps } from "@pureadmin/table";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 type TagType = "primary" | "success" | "warning" | "danger" | "info";
 
-const operationLogStatusMap = computed(
-  () => useUserStoreHook().dictionaryMap["sysOperationLog.status"] ?? {}
-);
-const businessTypeMap = computed(
-  () => useUserStoreHook().dictionaryMap["sysOperationLog.businessType"] ?? {}
-);
+const operationLogStatusMap = useSystemDict("sysOperationLog.status").map;
+const businessTypeMap = useSystemDict("sysOperationLog.businessType").map;
 
 const getTagType = (value?: string) => (value || "info") as TagType;
 

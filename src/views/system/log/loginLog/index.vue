@@ -7,17 +7,18 @@ import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import Delete from "@iconify-icons/ep/delete";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
-import { useUserStoreHook } from "@/store/modules/user";
-// TODO 这个导入声明好长  看看如何优化
-import { CommonUtils } from "../../../../utils/common";
+import { useSystemDict } from "@/views/system/utils/dict";
+
+import { CommonUtils } from "@/utils/common";
 
 /** 组件name最好和菜单表中的router_name一致 */
 defineOptions({
   name: "SystemOperationLog"
 });
 
-const loginLogStatusList =
-  useUserStoreHook().dictionaryList["sysLoginLog.status"];
+const loginLogStatusOptions = useSystemDict("sysLoginLog.status", {
+  valueType: "string"
+}).options;
 
 const tableRef = ref();
 
@@ -74,7 +75,7 @@ const {
           class="!w-[180px]"
         >
           <el-option
-            v-for="dict in loginLogStatusList"
+            v-for="dict in loginLogStatusOptions"
             :key="dict.value"
             :label="dict.label"
             :value="dict.value"
@@ -82,7 +83,7 @@ const {
         </el-select>
       </el-form-item>
       <el-form-item>
-        <label class="el-form-item__label is-required font-bold"
+        <label class="font-bold el-form-item__label is-required"
           >登录时间：</label
         >
         <!-- TODO 如何消除这个v-model的warning -->

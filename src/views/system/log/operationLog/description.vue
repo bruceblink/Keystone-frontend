@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import { useUserStoreHook } from "@/store/modules/user";
 import { OperationLogDTO } from "@/api/system/log";
 import { computed } from "vue";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 type TagType = "primary" | "success" | "warning" | "danger" | "info";
 
 /** TODO 有其他方式  来换掉这个props 父子组件传值吗？ */
 const props = defineProps<OperationLogDTO>();
 
-const operationLogStatusMap = computed(
-  () => useUserStoreHook().dictionaryMap["sysOperationLog.status"] ?? {}
-);
+const operationLogStatusMap = useSystemDict("sysOperationLog.status").map;
 
 const operationLogStatus = computed(() => {
   return (
