@@ -5,12 +5,14 @@ import { ref, reactive } from "vue";
 import { updateUserProfileApi, UserProfileRequest } from "@/api/system/user";
 import { message } from "@/utils/message";
 import { FormInstance } from "element-plus";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 defineOptions({
   name: "SystemUserProfile"
 });
 
 const userRef = ref<FormInstance>();
+const sexOptions = useSystemDict("sysUser.sex").options;
 
 const props = defineProps({
   user: {
@@ -78,8 +80,13 @@ function submit() {
     </el-form-item>
     <el-form-item label="性别">
       <el-radio-group v-model="userModel.sex">
-        <el-radio :label="0">男</el-radio>
-        <el-radio :label="1">女</el-radio>
+        <el-radio
+          v-for="dict in sexOptions"
+          :key="dict.value"
+          :label="dict.value"
+        >
+          {{ dict.label }}
+        </el-radio>
       </el-radio-group>
     </el-form-item>
     <el-form-item>

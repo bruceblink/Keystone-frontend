@@ -3,14 +3,11 @@ import { ref } from "vue";
 import ReCol from "@/components/ReCol";
 import { formRules } from "./rule";
 import { UserRequest } from "@/api/system/user";
-import { PostPageResponse } from "@/api/system/post";
 import { RoleDTO } from "@/api/system/role";
-import { useUserStoreHook } from "@/store/modules/user";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 interface FormProps {
   formInline: UserRequest;
-  deptOptions: any[];
-  postOptions: PostPageResponse[];
   roleOptions: RoleDTO[];
 }
 
@@ -19,25 +16,21 @@ const props = withDefaults(defineProps<FormProps>(), {
     userId: 0,
     username: "",
     nickname: "",
-    deptId: 0,
     phone: "",
     email: "",
     password: "",
     sex: 0,
     status: 1,
-    postId: 0,
     roleId: 0,
     remark: ""
   }),
-  deptOptions: () => [],
-  postOptions: () => [],
   roleOptions: () => []
 });
 
 const newFormInline = ref(props.formInline);
-const deptOptions = ref(props.deptOptions);
 const roleOptions = ref(props.roleOptions);
-const postOptions = ref(props.postOptions);
+const sexOptions = useSystemDict("sysUser.sex").options;
+const statusOptions = useSystemDict("sysUser.status").options;
 
 const formRuleRef = ref();
 
@@ -62,24 +55,6 @@ defineExpose({ getFormRuleRef });
             v-model="newFormInline.username"
             clearable
             placeholder="请输入用户名"
-          />
-        </el-form-item>
-      </re-col>
-      <re-col :value="12">
-        <el-form-item label="部门">
-          <el-tree-select
-            class="w-full"
-            v-model="newFormInline.deptId"
-            :data="deptOptions"
-            :show-all-levels="false"
-            check-strictly
-            value-key="id"
-            :props="{
-              label: 'deptName',
-              children: 'children'
-            }"
-            clearable
-            placeholder="请选择部门"
           />
         </el-form-item>
       </re-col>
@@ -123,29 +98,10 @@ defineExpose({ getFormRuleRef });
             clearable
           >
             <el-option
-              v-for="dict in useUserStoreHook().dictionaryList['sysUser.sex']"
+              v-for="dict in sexOptions"
               :key="dict.value"
               :label="dict.label"
               :value="dict.value"
-            />
-          </el-select>
-        </el-form-item>
-      </re-col>
-
-      <re-col :value="12">
-        <el-form-item label="岗位" prop="postId">
-          <el-select
-            class="w-full"
-            v-model="newFormInline.postId"
-            placeholder="请选择岗位"
-            clearable
-          >
-            <el-option
-              v-for="item in postOptions"
-              :key="item.postId"
-              :label="item.postName"
-              :value="item.postId"
-              :disabled="item.status == 0"
             />
           </el-select>
         </el-form-item>
@@ -174,12 +130,11 @@ defineExpose({ getFormRuleRef });
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="newFormInline.status">
             <el-radio
-              v-for="item in useUserStoreHook().dictionaryList[
-                'sysUser.status'
-              ]"
+              v-for="item in statusOptions"
               :key="item.value"
-              :label="item.value"
-              >{{ item.label }}
+              :value="item.value"
+            >
+              {{ item.label }}
             </el-radio>
           </el-radio-group>
         </el-form-item>

@@ -8,14 +8,12 @@ import {
   LoginLogQuery,
   LoginLogsDTO
 } from "@/api/system/log";
-import { reactive, ref, onMounted, toRaw, computed } from "vue";
-import { useUserStoreHook } from "@/store/modules/user";
+import { reactive, ref, onMounted, toRaw } from "vue";
 import { CommonUtils } from "@/utils/common";
 import { PaginationProps } from "@pureadmin/table";
+import { useSystemDict } from "@/views/system/utils/dict";
 
-const loginLogStatusMap = computed(
-  () => useUserStoreHook().dictionaryMap["sysLoginLog.status"] ?? {}
-);
+const loginLogStatusMap = useSystemDict("sysLoginLog.status").map;
 
 type LoginLogRow = LoginLogsDTO & {
   logId: number;
