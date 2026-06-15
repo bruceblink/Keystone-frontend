@@ -11,15 +11,16 @@ import EditPen from "@iconify-icons/ep/edit-pen";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
 import AddFill from "@iconify-icons/ri/add-circle-line";
-import { useUserStoreHook } from "@/store/modules/user";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 /** !!!重要!!! 组件name最好和菜单表中的router_name一致, copy的时候记得更改这个名字*/
 defineOptions({
   name: "SystemNotice"
 });
 
-const noticeTypeList =
-  useUserStoreHook().dictionaryList["sysNotice.noticeType"];
+const noticeTypeOptions = useSystemDict("sysNotice.noticeType", {
+  valueType: "string"
+}).options;
 const tableRef = ref();
 
 const searchFormRef = ref();
@@ -66,7 +67,7 @@ const {
           class="!w-[180px]"
         >
           <el-option
-            v-for="dict in noticeTypeList"
+            v-for="dict in noticeTypeOptions"
             :key="dict.value"
             :label="dict.label"
             :value="dict.value"

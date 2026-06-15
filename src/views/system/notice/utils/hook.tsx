@@ -16,16 +16,12 @@ import {
   deleteSystemNoticeApi,
   SystemNoticeRequest
 } from "@/api/system/notice";
-import { reactive, ref, onMounted, h, toRaw, computed } from "vue";
-import { useUserStoreHook } from "@/store/modules/user";
+import { reactive, ref, onMounted, h, toRaw } from "vue";
 import { CommonUtils } from "@/utils/common";
+import { useSystemDict } from "@/views/system/utils/dict";
 
-const noticeTypeMap = computed(
-  () => useUserStoreHook().dictionaryMap["sysNotice.noticeType"] ?? {}
-);
-const noticeStatusMap = computed(
-  () => useUserStoreHook().dictionaryMap["sysNotice.status"] ?? {}
-);
+const noticeTypeMap = useSystemDict("sysNotice.noticeType").map;
+const noticeStatusMap = useSystemDict("sysNotice.status").map;
 
 type NoticeRow = SystemNoticeDTO & {
   noticeId: number;

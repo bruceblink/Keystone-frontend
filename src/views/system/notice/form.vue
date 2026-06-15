@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { formRules } from "./utils/rule";
 import { FormProps } from "./utils/types";
-import { useUserStoreHook } from "@/store/modules/user";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 /** TODO 有其他方式  来换掉这个props 父子组件传值吗？ */
 const props = withDefaults(defineProps<FormProps>(), {
@@ -15,6 +15,8 @@ const props = withDefaults(defineProps<FormProps>(), {
 });
 
 const noticeData = ref(props.formInline);
+const noticeTypeOptions = useSystemDict("sysNotice.noticeType").options;
+const noticeStatusOptions = useSystemDict("sysNotice.status").options;
 
 const formRuleRef = ref();
 
@@ -48,9 +50,7 @@ defineExpose({ getFormRuleRef });
         class="!w-[180px]"
       >
         <el-option
-          v-for="dict in useUserStoreHook().dictionaryList[
-            'sysNotice.noticeType'
-          ]"
+          v-for="dict in noticeTypeOptions"
           :key="dict.value"
           :label="dict.label"
           :value="dict.value"
@@ -65,7 +65,7 @@ defineExpose({ getFormRuleRef });
         class="!w-[180px]"
       >
         <el-option
-          v-for="dict in useUserStoreHook().dictionaryList['sysNotice.status']"
+          v-for="dict in noticeStatusOptions"
           :key="dict.value"
           :label="dict.label"
           :value="dict.value"
