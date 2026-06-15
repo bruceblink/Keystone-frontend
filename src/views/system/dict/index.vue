@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { ref } from "vue";
 import { useDictHook } from "./utils/hook";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import { useUserStoreHook } from "@/store/modules/user";
-import type { DictionaryData } from "@/api/common/login";
+import { useSystemDict } from "@/views/system/utils/dict";
 
 import Delete from "@iconify-icons/ep/delete";
 import EditPen from "@iconify-icons/ep/edit-pen";
@@ -17,24 +16,12 @@ defineOptions({
   name: "SystemDict"
 });
 
-type DictionaryList =
-  | Map<string, DictionaryData[]>
-  | Record<string, DictionaryData[]>;
-
-const userStore = useUserStoreHook();
 const typeTableRef = ref();
 const dataTableRef = ref();
 const typeSearchFormRef = ref();
 const dataSearchFormRef = ref();
 const activeTab = ref("type");
-const statusList = computed(() => getDictionaryList("common.status"));
-
-function getDictionaryList(dictType: string) {
-  const dictionaryList = userStore.dictionaryList as DictionaryList;
-  return dictionaryList instanceof Map
-    ? dictionaryList.get(dictType) ?? []
-    : dictionaryList[dictType] ?? [];
-}
+const statusOptions = useSystemDict("common.status").options;
 
 const {
   typeSearchFormParams,
@@ -102,7 +89,7 @@ const {
               class="!w-[160px]"
             >
               <el-option
-                v-for="dict in statusList"
+                v-for="dict in statusOptions"
                 :key="dict.value"
                 :label="dict.label"
                 :value="dict.value"
@@ -231,7 +218,7 @@ const {
               class="!w-[160px]"
             >
               <el-option
-                v-for="dict in statusList"
+                v-for="dict in statusOptions"
                 :key="dict.value"
                 :label="dict.label"
                 :value="dict.value"

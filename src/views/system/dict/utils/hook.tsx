@@ -4,10 +4,10 @@ import dataForm from "../data-form.vue";
 import { addDialog } from "@/components/ReDialog";
 import { message } from "@/utils/message";
 import { CommonUtils } from "@/utils/common";
-import { useUserStoreHook } from "@/store/modules/user";
 import { type PaginationProps } from "@pureadmin/table";
 import { ElMessageBox, type FormInstance } from "element-plus";
-import { computed, h, onMounted, reactive, ref, toRaw } from "vue";
+import { h, onMounted, reactive, ref, toRaw } from "vue";
+import { useSystemDict } from "@/views/system/utils/dict";
 import {
   addDictDataApi,
   addDictTypeApi,
@@ -45,12 +45,8 @@ type OpenDataDialogOptions = {
   lockDictType?: boolean;
 };
 
-const statusMap = computed(
-  () => useUserStoreHook().dictionaryMap["common.status"] ?? {}
-);
-const yesOrNoMap = computed(
-  () => useUserStoreHook().dictionaryMap["common.yesOrNo"] ?? {}
-);
+const statusMap = useSystemDict("common.status").map;
+const yesOrNoMap = useSystemDict("common.yesOrNo").map;
 
 export function useDictHook() {
   const typePagination: PaginationProps = {
