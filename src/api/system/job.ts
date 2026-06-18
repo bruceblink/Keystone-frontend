@@ -20,6 +20,15 @@ export interface JobDTO {
   createTime?: Date;
 }
 
+export interface JobInvokeTargetDTO {
+  invokeTarget: string;
+  beanName: string;
+  methodName: string;
+  name: string;
+  group: string;
+  description?: string;
+}
+
 export interface JobRequest {
   jobId?: number;
   jobName: string;
@@ -43,6 +52,13 @@ export const getJobListApi = (params?: JobQuery) => {
 
 export const getJobInfoApi = (jobId: number) => {
   return http.request<ResponseData<JobDTO>>("get", `/system/jobs/${jobId}`);
+};
+
+export const getJobInvokeTargetsApi = () => {
+  return http.request<ResponseData<JobInvokeTargetDTO[]>>(
+    "get",
+    "/system/jobs/invoke-targets"
+  );
 };
 
 export const addJobApi = (data: JobRequest) => {

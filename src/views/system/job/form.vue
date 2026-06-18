@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import type { JobRequest } from "@/api/system/job";
+import { computed, ref } from "vue";
+import type { JobInvokeTargetDTO, JobRequest } from "@/api/system/job";
 import { formRules } from "./utils/rule";
 import { useSystemDict } from "@/views/system/utils/dict";
 
 interface FormProps {
   formInline: JobRequest;
+  invokeTargetOptions: JobInvokeTargetDTO[];
 }
 
 const props = withDefaults(defineProps<FormProps>(), {
@@ -17,13 +18,27 @@ const props = withDefaults(defineProps<FormProps>(), {
     concurrent: 0,
     status: 0,
     remark: ""
-  })
+  }),
+  invokeTargetOptions: () => []
 });
 
 const formData = ref(props.formInline);
 const formRuleRef = ref();
 const yesOrNoOptions = useSystemDict("common.yesOrNo").options;
 const statusOptions = useSystemDict("sysJob.status").options;
+const invokeTargetGroups = computed(() => {
+  const groupMap = new Map<string, JobInvokeTargetDTO[]>();
+  props.invokeTargetOptions.forEach(item => {
+    const group = item.group || "default";
+    const targets = groupMap.get(group) ?? [];
+    targets.push(item);
+    groupMap.set(group, targets);
+  });
+  return Array.from(groupMap.entries()).map(([group, targets]) => ({
+    group,
+    targets
+  }));
+});
 
 function getFormRuleRef() {
   return formRuleRef.value;
@@ -54,11 +69,36 @@ defineExpose({ getFormRuleRef });
       />
     </el-form-item>
     <el-form-item label="调用目标" prop="invokeTarget">
-      <el-input
+      <el-select
         v-model="formData.invokeTarget"
+        filterable
+        allow-create
+        default-first-option
         clearable
-        placeholder="例如 demoTask.cleanExpiredData()"
-      />
+        placeholder="请选择或输入调用目标"
+        class="!w-full"
+      >
+        <el-option-group
+          v-for="group in invokeTargetGroups"
+          :key="group.group"
+          :label="group.group"
+        >
+          <el-option
+            v-for="target in group.targets"
+            :key="target.invokeTarget"
+            :label="`${target.name} - ${target.invokeTarget}`"
+            :value="target.invokeTarget"
+          >
+            <div class="job-target-option">
+              <span class="job-target-name">{{ target.name }}</span>
+              <span class="job-target-value">{{ target.invokeTarget }}</span>
+            </div>
+            <div v-if="target.description" class="job-target-desc">
+              {{ target.description }}
+            </div>
+          </el-option>
+        </el-option-group>
+      </el-select>
     </el-form-item>
     <el-form-item label="Cron表达式" prop="cronExpression">
       <el-input
@@ -98,3 +138,36 @@ defineExpose({ getFormRuleRef });
     </el-form-item>
   </el-form>
 </template>
+
+<style scoped>
+.job-target-option {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  line-height: 20px;
+}
+
+.job-target-name {
+  overflow: hidden;
+  color: var(--el-text-color-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-target-value {
+  flex: none;
+  font-family: var(--el-font-family);
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.job-target-desc {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--el-text-color-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>

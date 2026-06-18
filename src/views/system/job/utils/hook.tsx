@@ -10,12 +10,18 @@ import { useSystemDict } from "@/views/system/utils/dict";
 import {
   addJobApi,
   deleteJobApi,
+  getJobInvokeTargetsApi,
   getJobListApi,
   runJobApi,
   updateJobApi,
   updateJobStatusApi
 } from "@/api/system/job";
-import type { JobDTO, JobQuery, JobRequest } from "@/api/system/job";
+import type {
+  JobDTO,
+  JobInvokeTargetDTO,
+  JobQuery,
+  JobRequest
+} from "@/api/system/job";
 
 type JobRow = JobDTO & {
   jobId: number;
@@ -63,6 +69,7 @@ export function useJobHook() {
 
   const formRef = ref<EditFormRef>();
   const dataList = ref<JobRow[]>([]);
+  const invokeTargetOptions = ref<JobInvokeTargetDTO[]>([]);
   const pageLoading = ref(true);
   const multipleSelection = ref<number[]>([]);
 
@@ -172,7 +179,14 @@ export function useJobHook() {
     pagination.total = data.total;
   }
 
-  function openDialog(title = "新增", row?: JobDTO) {
+  async function loadInvokeTargetOptions() {
+    const { data } = await getJobInvokeTargetsApi();
+    invokeTargetOptions.value = data ?? [];
+  }
+
+  async function openDialog(title = "新增", row?: JobDTO) {
+    await loadInvokeTargetOptions();
+
     const formInline: JobRequest = {
       jobName: row?.jobName ?? "",
       jobGroup: row?.jobGroup ?? "DEFAULT",
@@ -186,13 +200,19 @@ export function useJobHook() {
     addDialog({
       title: `${title}定时任务`,
       props: {
-        formInline
+        formInline,
+        invokeTargetOptions: invokeTargetOptions.value
       },
       width: "44%",
       draggable: true,
       fullscreenIcon: true,
       closeOnClickModal: false,
-      contentRenderer: () => h(editForm, { ref: formRef, formInline }),
+      contentRenderer: () =>
+        h(editForm, {
+          ref: formRef,
+          formInline,
+          invokeTargetOptions: invokeTargetOptions.value
+        }),
       beforeSure: (done, { options }) => {
         const curData = options.props.formInline as JobRequest;
         formRef.value.getFormRuleRef().validate(valid => {
