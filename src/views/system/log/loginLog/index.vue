@@ -36,6 +36,7 @@ const {
   resetForm,
   exportAllExcel,
   getLoginLogList,
+  handleSortChange,
   handleDelete,
   handleBulkDelete
 } = useLoginLogHook();
@@ -156,7 +157,7 @@ const {
           }"
           @page-size-change="getLoginLogList"
           @page-current-change="getLoginLogList"
-          @sort-change="getLoginLogList"
+          @sort-change="handleSortChange"
           @selection-change="
             rows => (multipleSelection = rows.map(item => item.logId))
           "

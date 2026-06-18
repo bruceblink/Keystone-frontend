@@ -40,6 +40,7 @@ const {
   exportAllExcel,
   openDialog,
   getOperationLogList,
+  handleSortChange,
   handleDelete,
   handleBulkDelete
 } = useOperationLogHook();
@@ -102,7 +103,7 @@ const {
         </el-select>
       </el-form-item>
       <el-form-item>
-        <label class="el-form-item__label is-required font-bold"
+        <label class="font-bold el-form-item__label is-required"
           >操作时间：</label
         >
         <!-- TODO 如何消除这个v-model的warning -->
@@ -175,7 +176,7 @@ const {
           }"
           @page-size-change="getOperationLogList"
           @page-current-change="getOperationLogList"
-          @sort-change="getOperationLogList"
+          @sort-change="handleSortChange"
           @selection-change="
             rows => (multipleSelection = rows.map(item => item.operationId))
           "

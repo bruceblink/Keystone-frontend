@@ -49,6 +49,7 @@ export function useOperationLogHook() {
   const dataList = ref([]);
   const pageLoading = ref(true);
   const multipleSelection = ref([]);
+  const currentSort = ref<Sort>({ ...defaultSort });
 
   const columns: TableColumnList = [
     {
@@ -152,9 +153,7 @@ export function useOperationLogHook() {
     if (!formEl) return;
     // 清空查询参数
     formEl.resetFields();
-    // 清空排序
-    searchFormParams.orderColumn = undefined;
-    searchFormParams.orderDirection = undefined;
+    currentSort.value = { ...defaultSort };
     // 清空时间查询  TODO  这块有点繁琐  有可以优化的地方吗？
     // Form组件的resetFields方法无法清除datepicker里面的数据。
     timeRange.value = [];
@@ -165,11 +164,15 @@ export function useOperationLogHook() {
     onSearch();
   }
 
-  async function getOperationLogList(sort: Sort = defaultSort) {
+  function handleSortChange(sort: Sort) {
+    currentSort.value = sort.order ? sort : { ...defaultSort };
+    pagination.currentPage = 1;
+    getOperationLogList();
+  }
+
+  async function getOperationLogList() {
     pageLoading.value = true;
-    if (sort != null) {
-      CommonUtils.fillSortParams(searchFormParams, sort);
-    }
+    CommonUtils.fillSortParams(searchFormParams, currentSort.value);
     CommonUtils.fillPaginationParams(searchFormParams, pagination);
     CommonUtils.fillTimeRangeParams(searchFormParams, timeRange.value);
 
@@ -182,10 +185,8 @@ export function useOperationLogHook() {
     pagination.total = data.total;
   }
 
-  async function exportAllExcel(sort: Sort = defaultSort) {
-    if (sort != null) {
-      CommonUtils.fillSortParams(searchFormParams, sort);
-    }
+  async function exportAllExcel() {
+    CommonUtils.fillSortParams(searchFormParams, currentSort.value);
     CommonUtils.fillPaginationParams(searchFormParams, pagination);
     CommonUtils.fillTimeRangeParams(searchFormParams, timeRange.value);
 
@@ -276,6 +277,7 @@ export function useOperationLogHook() {
     exportAllExcel,
     // exportExcel,
     getOperationLogList,
+    handleSortChange,
     resetForm,
     openDialog,
     handleDelete,

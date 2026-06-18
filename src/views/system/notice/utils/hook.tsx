@@ -69,6 +69,7 @@ export function useNoticeHook() {
   const dataList = ref<NoticeRow[]>([]);
   const pageLoading = ref(true);
   const multipleSelection = ref<number[]>([]);
+  const currentSort = ref<Sort>({ ...defaultSort });
 
   const columns: TableColumnList = [
     {
@@ -154,18 +155,20 @@ export function useNoticeHook() {
     if (!formEl) return;
     // 清空查询参数
     formEl.resetFields();
-    // 清空排序
-    searchFormParams.orderColumn = undefined;
-    searchFormParams.orderDirection = undefined;
+    currentSort.value = { ...defaultSort };
     tableRef.getTableRef().clearSort();
     // 重置分页并查询
     onSearch();
   }
 
-  async function getNoticeList(sort: Sort = defaultSort) {
-    if (sort != null) {
-      CommonUtils.fillSortParams(searchFormParams, sort);
-    }
+  function handleSortChange(sort: Sort) {
+    currentSort.value = sort.order ? sort : { ...defaultSort };
+    pagination.currentPage = 1;
+    getNoticeList();
+  }
+
+  async function getNoticeList() {
+    CommonUtils.fillSortParams(searchFormParams, currentSort.value);
     CommonUtils.fillPaginationParams(searchFormParams, pagination);
 
     pageLoading.value = true;
@@ -297,6 +300,7 @@ export function useNoticeHook() {
     defaultSort,
     multipleSelection,
     getNoticeList,
+    handleSortChange,
     onSearch,
     resetForm,
     openDialog,

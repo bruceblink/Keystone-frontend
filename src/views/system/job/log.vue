@@ -36,6 +36,7 @@ const pagination = reactive<PaginationProps>({
 
 const loading = ref(false);
 const dataList = ref<JobLogDTO[]>([]);
+const currentSort = ref<Sort>({ ...defaultSort });
 
 const columns: TableColumnList = [
   {
@@ -96,8 +97,14 @@ function triggerTagType(triggerType?: number) {
   return triggerType === 2 ? "success" : "primary";
 }
 
-async function getJobLogs(sort = defaultSort) {
-  CommonUtils.fillSortParams(searchFormParams, sort);
+function handleSortChange(sort: Sort) {
+  currentSort.value = sort.order ? sort : { ...defaultSort };
+  pagination.currentPage = 1;
+  getJobLogs();
+}
+
+async function getJobLogs() {
+  CommonUtils.fillSortParams(searchFormParams, currentSort.value);
   CommonUtils.fillPaginationParams(searchFormParams, pagination);
 
   loading.value = true;
@@ -135,7 +142,7 @@ onMounted(() => {
         :pagination="pagination"
         @page-size-change="getJobLogs"
         @page-current-change="getJobLogs"
-        @sort-change="getJobLogs"
+        @sort-change="handleSortChange"
       >
         <template #triggerType="{ row }">
           <el-tag :type="triggerTagType(row.triggerType)" effect="plain">

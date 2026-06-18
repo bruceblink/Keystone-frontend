@@ -73,6 +73,7 @@ export function useJobHook() {
   const invokeTargetOptions = ref<JobInvokeTargetDTO[]>([]);
   const pageLoading = ref(true);
   const multipleSelection = ref<number[]>([]);
+  const currentSort = ref<Sort>({ ...defaultSort });
 
   const columns: TableColumnList = [
     {
@@ -161,14 +162,19 @@ export function useJobHook() {
   function resetForm(formEl: FormInstance | undefined, tableRef: TableRef) {
     if (!formEl) return;
     formEl.resetFields();
-    searchFormParams.orderColumn = undefined;
-    searchFormParams.orderDirection = undefined;
+    currentSort.value = { ...defaultSort };
     tableRef.getTableRef().clearSort();
     onSearch();
   }
 
-  async function getJobList(sort: Sort = defaultSort) {
-    CommonUtils.fillSortParams(searchFormParams, sort);
+  function handleSortChange(sort: Sort) {
+    currentSort.value = sort.order ? sort : { ...defaultSort };
+    pagination.currentPage = 1;
+    getJobList();
+  }
+
+  async function getJobList() {
+    CommonUtils.fillSortParams(searchFormParams, currentSort.value);
     CommonUtils.fillPaginationParams(searchFormParams, pagination);
 
     pageLoading.value = true;
@@ -318,6 +324,7 @@ export function useJobHook() {
     defaultSort,
     multipleSelection,
     getJobList,
+    handleSortChange,
     onSearch,
     resetForm,
     openDialog,

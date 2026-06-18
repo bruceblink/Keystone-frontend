@@ -37,7 +37,8 @@ const {
   openDialog,
   handleDelete,
   handleBulkDelete,
-  getNoticeList
+  getNoticeList,
+  handleSortChange
 } = useNoticeHook();
 </script>
 
@@ -141,7 +142,7 @@ const {
           }"
           @page-size-change="getNoticeList"
           @page-current-change="getNoticeList"
-          @sort-change="getNoticeList"
+          @sort-change="handleSortChange"
           @selection-change="
             rows => (multipleSelection = rows.map(item => item.noticeId))
           "

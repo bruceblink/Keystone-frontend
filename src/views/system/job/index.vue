@@ -29,6 +29,7 @@ const {
   defaultSort,
   multipleSelection,
   getJobList,
+  handleSortChange,
   onSearch,
   resetForm,
   openDialog,
@@ -135,7 +136,7 @@ const {
           }"
           @page-size-change="getJobList"
           @page-current-change="getJobList"
-          @sort-change="getJobList"
+          @sort-change="handleSortChange"
           @selection-change="
             rows => (multipleSelection = rows.map(item => item.jobId))
           "
