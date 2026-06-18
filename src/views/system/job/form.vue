@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<FormProps>(), {
     jobName: "",
     jobGroup: "DEFAULT",
     invokeTarget: "",
+    jobParams: "",
     cronExpression: "",
     concurrent: 0,
     status: 0,
@@ -99,6 +100,14 @@ defineExpose({ getFormRuleRef });
           </el-option>
         </el-option-group>
       </el-select>
+    </el-form-item>
+    <el-form-item label="任务参数" prop="jobParams">
+      <el-input
+        v-model="formData.jobParams"
+        type="textarea"
+        :rows="4"
+        placeholder='请输入JSON参数，例如 {"retentionDays":60}'
+      />
     </el-form-item>
     <el-form-item label="Cron表达式" prop="cronExpression">
       <el-input

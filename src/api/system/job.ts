@@ -11,6 +11,7 @@ export interface JobDTO {
   jobName?: string;
   jobGroup?: string;
   invokeTarget?: string;
+  jobParams?: string;
   cronExpression?: string;
   concurrent?: number;
   concurrentStr?: string;
@@ -44,6 +45,7 @@ export interface JobLogDTO {
   jobName?: string;
   jobGroup?: string;
   invokeTarget?: string;
+  jobParams?: string;
   cronExpression?: string;
   triggerType?: number;
   triggerTypeStr?: string;
@@ -62,6 +64,7 @@ export interface JobRequest {
   jobName: string;
   jobGroup: string;
   invokeTarget: string;
+  jobParams?: string;
   cronExpression: string;
   concurrent: number;
   status: number;

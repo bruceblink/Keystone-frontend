@@ -74,6 +74,11 @@ const columns: TableColumnList = [
     minWidth: 180
   },
   {
+    label: "任务参数",
+    prop: "jobParams",
+    minWidth: 180
+  },
+  {
     label: "异常信息",
     prop: "exceptionInfo",
     minWidth: 260

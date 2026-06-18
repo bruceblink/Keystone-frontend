@@ -10,6 +10,23 @@ export const formRules = reactive(<FormRules>{
   cronExpression: [
     { required: true, message: "Cron表达式不能为空", trigger: "blur" }
   ],
+  jobParams: [
+    {
+      validator: (_rule, value: string, callback) => {
+        if (!value) {
+          callback();
+          return;
+        }
+        try {
+          JSON.parse(value);
+          callback();
+        } catch {
+          callback(new Error("任务参数必须是有效JSON"));
+        }
+      },
+      trigger: "blur"
+    }
+  ],
   concurrent: [
     { required: true, message: "允许并发不能为空", trigger: "change" }
   ],
