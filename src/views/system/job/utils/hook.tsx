@@ -173,24 +173,26 @@ export function useJobHook() {
   }
 
   function openDialog(title = "新增", row?: JobDTO) {
+    const formInline: JobRequest = {
+      jobName: row?.jobName ?? "",
+      jobGroup: row?.jobGroup ?? "DEFAULT",
+      invokeTarget: row?.invokeTarget ?? "",
+      cronExpression: row?.cronExpression ?? "",
+      concurrent: row?.concurrent ?? 0,
+      status: row?.status ?? 0,
+      remark: row?.remark ?? ""
+    };
+
     addDialog({
       title: `${title}定时任务`,
       props: {
-        formInline: {
-          jobName: row?.jobName ?? "",
-          jobGroup: row?.jobGroup ?? "DEFAULT",
-          invokeTarget: row?.invokeTarget ?? "",
-          cronExpression: row?.cronExpression ?? "",
-          concurrent: row?.concurrent ?? 0,
-          status: row?.status ?? 0,
-          remark: row?.remark ?? ""
-        }
+        formInline
       },
       width: "44%",
       draggable: true,
       fullscreenIcon: true,
       closeOnClickModal: false,
-      contentRenderer: () => h(editForm, { ref: formRef }),
+      contentRenderer: () => h(editForm, { ref: formRef, formInline }),
       beforeSure: (done, { options }) => {
         const curData = options.props.formInline as JobRequest;
         formRef.value.getFormRuleRef().validate(valid => {
