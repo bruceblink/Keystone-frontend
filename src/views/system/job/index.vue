@@ -10,7 +10,6 @@ import EditPen from "@iconify-icons/ep/edit-pen";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
 import VideoPlay from "@iconify-icons/ep/video-play";
-import Tickets from "@iconify-icons/ep/tickets";
 import AddFill from "@iconify-icons/ri/add-circle-line";
 
 defineOptions({
@@ -141,56 +140,61 @@ const {
             rows => (multipleSelection = rows.map(item => item.jobId))
           "
         >
+          <template #jobId="{ row }">
+            <el-tooltip content="查看运行日志" placement="top">
+              <el-button
+                class="job-id-link"
+                link
+                type="primary"
+                :size="size"
+                @click="openLogDialog(row)"
+              >
+                {{ row.jobId }}
+              </el-button>
+            </el-tooltip>
+          </template>
           <template #operation="{ row }">
-            <el-button
-              class="reset-margin"
-              link
-              type="primary"
-              :size="size"
-              :icon="useRenderIcon(VideoPlay)"
-              @click="handleRun(row)"
-            >
-              执行
-            </el-button>
-            <el-button
-              class="reset-margin"
-              link
-              type="primary"
-              :size="size"
-              :icon="useRenderIcon(Tickets)"
-              @click="openLogDialog(row)"
-            >
-              日志
-            </el-button>
-            <el-button
-              class="reset-margin"
-              link
-              :type="row.status === 1 ? 'warning' : 'success'"
-              :size="size"
-              @click="handleStatusChange(row, row.status === 1 ? 0 : 1)"
-            >
-              {{ row.status === 1 ? "暂停" : "恢复" }}
-            </el-button>
-            <el-button
-              class="reset-margin"
-              link
-              type="primary"
-              :size="size"
-              :icon="useRenderIcon(EditPen)"
-              @click="openDialog('编辑', row)"
-            >
-              修改
-            </el-button>
-            <el-button
-              class="reset-margin"
-              link
-              type="danger"
-              :size="size"
-              :icon="useRenderIcon(Delete)"
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
+            <div class="operation-buttons">
+              <el-button
+                class="operation-button"
+                link
+                type="primary"
+                :size="size"
+                :icon="useRenderIcon(VideoPlay)"
+                @click="handleRun(row)"
+              >
+                执行
+              </el-button>
+              <el-button
+                class="operation-button"
+                link
+                :type="row.status === 1 ? 'warning' : 'success'"
+                :size="size"
+                @click="handleStatusChange(row, row.status === 1 ? 0 : 1)"
+              >
+                {{ row.status === 1 ? "暂停" : "恢复" }}
+              </el-button>
+              <el-button
+                class="operation-button"
+                link
+                type="primary"
+                :size="size"
+                :icon="useRenderIcon(EditPen)"
+                @click="openDialog('编辑', row)"
+              >
+                修改
+              </el-button>
+              <el-button
+                class="operation-button"
+                link
+                type="danger"
+                :size="size"
+                :icon="useRenderIcon(Delete)"
+                @click="handleDelete(row)"
+              >
+                删除
+              </el-button>
+            </div>
           </template>
         </pure-table>
       </template>
@@ -203,5 +207,25 @@ const {
   :deep(.el-form-item) {
     margin-bottom: 12px;
   }
+}
+
+.operation-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  min-width: 240px;
+  white-space: nowrap;
+}
+
+.operation-button {
+  flex: none;
+  margin-left: 0 !important;
+}
+
+.job-id-link {
+  padding: 0;
+  margin-left: 0 !important;
+  font-weight: 500;
 }
 </style>

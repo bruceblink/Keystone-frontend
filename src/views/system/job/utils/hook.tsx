@@ -82,7 +82,8 @@ export function useJobHook() {
     {
       label: "任务编号",
       prop: "jobId",
-      minWidth: 100
+      minWidth: 100,
+      slot: "jobId"
     },
     {
       label: "任务名称",
@@ -147,7 +148,7 @@ export function useJobHook() {
     {
       label: "操作",
       fixed: "right",
-      width: 260,
+      width: 280,
       slot: "operation"
     }
   ];
