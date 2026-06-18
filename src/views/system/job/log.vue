@@ -117,36 +117,41 @@ onMounted(() => {
       <span class="job-log__target">{{ props.job.invokeTarget }}</span>
       <el-button size="small" @click="getJobLogs()">刷新</el-button>
     </div>
-    <pure-table
-      border
-      align-whole="center"
-      showOverflowTooltip
-      table-layout="auto"
-      :loading="loading"
-      :data="dataList"
-      :columns="columns"
-      :default-sort="defaultSort"
-      :pagination="pagination"
-      @page-size-change="getJobLogs"
-      @page-current-change="getJobLogs"
-      @sort-change="getJobLogs"
-    >
-      <template #triggerType="{ row }">
-        <el-tag :type="triggerTagType(row.triggerType)" effect="plain">
-          {{ row.triggerTypeStr || "-" }}
-        </el-tag>
-      </template>
-      <template #status="{ row }">
-        <el-tag :type="statusTagType(row.status)" effect="plain">
-          {{ row.statusStr || "-" }}
-        </el-tag>
-      </template>
-    </pure-table>
+    <div class="job-log__table">
+      <pure-table
+        border
+        align-whole="center"
+        showOverflowTooltip
+        table-layout="auto"
+        :loading="loading"
+        :data="dataList"
+        :columns="columns"
+        :default-sort="defaultSort"
+        :pagination="pagination"
+        @page-size-change="getJobLogs"
+        @page-current-change="getJobLogs"
+        @sort-change="getJobLogs"
+      >
+        <template #triggerType="{ row }">
+          <el-tag :type="triggerTagType(row.triggerType)" effect="plain">
+            {{ row.triggerTypeStr || "-" }}
+          </el-tag>
+        </template>
+        <template #status="{ row }">
+          <el-tag :type="statusTagType(row.status)" effect="plain">
+            {{ row.statusStr || "-" }}
+          </el-tag>
+        </template>
+      </pure-table>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .job-log {
+  display: flex;
+  flex-direction: column;
+  height: 520px;
   min-height: 420px;
 }
 
@@ -167,5 +172,28 @@ onMounted(() => {
   color: var(--el-text-color-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.job-log__table {
+  flex: 1;
+  min-height: 0;
+}
+
+.job-log__table :deep(.pure-table) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.job-log__table :deep(.el-table) {
+  flex: 1;
+}
+
+.job-log__table :deep(.pure-pagination) {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  padding-top: 16px;
+  margin-top: auto;
 }
 </style>
