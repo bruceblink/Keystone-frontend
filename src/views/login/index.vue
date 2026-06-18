@@ -30,9 +30,12 @@ import { ElMessageBox } from "element-plus";
 import {
   getIsRememberMe,
   getPassword,
+  getUsername,
   removePassword,
+  removeUsername,
   saveIsRememberMe,
   savePassword,
+  saveUsername,
   setTokenFromBackend
 } from "@/utils/auth";
 
@@ -71,7 +74,7 @@ dataThemeChange();
 const { title } = useNav();
 
 const ruleForm = reactive({
-  username: "admin",
+  username: getUsername(),
   password: getPassword(),
   captchaCode: "",
   captchaCodeKey: ""
@@ -86,6 +89,7 @@ const finishLogin = (data: CommonAPI.TokenDTO) => {
     message("登录成功", { type: "success" });
   });
   if (isRememberMe.value) {
+    saveUsername(ruleForm.username);
     savePassword(ruleForm.password);
   }
 };
@@ -191,6 +195,7 @@ async function getCaptchaCode() {
 watch(isRememberMe, newVal => {
   saveIsRememberMe(newVal);
   if (newVal === false) {
+    removeUsername();
     removePassword();
   }
 });
@@ -209,6 +214,7 @@ onBeforeMount(async () => {
 
   isRememberMe.value = getIsRememberMe();
   if (isRememberMe.value) {
+    ruleForm.username = getUsername();
     ruleForm.password = getPassword();
   }
 });

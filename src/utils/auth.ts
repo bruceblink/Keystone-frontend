@@ -22,6 +22,7 @@ export interface DataInfo<T> {
 export const sessionKey = "user-info";
 export const tokenKey = "authorized-token";
 export const isRememberMeKey = "ag-is-remember-me";
+export const usernameKey = "ag-username";
 export const passwordKey = "ag-password";
 
 /** 获取`token` */
@@ -83,9 +84,20 @@ export function savePassword(password: string) {
   Cookies.set(passwordKey, encryptPassword);
 }
 
+/** 将账号加密后 存入cookies中 */
+export function saveUsername(username: string) {
+  const encryptUsername = aesEncrypt(username);
+  Cookies.set(usernameKey, encryptUsername);
+}
+
 /** 将密码中cookies中删除 */
 export function removePassword() {
   Cookies.remove(passwordKey);
+}
+
+/** 将账号从cookies中删除 */
+export function removeUsername() {
+  Cookies.remove(usernameKey);
 }
 
 /** 获取密码 并解密 */
@@ -99,6 +111,19 @@ export function getPassword(): string {
     return aesDecrypt(encryptPassword);
   }
   return null;
+}
+
+/** 获取账号 并解密 */
+export function getUsername(): string {
+  const encryptUsername = Cookies.get(usernameKey);
+  if (
+    encryptUsername !== null &&
+    encryptUsername !== undefined &&
+    encryptUsername.trim() !== ""
+  ) {
+    return aesDecrypt(encryptUsername);
+  }
+  return "";
 }
 
 export function saveIsRememberMe(isRememberMe: boolean) {
