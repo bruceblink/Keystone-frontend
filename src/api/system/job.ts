@@ -29,6 +29,34 @@ export interface JobInvokeTargetDTO {
   description?: string;
 }
 
+export interface JobLogQuery extends BasePageQuery {
+  jobId?: number;
+  jobName?: string;
+  jobGroup?: string;
+  invokeTarget?: string;
+  triggerType?: number;
+  status?: number;
+}
+
+export interface JobLogDTO {
+  jobLogId?: number;
+  jobId?: number;
+  jobName?: string;
+  jobGroup?: string;
+  invokeTarget?: string;
+  cronExpression?: string;
+  triggerType?: number;
+  triggerTypeStr?: string;
+  status?: number;
+  statusStr?: string;
+  jobMessage?: string;
+  exceptionInfo?: string;
+  startTime?: Date;
+  endTime?: Date;
+  durationMs?: number;
+  createTime?: Date;
+}
+
 export interface JobRequest {
   jobId?: number;
   jobName: string;
@@ -58,6 +86,14 @@ export const getJobInvokeTargetsApi = () => {
   return http.request<ResponseData<JobInvokeTargetDTO[]>>(
     "get",
     "/system/jobs/invoke-targets"
+  );
+};
+
+export const getJobLogListApi = (params?: JobLogQuery) => {
+  return http.request<ResponseData<PageDTO<JobLogDTO>>>(
+    "get",
+    "/system/jobs/logs",
+    { params }
   );
 };
 

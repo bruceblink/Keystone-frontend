@@ -10,6 +10,7 @@ import EditPen from "@iconify-icons/ep/edit-pen";
 import Search from "@iconify-icons/ep/search";
 import Refresh from "@iconify-icons/ep/refresh";
 import VideoPlay from "@iconify-icons/ep/video-play";
+import Tickets from "@iconify-icons/ep/tickets";
 import AddFill from "@iconify-icons/ri/add-circle-line";
 
 defineOptions({
@@ -35,6 +36,7 @@ const {
   handleDelete,
   handleBulkDelete,
   handleRun,
+  openLogDialog,
   handleStatusChange
 } = useJobHook();
 </script>
@@ -149,6 +151,16 @@ const {
               @click="handleRun(row)"
             >
               执行
+            </el-button>
+            <el-button
+              class="reset-margin"
+              link
+              type="primary"
+              :size="size"
+              :icon="useRenderIcon(Tickets)"
+              @click="openLogDialog(row)"
+            >
+              日志
             </el-button>
             <el-button
               class="reset-margin"

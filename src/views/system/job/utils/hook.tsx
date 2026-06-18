@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import editForm from "../form.vue";
+import jobLog from "../log.vue";
 import { addDialog } from "@/components/ReDialog";
 import { message } from "@/utils/message";
 import { CommonUtils } from "@/utils/common";
@@ -281,6 +282,21 @@ export function useJobHook() {
     });
   }
 
+  function openLogDialog(row: JobRow) {
+    addDialog({
+      title: `运行日志 - ${row.jobName}`,
+      props: {
+        job: row
+      },
+      width: "78%",
+      draggable: true,
+      fullscreenIcon: true,
+      closeOnClickModal: false,
+      hideFooter: true,
+      contentRenderer: () => h(jobLog, { job: row })
+    });
+  }
+
   async function handleStatusChange(row: JobRow, status: number) {
     await updateJobStatusApi(row.jobId, { status }).then(() => {
       message(`定时任务 ${row.jobName} 状态已更新`, { type: "success" });
@@ -307,6 +323,7 @@ export function useJobHook() {
     handleDelete,
     handleBulkDelete,
     handleRun,
+    openLogDialog,
     handleStatusChange
   };
 }
