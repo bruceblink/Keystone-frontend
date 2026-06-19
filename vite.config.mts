@@ -50,7 +50,7 @@ function sendDevConfigFallback(res: ServerResponse) {
 
 function devConfigFallbackPlugin(): Plugin {
   return {
-    name: "agileboot:dev-config-fallback",
+    name: "keystone:dev-config-fallback",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use("/api/getConfig", async (_req, res) => {

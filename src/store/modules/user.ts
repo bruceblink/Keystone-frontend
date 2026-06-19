@@ -27,9 +27,9 @@ export const useUserStore = defineStore({
       ? [storageSession().getItem<TokenDTO>(sessionKey)?.currentUser.roleKey]
       : [],
     dictionaryList:
-      storageLocal().getItem<Map<string, DictionaryData[]>>(
+      storageLocal().getItem<Record<string, DictionaryData[]>>(
         dictionaryListKey
-      ) ?? new Map(),
+      ) ?? {},
     dictionaryMap:
       storageLocal().getItem<Record<string, Record<string, DictionaryData>>>(
         dictionaryMapKey
@@ -64,10 +64,10 @@ export const useUserStore = defineStore({
         string,
         Record<string, DictionaryData>
       > = {};
-      const dictionaryListTmp = new Map<string, DictionaryData[]>();
+      const dictionaryListTmp: Record<string, DictionaryData[]> = {};
 
       for (const [key, list] of dictionaryEntries) {
-        dictionaryListTmp.set(String(key), list || []);
+        dictionaryListTmp[String(key)] = list || [];
         dictionaryMapTmp[String(key)] = (list || []).reduce((map, dict) => {
           map[String(dict.value)] = dict;
           return map;
@@ -78,7 +78,7 @@ export const useUserStore = defineStore({
       this.dictionaryList = dictionaryListTmp;
       this.dictionaryMap = dictionaryMapTmp;
 
-      storageLocal().setItem<Map<string, DictionaryData[]>>(
+      storageLocal().setItem<Record<string, DictionaryData[]>>(
         dictionaryListKey,
         dictionaryListTmp
       );

@@ -1,36 +1,50 @@
-<h1>vue-pure-admin Lite Edition（no i18n version）</h1>
+# Keystone Frontend
 
-[![license](https://img.shields.io/github/license/pure-admin/vue-pure-admin.svg)](LICENSE)
+[中文](./README.md) | **English**
 
-**English** | [中文](./README.md)
+Keystone Frontend is the Vue 3 administration UI for [Keystone](https://github.com/bruceblink/Keystone). It is built with Vite, TypeScript, Element Plus, Pinia, Vue Router, Axios, and the pure-admin component ecosystem.
 
-## Introduce
+## Requirements
 
-The simplified version is based on the shelf extracted from [vue-pure-admin](https://github.com/pure-admin/vue-pure-admin), which contains main functions and is more suitable for actual project development. The packaged size is introduced globally [element-plus](https://element-plus.org) is still below `2.3MB`, and the full version of the code will be permanently synchronized. After enabling `brotli` compression and `cdn` to replace the local library mode, the package size is less than `350kb`
+- Node.js 18+
+- pnpm 10+
+- Keystone backend running at `http://localhost:18080`
 
-## Supporting Video
+## Quick Start
 
-- [Click Watch Tutorial](https://www.bilibili.com/video/BV1kg411v7QT)
-- [Click Watch UI Design](https://www.bilibili.com/video/BV17g411T7rq)
+```bash
+pnpm install
+pnpm dev
+```
 
-## Docs
+The development server listens on `http://localhost:8848` by default.
 
-- [documentation site](https://yiming_chang.gitee.io/pure-admin-doc)
+## Backend Alignment
 
-## Preview
+The backend project is Keystone `3.6.1`. Its default local profile is `dev`, and the default backend port is `18080`.
 
-- [Click me to view the preview station](https://pure-admin-thin.netlify.app/#/login)
+Development proxy rules are defined in [vite.config.mts](vite.config.mts):
 
-## Maintainer
+| Frontend path      | Target                                   | Notes                                   |
+| ------------------ | ---------------------------------------- | --------------------------------------- |
+| `/api/*`           | `http://localhost:18080/*`               | Business API, removes the `/api` prefix |
+| `/v3/*`            | `http://localhost:18080/v3/*`            | OpenAPI JSON                            |
+| `/swagger-ui/*`    | `http://localhost:18080/swagger-ui/*`    | Swagger UI                              |
+| `/swagger-ui.html` | `http://localhost:18080/swagger-ui.html` | Compatibility entry                     |
 
-[xiaoxian521](https://github.com/xiaoxian521)
+Authentication endpoints used by the frontend include `/getConfig`, `/captchaImage`, `/login/rsa-public-key`, `/login`, `/refresh-token`, `/logout-refresh-token`, and `/logout`.
 
-## ⚠️ Attention
+## Scripts
 
-- The Lite version does not accept any issues and prs. If you have any questions, please go to the full version [issues](https://github.com/pure-admin/vue-pure-admin/issues/new/choose) to mention, thank you!
+| Command               | Description                        |
+| --------------------- | ---------------------------------- |
+| `pnpm dev`            | Start the development server       |
+| `pnpm build`          | Build production assets            |
+| `pnpm typecheck`      | Run TypeScript and Vue type checks |
+| `pnpm lint:eslint`    | Run ESLint with auto-fix           |
+| `pnpm lint:prettier`  | Format source files with Prettier  |
+| `pnpm lint:stylelint` | Run Stylelint with auto-fix        |
 
 ## License
 
-In principle, no fees and copyrights are charged, and it is commercially available, but if you need secondary open source (such as using this platform for secondary development and open source, the front-end code must be open source and free), please contact the author for permission! (Free, just take a record)
-
-[MIT © 2020-present, pure-admin](./LICENSE)
+MIT. Keep upstream dependency and template license requirements in mind when redistributing derivative work.

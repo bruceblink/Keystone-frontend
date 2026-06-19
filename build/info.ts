@@ -54,8 +54,8 @@ export function viteBuildInfo(): Plugin {
         bold(
           green(
             `👏  欢迎使用${blue(
-              "[Agileboot全栈项目]"
-            )}，如果您感觉不错，记得点击后面链接给个star哦💖  https://github.com/bruceblink/agileboot-back-end`
+              "[Keystone 前端项目]"
+            )}，如果您感觉不错，记得点击后面链接给个star哦💖  https://github.com/bruceblink/Keystone`
           )
         )
       );

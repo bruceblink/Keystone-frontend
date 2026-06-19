@@ -1,143 +1,156 @@
 <p align="center">
-      <img src="https://img.shields.io/badge/Release-V2.0.0-green.svg" alt="Downloads">
-      <img src="https://img.shields.io/badge/Node.js-16.0+-green.svg" alt="Build Status">
-  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="Build Status">
-   <img src="https://img.shields.io/badge/Vue-3.5-blue.svg" alt="Downloads">
-   <a target="_blank" href="https://likanug.top">
-   <img src="https://img.shields.io/badge/Author-likanug-ff69b4.svg" alt="Downloads">
- </a>
- <a target="_blank" href="https://likanug.top">
-   <img src="https://img.shields.io/badge/Copyright%20-@Agileboot-%23ff3f59.svg" alt="Downloads">
- </a>
- </p>
-<h1 align="center" style="margin: 30px 0 30px; font-weight: bold;">AgileBoot v2.0.0</h1>
+  <img src="https://img.shields.io/badge/Release-V3.6.1-green.svg" alt="Release">
+  <img src="https://img.shields.io/badge/Node.js-18%2B-green.svg" alt="Node.js">
+  <img src="https://img.shields.io/badge/Vue-3.5-blue.svg" alt="Vue">
+  <img src="https://img.shields.io/badge/Vite-5.4-blue.svg" alt="Vite">
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
+</p>
 
-<h4 align="center">基于SpringBoot+Vue3前后端分离的Java快速开发框架</h4>
+<h1 align="center" style="margin: 30px 0 30px; font-weight: bold;">Keystone Frontend</h1>
 
-## ⚡ 平台简介 ⚡
+<h4 align="center">Keystone 后台管理系统前端，基于 Vue 3 + Vite + TypeScript + Element Plus。</h4>
 
-AgileBoot 是一套开源的全栈精简快速开发平台，毫无保留给个人及企业免费使用。本项目的目标是做一款精简可靠，代码风格优良，项目规范的小型开发脚手架。
+## 项目定位
 
-• 本仓库是 Agileboot 快速开发脚手架的配套前端项目。前端是基于优秀的开源项目[AgileBoot-Front-End](https://github.com/valarchie/AgileBoot-Front-End)开发而成。在此感谢[作者](https://github.com/valarchie)。
-• 配套后端代码仓库地址[AgileBoot-Back-End](https://github.com/bruceblink/AgileBoot-Back-End)。
-• 前端采用 Vue3、Element Plus、TypeScript、Pinia 等现代化技术栈。
+本仓库是 [Keystone](https://github.com/bruceblink/Keystone) 的配套前端项目，面向用户、角色、菜单、部门、岗位、字典、配置、公告、日志、在线用户、服务监控、缓存监控和定时任务等后台管理场景。
 
-## 💥 在线体验 💥
+Keystone 后端当前版本为 `3.6.1`，默认服务端口为 `18080`，默认本地 profile 为 `dev`。前端开发环境通过 Vite 代理访问后端，业务接口保持后端根路径风格，例如 `/login`、`/refresh-token`、`/getConfig` 和 `/system/jobs`。
 
-演示地址：<https://agileboot-front-end.pages.dev>
+## 技术栈
 
-## 🌴 项目背景 🌴
+| 技术             | 用途        | 版本  |
+| ---------------- | ----------- | ----- |
+| Vue              | 前端框架    | 3.5+  |
+| Vite             | 构建工具    | 5.4+  |
+| TypeScript       | 类型系统    | 5.0+  |
+| Element Plus     | UI 组件库   | 2.14+ |
+| Pinia            | 状态管理    | 2.3+  |
+| Vue Router       | 路由        | 4.6+  |
+| Axios            | HTTP 客户端 | 1.17+ |
+| @pureadmin/table | 表格组件    | 2.4+  |
 
-- 适合个人开发者的小型项目或者公司内部项目使用。也可作为供初学者学习使用的案例。
-- 有任何问题或者建议，可以在 Issues 中提给作者。**您的 Issue 比 Star 更重要**
-- 如果觉得项目对您有帮助，可以来个 Star ⭐
+## 环境要求
 
-## ✨ 使用 ✨
+- Node.js 18+，建议使用当前 LTS 版本。
+- pnpm 10+，仓库使用 `pnpm-lock.yaml` 锁定依赖。
+- 本地联调需要 Keystone 后端运行在 `http://localhost:18080`。
 
-### 开发环境
+## 快速开始
 
-• Node.js 16.0+
-• pnpm 6.0+
+### 1. 启动 Keystone 后端
 
-> 优先选择 node=16, pnpm=7.30.5 的环境
-
-### 技术栈
-
-| 技术             | 说明                   | 版本  |
-| ---------------- | ---------------------- | ----- |
-| Vue              | 渐进式 JavaScript 框架 | 3.5+  |
-| Element Plus     | Vue 3 的 UI 元件库     | 2.13+ |
-| Vite             | 下一代前端构建工具     | 5.4+  |
-| TypeScript       | JavaScript 的超集      | 5.0+  |
-| Pinia            | Vue 3 状态管理         | 2.1+  |
-| Vue Router       | Vue 3 的官方路由       | 4.2+  |
-| Axios            | HTTP 客户端            | 1.15+ |
-| @pureadmin/table | 纯管理表格组件库       | 2.3+  |
-| Element Icons    | Element 图标库         | 2.1+  |
-
-### 快速开始
-
-#### 1. 安装 pnpm
-
-如果您还没安装 pnpm，请执行下面命令进行安装（mac 用户遇到安装报错请在命令前加上 sudo）
+后端仓库默认位于同级目录 `../Keystone`。本地开发通常先启动 MySQL 和 Redis，再用 IDE 或 Gradle 启动 `app.keystone.admin.KeystoneAdminApplication`。
 
 ```bash
-npm install -g pnpm
+cd ../Keystone/docker
+docker compose up -d mysql redis
 ```
 
-#### 2. 配置 npm 源（可选）
+后端本地默认配置：
 
-```bash
-npm config set registry https://registry.npmmirror.com
-```
+| 项       | 默认值                                                                          |
+| -------- | ------------------------------------------------------------------------------- |
+| 后端地址 | `http://localhost:18080`                                                        |
+| MySQL    | `localhost:33066` / DB: `keystone` / User: `root` / Pass: encrypted secret file |
+| Redis    | `localhost:6379` / Pass: `12345`                                                |
+| Profile  | `dev`                                                                           |
 
-#### 3. 安装依赖
+### 2. 安装前端依赖
 
 ```bash
 pnpm install
 ```
 
-#### 4. 启动开发环境
+首次安装如果 pnpm 提示 `approve-builds`，按本机安全策略确认依赖构建脚本即可。
+
+### 3. 启动前端
 
 ```bash
-pnpm run dev
+pnpm dev
 ```
 
-#### 5. 构建生产版本
+默认端口为 `8848`，访问 `http://localhost:8848`。
+
+### 4. 构建生产版本
 
 ```bash
-pnpm run build
+pnpm build
 ```
 
-### 常用命令
+构建产物输出到 `dist/`。
 
-| 命令                     | 说明                |
-| ------------------------ | ------------------- |
-| `pnpm install`           | 安装依赖            |
-| `pnpm add <package>`     | 安装一个包          |
-| `pnpm remove <package>`  | 卸载一个包          |
-| `pnpm run dev`           | 启动开发服务器      |
-| `pnpm run build`         | 生产构建            |
-| `pnpm run typecheck`     | 类型检查            |
-| `pnpm run lint:eslint`   | ESLint 代码检查     |
-| `pnpm run lint:prettier` | Prettier 代码格式化 |
+## 前后端接口约定
 
-## 🙊 系统内置功能 🙊
+开发环境 Vite 代理规则在 [vite.config.mts](vite.config.mts) 中维护：
 
-🙂 大部分功能，均有通过 **单元测试** **集成测试** 保证质量。
+| 前端路径           | 代理目标                                 | 说明                             |
+| ------------------ | ---------------------------------------- | -------------------------------- |
+| `/api/*`           | `http://localhost:18080/*`               | 业务 API，代理时去掉 `/api` 前缀 |
+| `/v3/*`            | `http://localhost:18080/v3/*`            | OpenAPI JSON                     |
+| `/swagger-ui/*`    | `http://localhost:18080/swagger-ui/*`    | Swagger UI                       |
+| `/swagger-ui.html` | `http://localhost:18080/swagger-ui.html` | Swagger UI 兼容入口              |
 
-|     | 功能       | 描述                                                          |
-| --- | ---------- | ------------------------------------------------------------- |
-|     | 用户管理   | 用户是系统操作者，该功能主要完成系统用户配置                  |
-| ⭐  | 部门管理   | 配置系统组织机构（公司、部门、小组），树结构展现支持数据权限  |
-| ⭐  | 岗位管理   | 配置系统用户所属担任职务                                      |
-|     | 菜单管理   | 配置系统菜单、操作权限、按钮权限标识等，本地缓存提供性能      |
-| ⭐  | 角色管理   | 角色菜单权限分配、设置角色按机构进行数据范围权限划分          |
-|     | 参数管理   | 对系统动态配置常用参数                                        |
-|     | 通知公告   | 系统通知公告信息发布维护                                      |
-| 🚀  | 操作日志   | 系统正常操作日志记录和查询；系统异常信息日志记录和查询        |
-|     | 登录日志   | 系统登录日志记录查询包含登录异常                              |
-|     | 在线用户   | 当前系统中活跃用户状态监控                                    |
-|     | 系统接口   | 根据业务代码自动生成相关的 api 接口文档                       |
-|     | 服务监控   | 监视当前系统 CPU、内存、磁盘、堆栈等相关信息                  |
-|     | 缓存监控   | 对系统的缓存信息查询，命令统计等                              |
-|     | 连接池监视 | 监视当前系统数据库连接池状态，可进行分析 SQL 找出系统性能瓶颈 |
+当前登录相关接口：
 
-## 🐯 工程结构 🐯
+| 接口                         | 用途                                                        |
+| ---------------------------- | ----------------------------------------------------------- |
+| `GET /getConfig`             | 登录页配置和字典数据                                        |
+| `GET /captchaImage`          | 验证码                                                      |
+| `GET /login/rsa-public-key`  | 获取 RSA 公钥，用于登录密码加密                             |
+| `POST /login`                | 统一登录入口，按后端 auth mode 选择 local 或 Keylo 凭证认证 |
+| `POST /refresh-token`        | 刷新 Keystone access token                                  |
+| `POST /logout-refresh-token` | access token 失效后释放 refresh 会话                        |
+| `POST /logout`               | 退出当前登录                                                |
 
-```
-AgileBoot-Front-End
+`/api/getConfig` 在开发模式下有本地兜底响应：后端未启动时会返回关闭验证码、空字典的最小配置，方便打开登录页；真实联调仍应以后端 `/getConfig` 为准。
+
+## 常用命令
+
+| 命令                                             | 说明                       |
+| ------------------------------------------------ | -------------------------- |
+| `pnpm install`                                   | 安装依赖                   |
+| `pnpm dev`                                       | 启动开发服务器             |
+| `pnpm build`                                     | 生产构建                   |
+| `pnpm typecheck`                                 | TypeScript 和 Vue 类型检查 |
+| `pnpm exec eslint "src/**/*.{js,ts,tsx,vue}"`    | 只检查 ESLint，不自动改写  |
+| `pnpm exec stylelint "**/*.{html,vue,css,scss}"` | 只检查样式，不自动改写     |
+| `pnpm lint:eslint`                               | ESLint 检查并自动修复      |
+| `pnpm lint:prettier`                             | Prettier 格式化            |
+| `pnpm lint:stylelint`                            | Stylelint 检查并自动修复   |
+
+## 内置功能
+
+| 功能     | 描述                                       |
+| -------- | ------------------------------------------ |
+| 用户管理 | 系统用户配置、状态维护、重置密码           |
+| 部门管理 | 组织机构树维护                             |
+| 岗位管理 | 用户岗位维护                               |
+| 菜单管理 | 菜单、路由、按钮权限标识维护               |
+| 角色管理 | 角色菜单权限和数据范围配置                 |
+| 字典管理 | 字典类型和字典数据维护，对齐后端 DB 字典源 |
+| 参数管理 | 系统动态配置维护                           |
+| 通知公告 | 系统通知公告发布维护                       |
+| 定时任务 | 后端调度任务、执行状态和日志管理           |
+| 操作日志 | 系统操作日志查询                           |
+| 登录日志 | 登录记录和异常查询                         |
+| 在线用户 | 当前活跃用户状态监控                       |
+| 服务监控 | CPU、内存、磁盘、JVM 等服务信息            |
+| 缓存监控 | Redis 缓存信息和命令统计                   |
+
+## 工程结构
+
+```text
+Keystone-frontend
 ├── build/                    # Vite 构建脚本
-├── dist/                     # 生产构建输出
-├── mock/                     # 模拟数据
-├── public/                   # 公共资源
+├── mock/                     # Mock 数据
+├── public/                   # 公共资源和 serverConfig.json
 ├── src/
 │   ├── api/                  # API 接口封装
-│   ├── assets/               # 静态资源（图片、SVG、字体等）
+│   ├── assets/               # 静态资源
 │   ├── components/           # 公共组件
-│   ├── config/               # 项目配置
+│   ├── config/               # 运行时配置加载
 │   ├── directives/           # 自定义指令
-│   ├── layout/               # 布局组件
+│   ├── layout/               # 后台布局
 │   ├── plugins/              # Vue 插件
 │   ├── router/               # 路由配置
 │   ├── store/                # Pinia 状态管理
@@ -148,57 +161,28 @@ AgileBoot-Front-End
 │   └── main.ts               # 应用入口
 ├── types/                    # TypeScript 类型定义
 ├── index.html                # HTML 模板
-├── package.json              # 项目依赖配置
+├── package.json              # 项目依赖和脚本
 ├── pnpm-lock.yaml            # 依赖锁定文件
 ├── tsconfig.json             # TypeScript 配置
-├── vite.config.ts            # Vite 配置
+├── vite.config.mts           # Vite 配置
 └── README.md                 # 项目说明
 ```
 
-### 代码规范
+## 开发注意事项
 
-- **编码风格**: 采用 Google 代码风格规范
-- **类型检查**: 使用 TypeScript 进行严格的类型检查
-- **代码格式化**: Prettier 自动格式化代码
-- **代码检查**: ESLint 进行代码质量检查
-- **样式检查**: Stylelint 进行样式规范检查
+- `public/serverConfig.json` 维护前端运行时标题、布局、主题等配置。
+- 登录页配置和系统字典来自后端 `/getConfig`，后端字典源为 `sys_dict_type` / `sys_dict_data`。
+- Keystone token 和 refresh token 由后端签发，前端在 token 失效时调用 `/refresh-token`。
+- 同一账号默认只允许一个在线会话；登录冲突时前端可带 `forceLogin=true` 接管旧会话。
+- Swagger UI 可通过 `http://localhost:8848/swagger-ui/index.html` 走开发代理访问，是否可用取决于后端当前环境配置。
 
-## 🌻 注意事项 🌻
+## 相关文档
 
-• **编辑器配置**: 请在 VS Code 中安装 Volar 插件以获得最好的 Vue 3 + TypeScript 支持
-• **代码格式化**: 项目集成了 Prettier，建议开启 Format on Save
-• **开发工具**: 建议使用 [Vue DevTools](https://devtools.vuejs.org/) 进行调试
-• **国内源配置**: 如遇网络问题，可配置国内镜像源：
+- 后端仓库：[Keystone](https://github.com/bruceblink/Keystone)
+- 后端完整工程文档：`../Keystone/docs/项目说明.md`
+- refresh token 设计：`../Keystone/docs/refresh-token-session-design.md`
+- 定时任务设计：`../Keystone/docs/scheduled-job-design.md`
 
-```bash
-npm config set registry https://registry.npmmirror.com
-```
+## 许可证
 
-• **环境变量**: 项目使用 `.env` 文件管理环境变量，请根据实际情况配置
-• **API 代理**: 开发环境配置了 `/dev-api` 代理指向后端服务，详见 `vite.config.ts`
-• **浏览器兼容**: 项目已去除 IE 11 支持，请使用现代浏览器访问
-
-## 📚 更多资源 📚
-
-• [Vue 3 官方文档](https://v3.cn.vuejs.org/)
-• [Element Plus 文档](https://element-plus.org/zh-CN/)
-• [Vite 中文文档](https://cn.vitejs.dev/)
-• [TypeScript 文档](https://www.typescriptlang.org/zh/)
-• [Pinia 文档](https://pinia.vuejs.org/zh/)
-• [AgileBoot 全栈项目详细教程](https://juejin.cn/post/7153812187834744845)
-
-### 许可证
-
-原则上不收取任何费用及版权，可商用，不过如需二次开源（比如用此平台二次开发并开源，要求前端代码必须开源免费）请联系作者获取许可！
-
-## Contributors
-
-<a href="https://github.com/bruceblink/AgileBoot-Front-End/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=bruceblink/AgileBoot-Front-End" alt="bruceblink/AgileBoot-Front-End"/>
-</a>
-
-## 支持项目
-
-如果觉得项目对您有帮助，可以来个 Star ⭐
-
-[![Sponsor](https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=#EA4AAA)](https://github.com/sponsors/bruceblink) [![Buy Me Coffee](https://img.shields.io/badge/Buy%20Me%20Coffee-FF5A5F?style=for-the-badge&logo=coffee&logoColor=FFFFFF)](https://buymeacoffee.com/bruceblink)
+本项目基于 MIT License 发布。二次开发和开源分发时请同时遵守上游依赖和原始模板项目的许可要求。

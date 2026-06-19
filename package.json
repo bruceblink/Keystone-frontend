@@ -1,5 +1,5 @@
 {
-  "name": "agileboot-front-end-pure",
+  "name": "keystone-frontend",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -133,7 +133,7 @@
       "stable": "*"
     }
   },
-  "repository": "git@github.com:bruceblink/AgileBoot-Front-End.git",
+  "repository": "git@github.com:bruceblink/Keystone-frontend.git",
   "author": "bruceblink",
   "license": "MIT"
 }

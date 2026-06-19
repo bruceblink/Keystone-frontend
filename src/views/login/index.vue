@@ -400,7 +400,7 @@ onBeforeUnmount(() => {
     <div class="flex items-center justify-center h-full">
       <div class="flex flex-col items-center justify-center mb-3">
         <span
-          >Copyright © {{ dayjs().year() }} Agileboot All Rights Reserved.
+          >Copyright © {{ dayjs().year() }} Keystone All Rights Reserved.
         </span>
       </div>
     </div>
